@@ -3,16 +3,16 @@ import { FileDown } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/context/AppContext";
-import { useApi } from "@/lib/api";
+import { api, useApi } from "@/lib/api";
 import { useDashboard } from "@/lib/useDashboard";
-import { fmtDate, pct, plColor, yen } from "@/lib/format";
+import { fmtDate, num, pct, plColor, yen } from "@/lib/format";
 import { Card, PageHeader, Spinner } from "@/components/common";
 import { Donut, TrendChart } from "@/components/charts";
 import { LogoFull } from "@/components/Logo";
 import { InsightItems } from "@/components/InsightPanel";
 import { AnswerSections } from "@/components/AIAssistant";
 
-const TYPES = ["rpt_total_assets", "rpt_liabilities", "rpt_net_worth", "rpt_portfolio", "rpt_pl", "rpt_income", "rpt_cashflow", "rpt_risk", "rpt_simulation", "rpt_ai", "rpt_consulting"];
+const TYPES = ["rpt_total_assets", "rpt_liabilities", "rpt_net_worth", "rpt_portfolio", "rpt_pl", "rpt_income", "rpt_cashflow", "rpt_risk", "rpt_simulation", "rpt_ai", "rpt_consulting", "rpt_goals", "rpt_data_health", "rpt_transactions"];
 
 function H({ children }) {
   return <h3 className="mb-3 mt-7 border-l-[3px] border-[#00A878] pl-3 font-display text-base font-bold text-[#071A2B]">{children}</h3>;
@@ -33,6 +33,7 @@ function Body({ type, d, cid }) {
   const { data: assets } = useApi(`/data/assets${q}`, [cid]);
   const { data: liabs } = useApi(`/data/liabilities${q}`, [cid]);
   const { data: cons } = useApi(type === "rpt_consulting" ? `/data/consulting${q}` : null, [cid, type]);
+  const { data: txs } = useApi(type === "rpt_transactions" ? `/data/transactions${q}` : null, [cid, type]);
   const { lang } = useApp();
   const { data: ai } = useApi(["rpt_ai", "rpt_consulting"].includes(type) ? `/ai/report?lang=${lang}${cid ? `&client_id=${cid}` : ""}` : null, [cid, type, lang]);
   const b = d.breakdowns, s = d.summary, cf = d.cashflow;
@@ -48,6 +49,9 @@ function Body({ type, d, cid }) {
     case "rpt_risk": return <><H>{t("risk_score")}: {d.risk.score}/100</H><T head={[t("risk"), t("score"), t("threshold"), t("status")]} rows={d.risk.items.map((i) => [t({ currency: "currency_risk", country: "country_risk", sector: "sector_risk", interest_rate: "interest_rate_risk", balance: "balance_risk" }[i.code] || i.code), i.value, `${i.reverse ? "<" : ">"} ${i.warn}`, t(i.level)])} /><H>{t("risks_to_watch")}</H><InsightItems items={d.insights.risks} /></>;
     case "rpt_simulation": return <><H>{t("scenario_compare")}</H><T head={[t("years"), t("bull"), t("base"), t("bear"), t("debt")]} rows={d.projection.rows.filter((r) => r.year % 5 === 0).map((r) => [r.year, yen(r.bull), yen(r.base), yen(r.bear), yen(r.debt)])} /><p className="mt-3 text-[11px] text-slate-500">{t("estimate")}: {t("bull")} 8% / {t("base")} 5% / {t("bear")} 1%</p></>;
     case "rpt_ai": return <><H>{t("ai_title")}</H>{["summary", "changes", "risks", "checks", "missing"].map((k) => <div key={k} className="mb-4"><div className="mb-1 text-xs font-bold text-slate-500">{t({ summary: "ai_summary", changes: "important_changes", risks: "risks_to_watch", checks: "items_to_check", missing: "missing_data" }[k])}</div><InsightItems items={d.insights[k]} /></div>)}</>;
+    case "rpt_goals": return <><H>{t("goals_progress")}</H><T head={[t("goal_name"), t("category"), t("current"), t("target_amount"), t("achievement"), t("target_date")]} rows={(d.goals || []).map((g) => [g.name, t(`g_${g.category}`), num(g.current, 0), num(g.target_amount, 0), `${g.progress_pct}%`, g.target_date || "—"])} /><p className="mt-3 text-[11px] text-slate-500">SIMULATION · {t("sim_note")}</p></>;
+    case "rpt_data_health": return <><H>{t("health_score")}: {d.health.score}/100 · {t(`health_${d.health.status}`)}</H><T head={[t("data_health"), t("status"), "#"]} rows={d.health.checks.map((c) => [t(`hc_${c.code}`), t(`health_${c.level}`), c.count])} /><p className="mt-3 text-[11px] text-slate-500">{t("health_note")}</p></>;
+    case "rpt_transactions": return <><H>{t("transactions")}</H><T head={[t("date"), t("tx_type"), t("quantity"), t("unit_price"), t("amount"), t("currency")]} rows={(txs || []).map((x) => [x.date, t(x.tx_type), num(x.quantity, 4), num(x.unit_price, 2), num(x.amount, 2), x.currency])} /></>;
     case "rpt_consulting": return <><H>{t("consulting_history")}</H><T head={[t("date"), t("kind"), t("title"), t("next_action")]} rows={(cons || []).map((c) => [fmtDate(c.date), t(c.kind), c.title, c.next_action || "—"])} />{ai && <><H>{t("ai_summary")}</H><AnswerSections sections={ai.sections} /></>}</>;
     default: return null;
   }
@@ -66,6 +70,7 @@ export default function Reports() {
     try {
       const html2pdf = (await import("html2pdf.js")).default;
       await html2pdf().set({ margin: [8, 8, 10, 8], filename: `FINORA_${type}_${new Date().toISOString().slice(0, 10)}.pdf`, image: { type: "jpeg", quality: 0.96 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: "mm", format: "a4" }, pagebreak: { mode: ["css", "legacy"] } }).from(ref.current).save();
+      api.post("/reports/log", { client_id: cid || null, report_type: type }).catch(() => {});
     } catch (e) { toast.error(String(e)); } finally { setBusy(false); }
   };
 

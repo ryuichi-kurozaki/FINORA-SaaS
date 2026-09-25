@@ -4,8 +4,10 @@ from typing import Optional
 from fastapi import APIRouter, Request, Response, HTTPException, Depends
 from pydantic import BaseModel, Field
 
+import pyotp
+
 from core import (db, now, now_iso, new_id, clean, hash_password, verify_password, make_token, decode_token,
-                  ip_of, current, staff, admin_only, audit, ACCESS_MIN, REFRESH_DAYS)
+                  ip_of, current, staff, admin_only, audit, encrypt, decrypt, ACCESS_MIN, REFRESH_DAYS)
 
 router = APIRouter(prefix="/api")
 MAX_ATTEMPTS = 5
@@ -59,6 +61,68 @@ async def login(body: LoginIn, request: Request, response: Response):
                                            "reason": "repeated_failure" if count >= 3 else "bad_credentials", "at": now_iso()})
         raise HTTPException(401, "Invalid email or password")
     await db.login_attempts.delete_one({"identifier": ident})
+    if user.get("totp_enabled"):
+        return {"requires_2fa": True, "challenge_token": make_token(user["id"], None, "2fa")}
+    return await complete_login(user, request, response)
+
+
+class TwoFAIn(BaseModel):
+    challenge_token: str
+    code: str
+
+
+class CodeIn(BaseModel):
+    code: str
+
+
+def _totp_ok(secret_enc, code):
+    return bool(secret_enc) and pyotp.TOTP(decrypt(secret_enc)).verify(str(code).strip(), valid_window=1)
+
+
+@router.post("/auth/2fa/verify")
+async def verify_2fa(body: TwoFAIn, request: Request, response: Response):
+    p = decode_token(body.challenge_token, "2fa")
+    ident = f"2fa:{p['sub']}"
+    att = await db.login_attempts.find_one({"identifier": ident}) or {}
+    if att.get("count", 0) >= MAX_ATTEMPTS:
+        raise HTTPException(429, "Too many attempts. Please log in again later.")
+    user = await db.users.find_one({"id": p["sub"], "active": True})
+    if not user or not _totp_ok(user.get("totp_secret"), body.code):
+        await db.login_attempts.update_one({"identifier": ident}, {"$inc": {"count": 1}}, upsert=True)
+        raise HTTPException(401, "Invalid authentication code")
+    await db.login_attempts.delete_one({"identifier": ident})
+    return await complete_login(user, request, response)
+
+
+@router.post("/auth/2fa/setup")
+async def setup_2fa(user=Depends(current)):
+    secret = pyotp.random_base32()
+    await db.users.update_one({"id": user["id"]}, {"$set": {"totp_pending": encrypt(secret)}})
+    return {"secret": secret, "uri": pyotp.TOTP(secret).provisioning_uri(name=user["email"], issuer_name="FINORA")}
+
+
+@router.post("/auth/2fa/enable")
+async def enable_2fa(body: CodeIn, request: Request, user=Depends(current)):
+    u = await db.users.find_one({"id": user["id"]})
+    if not _totp_ok(u.get("totp_pending"), body.code):
+        raise HTTPException(400, "Invalid authentication code")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"totp_secret": u["totp_pending"], "totp_enabled": True}, "$unset": {"totp_pending": ""}})
+    await audit(user, "update", "users", user["id"], before={"totp_enabled": False}, after={"totp_enabled": True}, request=request)
+    return {"ok": True}
+
+
+@router.post("/auth/2fa/disable")
+async def disable_2fa(body: CodeIn, request: Request, user=Depends(current)):
+    u = await db.users.find_one({"id": user["id"]})
+    if not _totp_ok(u.get("totp_secret"), body.code):
+        raise HTTPException(400, "Invalid authentication code")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"totp_enabled": False}, "$unset": {"totp_secret": ""}})
+    await audit(user, "update", "users", user["id"], before={"totp_enabled": True}, after={"totp_enabled": False}, request=request)
+    return {"ok": True}
+
+
+async def complete_login(user, request, response):
+    email, ip, ua = user["email"], ip_of(request), request.headers.get("user-agent", "")
     first = not await db.login_history.find_one({"user_id": user["id"], "success": True})
     known = await db.login_history.find_one({"user_id": user["id"], "success": True, "ip": ip})
     anomaly = not first and not known
@@ -71,6 +135,7 @@ async def login(body: LoginIn, request: Request, response: Response):
     await db.users.update_one({"id": user["id"]}, {"$set": {"last_login": now_iso()}})
     access, refresh = make_token(user["id"], sid, "access"), make_token(user["id"], sid, "refresh")
     set_cookies(response, access, refresh)
+    await audit(user, "login", "sessions", sid, after={"ip": ip, "anomaly": anomaly}, request=request, client_id=user.get("client_id"))
     return {"user": clean(user), "access_token": access}
 
 

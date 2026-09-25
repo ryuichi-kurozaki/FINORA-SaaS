@@ -1,10 +1,10 @@
-import { AlertTriangle, ClipboardCheck, DatabaseZap, History, Sparkles, TrendingUp } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, DatabaseZap, History, Sparkles, Target, TrendingUp } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { AIBadge } from "@/components/common";
 
 const DOT = { ok: "bg-[#00A878]", info: "bg-slate-400", warn: "bg-[#C9A227]", danger: "bg-red-500" };
 const GROUPS = [["summary", "ai_summary", Sparkles], ["changes", "important_changes", TrendingUp], ["risks", "risks_to_watch", AlertTriangle],
-  ["checks", "items_to_check", ClipboardCheck], ["since_last", "since_last_meeting", History], ["missing", "missing_data", DatabaseZap]];
+  ["checks", "items_to_check", ClipboardCheck], ["since_last", "since_last_meeting", History], ["missing", "missing_data", DatabaseZap], ["goals", "goals_group", Target]];
 
 export function InsightItems({ items }) {
   const { t } = useApp();

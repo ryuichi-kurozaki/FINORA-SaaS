@@ -68,13 +68,15 @@ export function KpiCard({ label, value, format, sub, icon: Icon, accent = "emera
 const BADGE = {
   fact: "bg-slate-100 text-slate-700 border-slate-300",
   calc: "bg-sky-50 text-sky-700 border-sky-200",
+  simulation: "bg-amber-50 text-amber-700 border-amber-200",
   estimate: "bg-amber-50 text-amber-700 border-amber-200",
   ai: "bg-emerald-50 text-emerald-700 border-emerald-300",
+  warning: "bg-red-50 text-red-700 border-red-200",
 };
+const BADGE_LABEL = { fact: "FACT", calc: "CALCULATION", simulation: "SIMULATION", estimate: "SIMULATION", ai: "AI INSIGHT", warning: "DATA WARNING" };
 
 export function AIBadge({ type }) {
-  const { t } = useApp();
-  return <span className={`inline-flex shrink-0 items-center rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${BADGE[type] || BADGE.fact}`}>{t(type)}</span>;
+  return <span className={`inline-flex shrink-0 items-center rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${BADGE[type] || BADGE.fact}`}>{BADGE_LABEL[type] || type}</span>;
 }
 
 const LEVEL = {

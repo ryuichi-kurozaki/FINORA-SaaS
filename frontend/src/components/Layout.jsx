@@ -1,20 +1,23 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Bell, Brain, Briefcase, CalendarClock, ChartLine, ChartPie, FileBarChart, FolderLock, Gauge, Landmark, LayoutDashboard, LogOut, Menu, Settings, ShieldAlert, Telescope, Users, Wallet, Scale, Waves } from "lucide-react";
+import { ArrowLeftRight, Bell, BellRing, Brain, Briefcase, CalendarClock, ChartLine, ChartPie, FileBarChart, FolderLock, Gauge, HeartPulse, History, Landmark, LayoutDashboard, LogOut, Menu, Settings, ShieldAlert, Target, Telescope, Users, Wallet, Scale, Waves } from "lucide-react";
+import { NotificationBell } from "@/pages/Notifications";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useApp } from "@/context/AppContext";
 import { useApi } from "@/lib/api";
 import { LANGS } from "@/i18n/dict";
 import { Logo } from "@/components/Logo";
+import ConsentGate from "@/components/ConsentGate";
 
 export const NAV = [
-  ["dashboard", "Dashboard", "/", LayoutDashboard], ["clients", "Clients", "/clients", Users], ["assets", "Assets", "/assets", Wallet],
-  ["portfolio", "Portfolio", "/portfolio", ChartPie], ["accounts", "Accounts", "/accounts", Landmark], ["liabilities", "Liabilities", "/liabilities", Scale],
-  ["cashflow", "Cash Flow", "/cashflow", Waves], ["analytics", "Analytics", "/analytics", ChartLine], ["simulation", "Simulation", "/simulation", Telescope],
-  ["risk", "Risk", "/risk", ShieldAlert], ["ai_insight", "AI Insight", "/ai", Brain], ["consulting", "Consulting", "/consulting", Briefcase],
-  ["reports", "Reports", "/reports", FileBarChart], ["documents", "Documents", "/documents", FolderLock], ["tasks", "Tasks", "/tasks", CalendarClock],
-  ["settings", "Settings", "/settings", Settings],
+  ["dashboard", "Dashboard", "/", LayoutDashboard], ["clients", "Clients", "/clients", Users], ["accounts", "Accounts", "/accounts", Landmark],
+  ["assets", "Assets", "/assets", Wallet], ["transactions", "Transactions", "/transactions", ArrowLeftRight], ["portfolio", "Portfolio", "/portfolio", ChartPie],
+  ["liabilities", "Liabilities", "/liabilities", Scale], ["cashflow", "Cash Flow", "/cashflow", Waves], ["goals", "Goals", "/goals", Target],
+  ["analytics", "Analytics", "/analytics", ChartLine], ["simulation", "Simulation", "/simulation", Telescope], ["risk", "Risk", "/risk", ShieldAlert],
+  ["data_health", "Data Health", "/data-health", HeartPulse], ["ai_insight", "AI Insight", "/ai", Brain], ["consulting", "Consulting", "/consulting", Briefcase],
+  ["documents", "Documents", "/documents", FolderLock], ["timeline", "Timeline", "/timeline", History], ["tasks", "Tasks", "/tasks", CalendarClock],
+  ["notifications", "Notifications", "/notifications", BellRing], ["reports", "Reports", "/reports", FileBarChart], ["settings", "Settings", "/settings", Settings],
 ];
 
 function SideNav({ onNavigate }) {
@@ -52,7 +55,7 @@ function Alerts() {
     <Popover>
       <PopoverTrigger asChild>
         <button className="relative rounded-xl p-2 text-slate-600 transition-colors hover:bg-slate-100" data-testid="header-alerts-btn">
-          <Bell className="h-5 w-5" strokeWidth={1.7} />
+          <CalendarClock className="h-5 w-5" strokeWidth={1.7} />
           {n > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white" data-testid="header-alerts-count">{n}</span>}
         </button>
       </PopoverTrigger>
@@ -98,6 +101,7 @@ function Header({ onMenu }) {
         <select className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs sm:hidden" value={lang} onChange={(e) => setLang(e.target.value)} data-testid="language-selector-mobile">
           {LANGS.map((l) => <option key={l.code} value={l.code}>{l.short}</option>)}
         </select>
+        <NotificationBell />
         <Alerts />
         <div className="hidden text-right md:block">
           <div className="text-sm font-semibold text-[#071A2B]" data-testid="header-user-name">{user.name}</div>
@@ -122,6 +126,7 @@ export default function Layout() {
       <div className="lg:pl-[260px]">
         <Header onMenu={() => setOpen(true)} />
         <main className="mx-auto max-w-[1500px] px-4 py-8 sm:px-8"><Outlet /></main>
+        <ConsentGate />
       </div>
     </div>
   );

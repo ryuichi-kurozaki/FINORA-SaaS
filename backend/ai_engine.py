@@ -106,7 +106,7 @@ def insights(ctx, lang="ja"):
             f"Lucro não realizado {yen(s['unrealized_pl'])} ({pct(s['unrealized_pct'])}) sobre {yen(s['principal'])}")))
     for a in data["assets"]:
         if a.get("acquisition_total") and (a["unrealized_pct"] > 80 or a["unrealized_pct"] < -30):
-            out["changes"].append(item("estimate", "warn", tr(lang,
+            out["changes"].append(item("simulation", "warn", tr(lang,
                 f"異常値検出：{a.get('name')} の損益率 {pct(a['unrealized_pct'])}（価格入力誤り or 大幅変動の可能性）",
                 f"Anomaly: {a.get('name')} P/L {pct(a['unrealized_pct'])} (possible input error or large move)",
                 f"Anomalia: {a.get('name')} com variação {pct(a['unrealized_pct'])} (possível erro ou forte oscilação)")))
@@ -151,20 +151,25 @@ def insights(ctx, lang="ja"):
         out["since_last"].append(item("fact", "info", tr(lang, "面談記録がありません", "No meeting records yet", "Sem registros de reunião")))
     miss_price = [a for a in data["assets"] if not a.get("current_price")]
     if miss_price:
-        out["missing"].append(item("fact", "warn", tr(lang, f"現在価格が未入力の資産：{len(miss_price)}件",
+        out["missing"].append(item("warning", "warn", tr(lang, f"現在価格が未入力の資産：{len(miss_price)}件",
                                                       f"Assets without current price: {len(miss_price)}",
                                                       f"Ativos sem preço atual: {len(miss_price)}")))
     no_acct = [a for a in data["assets"] if not a.get("account_id") and a.get("asset_class") not in ("real_estate", "cash")]
     if no_acct:
-        out["missing"].append(item("fact", "info", tr(lang, f"口座未紐付けの資産：{len(no_acct)}件", f"Assets not linked to an account: {len(no_acct)}",
+        out["missing"].append(item("warning", "info", tr(lang, f"口座未紐付けの資産：{len(no_acct)}件", f"Assets not linked to an account: {len(no_acct)}",
                                                       f"Ativos sem conta vinculada: {len(no_acct)}")))
     for c in data["clients"]:
         if not c.get("risk_tolerance"):
-            out["missing"].append(item("fact", "warn", tr(lang, f"リスク許容度未設定：{c.get('name')}", f"Risk tolerance not set: {c.get('name')}",
+            out["missing"].append(item("warning", "warn", tr(lang, f"リスク許容度未設定：{c.get('name')}", f"Risk tolerance not set: {c.get('name')}",
                                                           f"Tolerância a risco não definida: {c.get('name')}")))
     if not data["cashflows"]:
-        out["missing"].append(item("fact", "warn", tr(lang, "キャッシュフローが未登録です", "No cash-flow data registered", "Nenhum fluxo de caixa cadastrado")))
+        out["missing"].append(item("warning", "warn", tr(lang, "キャッシュフローが未登録です", "No cash-flow data registered", "Nenhum fluxo de caixa cadastrado")))
     out["summary"] = ai_summary(ctx, lang)
+    health = ctx.get("health")
+    if health:
+        out["missing"] = [item("warning", "danger" if h["level"] == "attention" else "warn", health_text(lang, h))
+                          for h in health["checks"] if h["level"] != "ok"]
+    out["goals"] = [goal_text(lang, g) for g in ctx.get("goals") or []]
     for k in out:
         out[k] = [x for x in out[k] if x]
     return out
@@ -178,7 +183,7 @@ def ai_summary(ctx, lang):
         f"Overall risk score {rk['score']}/100. " + ("The structure is broadly healthy." if rk["score"] >= 75 else "There is room for improvement." if rk["score"] >= 50 else "Some risks need priority action."),
         f"Pontuação de risco {rk['score']}/100. " + ("Estrutura saudável." if rk["score"] >= 75 else "Há espaço para melhorias." if rk["score"] >= 50 else "Há riscos que exigem ação prioritária.")))]
     if m.get("annual_return_pct") is not None:
-        lines.append(item("estimate", "info", tr(lang,
+        lines.append(item("simulation", "info", tr(lang,
             f"過去{m['months']}ヶ月の推定年率リターン {pct(m['annual_return_pct'])}（参考ベンチマーク {pct(m['benchmark_return_pct'])}）、ボラティリティ {m['volatility_pct']:.1f}%",
             f"Estimated annualized return over {m['months']} months {pct(m['annual_return_pct'])} (benchmark {pct(m['benchmark_return_pct'])}), volatility {m['volatility_pct']:.1f}%",
             f"Retorno anualizado estimado em {m['months']} meses {pct(m['annual_return_pct'])} (benchmark {pct(m['benchmark_return_pct'])}), volatilidade {m['volatility_pct']:.1f}%")))
@@ -191,8 +196,74 @@ def ai_summary(ctx, lang):
     return lines
 
 
+HEALTH_NAMES = {
+    "missing_acq_price": ("取得価格未入力", "Missing acquisition price", "Preço de aquisição ausente"),
+    "missing_cur_price": ("現在価格未入力", "Missing current price", "Preço atual ausente"),
+    "missing_currency": ("通貨未設定", "Currency not set", "Moeda não definida"),
+    "missing_balance": ("残高未入力", "Missing balance", "Saldo ausente"),
+    "missing_rate": ("金利未入力", "Missing interest rate", "Taxa de juros ausente"),
+    "stale_valuation": ("評価日が古い（30日超）", "Valuation older than 30 days", "Avaliação com mais de 30 dias"),
+    "unlinked_account": ("口座未紐付け", "Not linked to an account", "Sem conta vinculada"),
+    "stale_loan": ("ローン残高が90日以上未更新", "Loan balance not updated for 90+ days", "Saldo do empréstimo sem atualização há 90+ dias"),
+    "cashflow_insufficient": ("キャッシュフロー情報不足", "Insufficient cash-flow data", "Dados de fluxo de caixa insuficientes"),
+    "docs_missing": ("必要書類不足", "Required documents missing", "Documentos obrigatórios ausentes"),
+    "docs_expired": ("有効期限切れ書類", "Expired documents", "Documentos vencidos"),
+    "tx_missing": ("取引履歴不足", "Missing transaction history", "Histórico de transações ausente"),
+    "anomaly": ("異常値の可能性", "Possible anomalies", "Possíveis anomalias"),
+}
+
+
+def health_text(lang, h):
+    name = tr(lang, *HEALTH_NAMES.get(h["code"], (h["code"],) * 3))
+    return tr(lang, f"{name}：{h['count']}件（確認が必要・自動修正は行いません）", f"{name}: {h['count']} item(s) — needs review (never auto-corrected)",
+              f"{name}: {h['count']} item(s) — requer verificação (sem correção automática)")
+
+
+def goal_text(lang, g):
+    sim = g.get("simulation")
+    lvl = "ok" if g["progress_pct"] >= 70 else "warn" if g["progress_pct"] >= 30 else "info"
+    txt = tr(lang, f"目標「{g['name']}」達成率 {g['progress_pct']:.0f}%", f"Goal \"{g['name']}\": {g['progress_pct']:.0f}% achieved",
+             f"Meta \"{g['name']}\": {g['progress_pct']:.0f}% atingida")
+    if sim:
+        ok = [s for s in ("bull", "base", "bear") if sim[s]["reached"]]
+        names = {"bull": tr(lang, "強気", "bull", "otimista"), "base": tr(lang, "標準", "base", "base"), "bear": tr(lang, "弱気", "bear", "pessimista")}
+        txt += tr(lang, "／試算：" + ("・".join(names[s] for s in ok) + "シナリオで到達" if ok else "いずれのシナリオでも未到達"),
+                  " / simulation: " + (", ".join(names[s] for s in ok) + " reach target" if ok else "no scenario reaches target"),
+                  " / simulação: " + (", ".join(names[s] for s in ok) + " atingem" if ok else "nenhum cenário atinge"))
+    return item("simulation" if sim else "calc", lvl, txt)
+
+
+def ans_health(ctx, lang):
+    h = ctx["health"]
+    bad = [x for x in h["checks"] if x["level"] != "ok"]
+    return [
+        sec("calc", tr(lang, "Data Health スコア", "Data Health score", "Pontuação Data Health"), [f"{h['score']}/100"]),
+        sec("warning", tr(lang, "確認が必要な項目", "Items needing review", "Itens a verificar"),
+            [health_text(lang, x) for x in bad] or [tr(lang, "問題は見つかりませんでした", "No issues found", "Nenhum problema encontrado")]),
+        sec("ai", tr(lang, "AIによる分析", "AI analysis", "Análise da IA"), [tr(lang,
+            "AIは顧客の原本データを変更しません。上記項目を顧客へ確認することで、分析精度が向上します。",
+            "The AI never changes the client's source data. Confirming the items above with the client will improve analysis accuracy.",
+            "A IA nunca altera os dados originais. Confirmar os itens acima com o cliente melhora a precisão da análise.")]),
+    ]
+
+
+def ans_goals(ctx, lang):
+    goals = ctx.get("goals") or []
+    if not goals:
+        return [sec("warning", tr(lang, "目標", "Goals", "Metas"), [tr(lang, "目標が登録されていません", "No goals registered", "Nenhuma meta cadastrada")])]
+    return [
+        sec("fact", tr(lang, "登録された目標", "Registered goals", "Metas cadastradas"), [f"{g['name']} — {g.get('target_date') or '—'}" for g in goals]),
+        sec("calc", tr(lang, "進捗（計算結果）", "Progress (calculated)", "Progresso (calculado)"),
+            [f"{g['name']}: {g['progress_pct']:.0f}%" for g in goals]),
+        sec("simulation", tr(lang, "設定した条件に基づく試算", "Simulation based on set assumptions", "Simulação com premissas definidas"),
+            [goal_text(lang, g)["text"] for g in goals if g.get("simulation")]),
+    ]
+
+
 INTENTS = [
     ("report", ["レポート", "報告", "report", "relatório", "relatorio"]),
+    ("health", ["データ", "不足", "health", "missing", "dados", "faltando"]),
+    ("goals", ["目標", "goal", "meta"]),
     ("change", ["変わ", "変化", "前回", "change", "since", "mudou", "mudança", "desde"]),
     ("risk", ["リスク", "risk", "risco"]),
     ("cashflow", ["キャッシュ", "収支", "cash", "fluxo", "caixa"]),
@@ -262,7 +333,7 @@ def ans_cashflow(ctx, lang):
             f"{tr(lang, '月間CF', 'Monthly CF', 'FC mensal')}: {yen(cf['cf_m'])}",
             f"{tr(lang, '年間CF', 'Annual CF', 'FC anual')}: {yen(cf['cf_y'])}",
             f"{tr(lang, '自由資金', 'Free cash', 'Caixa livre')}: {yen(cf['free_m'])}"]),
-        sec("estimate", tr(lang, "推定", "Estimate", "Estimativa"), [
+        sec("simulation", tr(lang, "推定", "Estimate", "Estimativa"), [
             tr(lang, f"投資可能資金（収入の10%を予備費として控除）：月 {yen(cf['investable_m'])}",
                f"Investable funds (10% of income kept as buffer): {yen(cf['investable_m'])}/month",
                f"Recursos investíveis (10% da renda como reserva): {yen(cf['investable_m'])}/mês")]),
@@ -282,7 +353,7 @@ def ans_projection(ctx, lang, years):
                f"{years} years / monthly contribution {yen(sim['contribution_m'])} / dividends reinvested",
                f"{years} anos / aporte mensal {yen(sim['contribution_m'])} / dividendos reinvestidos"),
             tr(lang, "想定年率：強気 8%／標準 5%／弱気 1%", "Assumed returns: bull 8% / base 5% / bear 1%", "Retornos: otimista 8% / base 5% / pessimista 1%")]),
-        sec("estimate", tr(lang, f"{years}年後の純資産（推定）", f"Net worth in {years} years (estimate)", f"Patrimônio em {years} anos (estimativa)"), [
+        sec("simulation", tr(lang, f"{years}年後の純資産（推定）", f"Net worth in {years} years (estimate)", f"Patrimônio em {years} anos (estimativa)"), [
             f"{tr(lang, '強気', 'Bull', 'Otimista')}: {yen(r['bull'])}", f"{tr(lang, '標準', 'Base', 'Base')}: {yen(r['base'])}",
             f"{tr(lang, '弱気', 'Bear', 'Pessimista')}: {yen(r['bear'])}", f"{tr(lang, '負債残高', 'Remaining debt', 'Dívida restante')}: {yen(r['debt'])}"]),
         sec("ai", tr(lang, "AIによる分析", "AI analysis", "Análise da IA"), [
@@ -313,5 +384,5 @@ def ask(ctx, lang, question):
         sections = ans_projection(ctx, lang, years)
     else:
         sections = {"overview": ans_overview, "change": ans_change, "risk": ans_risk, "cashflow": ans_cashflow,
-                    "report": ans_report}[intent](ctx, lang)
+                    "report": ans_report, "health": ans_health, "goals": ans_goals}[intent](ctx, lang)
     return {"intent": intent, "engine": ENGINE, "sections": sections}

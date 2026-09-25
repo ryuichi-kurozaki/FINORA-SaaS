@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, Request, UploadFile, File, Form, HTTPExc
 from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorGridFSBucket
 
-from core import db, new_id, now_iso, clean, current, staff, scope, audit
-from crud import ENTITIES, sanitize, to_store, list_items, check_write
+from core import db, new_id, now_iso, clean, current, scope, audit, notify_other_side
+from crud import ENTITIES, OWNED, sanitize, to_store, list_items, check_write
 
 router = APIRouter(prefix="/api")
 bucket = AsyncIOMotorGridFSBucket(db, bucket_name="documents")
@@ -16,7 +16,7 @@ DOC_TYPES = ("application/pdf", "image/", "text/", "application/vnd", "applicati
 
 
 @router.get("/io/export/{entity}")
-async def export(entity: str, request: Request, fmt: str = "csv", client_id: Optional[str] = None, user=Depends(staff)):
+async def export(entity: str, request: Request, fmt: str = "csv", client_id: Optional[str] = None, user=Depends(current)):
     if entity not in ENTITIES:
         raise HTTPException(404, "Unknown entity")
     items = await list_items(user, entity, client_id)
@@ -36,9 +36,11 @@ async def export(entity: str, request: Request, fmt: str = "csv", client_id: Opt
 
 @router.post("/io/import/{entity}")
 async def import_data(entity: str, request: Request, file: UploadFile = File(...), client_id: Optional[str] = Form(None),
-                      user=Depends(staff)):
+                      user=Depends(current)):
     if entity not in ENTITIES:
         raise HTTPException(404, "Unknown entity")
+    if user["role"] == "client":
+        client_id = user["client_id"]
     raw = await file.read()
     if len(raw) > MAX_FILE:
         raise HTTPException(413, "File too large")
@@ -57,7 +59,8 @@ async def import_data(entity: str, request: Request, file: UploadFile = File(...
                 data["consultant_id"] = user["id"]
             await check_write(user, entity, data)
             doc = to_store(entity, {"id": new_id(), "tenant_id": user["tenant_id"], **data, "created_at": now_iso(),
-                                    "updated_at": now_iso(), "created_by": user["id"]})
+                                    "updated_at": now_iso(), "created_by": user["id"], "updated_by": user["id"],
+                                    "updated_by_role": user["role"], "source": "IMPORT" if entity in OWNED else None})
             await db[entity].insert_one(doc)
             created += 1
         except HTTPException as e:
@@ -76,7 +79,10 @@ async def list_docs(client_id: Optional[str] = None, user=Depends(current)):
 
 @router.post("/documents")
 async def upload_doc(request: Request, file: UploadFile = File(...), client_id: str = Form(...), category: str = Form("other"),
-                     notes: str = Form(""), user=Depends(staff)):
+                     notes: str = Form(""), fiscal_year: str = Form(""), institution: str = Form(""), asset_id: str = Form(""),
+                     expiry_date: str = Form(""), user=Depends(current)):
+    if user["role"] != "client" or client_id != user.get("client_id"):
+        raise HTTPException(403, "Only the client can upload their own documents")
     await scope(user, client_id)
     ctype = file.content_type or "application/octet-stream"
     if not ctype.startswith(DOC_TYPES):
@@ -87,9 +93,11 @@ async def upload_doc(request: Request, file: UploadFile = File(...), client_id: 
     fid = await bucket.upload_from_stream(file.filename, raw, metadata={"tenant_id": user["tenant_id"], "content_type": ctype})
     doc = {"id": new_id(), "tenant_id": user["tenant_id"], "client_id": client_id, "category": category[:50],
            "filename": file.filename[:200], "content_type": ctype, "size": len(raw), "file_id": str(fid),
-           "notes": notes[:1000], "uploaded_by": user["email"], "created_at": now_iso()}
+           "notes": notes[:1000], "fiscal_year": fiscal_year[:10], "institution": institution[:120], "asset_id": asset_id[:60] or None,
+           "expiry_date": expiry_date[:10] or None, "uploaded_by": user["email"], "uploaded_by_role": user["role"], "created_at": now_iso()}
     await db.documents.insert_one(doc)
     await audit(user, "upload", "documents", doc["id"], after=clean(dict(doc)), request=request)
+    await notify_other_side(user, client_id, "document_uploaded", {"label": doc["filename"]}, f"/clients/{client_id}")
     return clean(doc)
 
 
@@ -113,9 +121,11 @@ async def download_doc(doc_id: str, request: Request, user=Depends(current)):
 
 
 @router.delete("/documents/{doc_id}")
-async def delete_doc(doc_id: str, request: Request, user=Depends(staff)):
+async def delete_doc(doc_id: str, request: Request, user=Depends(current)):
     from bson import ObjectId
     d = await _doc(user, doc_id)
+    if user["role"] != "client":
+        raise HTTPException(403, "Client documents cannot be deleted by staff")
     await bucket.delete(ObjectId(d["file_id"]))
     await db.documents.delete_one({"id": doc_id})
     await audit(user, "delete", "documents", doc_id, before=clean(dict(d)), request=request)

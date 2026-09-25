@@ -18,6 +18,11 @@ import Reports from "@/pages/Reports";
 import Documents from "@/pages/Documents";
 import SettingsPage from "@/pages/Settings";
 import Landing from "@/pages/Landing";
+import ConsultingHub from "@/pages/ConsultingHub";
+import Transactions from "@/pages/Transactions";
+import { GoalsPage, DataHealthPage } from "@/pages/GoalsHealth";
+import Timeline from "@/pages/Timeline";
+import Notifications from "@/pages/Notifications";
 import Legal from "@/pages/Legal";
 
 function Protected() {
@@ -49,7 +54,12 @@ function App() {
               <Route path="/simulation" element={<Simulation />} />
               <Route path="/risk" element={<Risk />} />
               <Route path="/ai" element={<AIInsight />} />
-              <Route path="/consulting" element={<EntityPage entity="consulting" />} />
+              <Route path="/consulting" element={<ConsultingHub />} />
+              <Route path="/transactions" element={<Transactions />} />
+              <Route path="/goals" element={<GoalsPage />} />
+              <Route path="/data-health" element={<DataHealthPage />} />
+              <Route path="/timeline" element={<Timeline />} />
+              <Route path="/notifications" element={<Notifications />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/documents" element={<Documents />} />
               <Route path="/tasks" element={<EntityPage entity="tasks" />} />

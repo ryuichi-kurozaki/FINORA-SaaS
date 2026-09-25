@@ -31,7 +31,7 @@ def enrich(a, fx):
 
 async def load(user, client_id=None):
     from crud import list_items
-    data = {e: await list_items(user, e, client_id) for e in ("accounts", "assets", "liabilities", "cashflows", "consulting", "tasks")}
+    data = {e: await list_items(user, e, client_id) for e in ("accounts", "assets", "liabilities", "cashflows", "consulting", "tasks", "transactions", "goals")}
     data["clients"] = [c for c in await list_items(user, "clients") if not client_id or c["id"] == client_id]
     return data
 
@@ -113,6 +113,9 @@ async def record_snapshots(user, data):
             {"tenant_id": user["tenant_id"], "client_id": c["id"], "date": month},
             {"$set": {k: s[k] for k in ("total_assets", "total_liabilities", "net_worth", "invested_value", "principal")},
              "$setOnInsert": {"id": new_id()}}, upsert=True)
+        await db.daily_snapshots.update_one(
+            {"tenant_id": user["tenant_id"], "client_id": c["id"], "date": now().strftime("%Y-%m-%d")},
+            {"$set": {k: round(s[k]) for k in ("total_assets", "total_liabilities", "net_worth")}}, upsert=True)
 
 
 async def trend(user, client_id=None):

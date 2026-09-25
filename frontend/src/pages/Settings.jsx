@@ -1,3 +1,4 @@
+import { TwoFactorCard, ConsentHistory } from "@/components/SecurityExtras";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,8 @@ function Security() {
   };
   return (
     <div className="grid gap-6 xl:grid-cols-2">
+      <TwoFactorCard />
+      <ConsentHistory />
       <Card>
         <CardTitle>{t("change_password")}</CardTitle>
         <div className="space-y-3">

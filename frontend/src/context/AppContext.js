@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { translate } from "@/i18n/dict";
+import { OWNED } from "@/config/entities";
 
 const Ctx = createContext(null);
 
@@ -48,8 +49,15 @@ export function AppProvider({ children }) {
   };
 
   const canWrite = user && user.role !== "client";
+  const isClient = user && user.role === "client";
+  const canEdit = (entity, row) => {
+    if (!user) return false;
+    if (OWNED.includes(entity)) return isClient;
+    if (entity === "tasks") return !row || row.owner_id === user.id;
+    return !isClient;
+  };
   return (
-    <Ctx.Provider value={{ user, setUser, lang, setLang, t, clients, refreshClients, scopeClient, setScopeClient, logout, clientName, canWrite }}>
+    <Ctx.Provider value={{ user, setUser, lang, setLang, t, clients, refreshClients, scopeClient, setScopeClient, logout, clientName, canWrite, isClient, canEdit }}>
       {children}
     </Ctx.Provider>
   );

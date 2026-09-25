@@ -34,7 +34,8 @@ def new_id():
 def clean(doc):
     if doc:
         doc.pop("_id", None)
-        doc.pop("password_hash", None)
+        for k in ("password_hash", "totp_secret", "totp_pending"):
+            doc.pop(k, None)
     return doc
 
 
@@ -62,7 +63,7 @@ def verify_password(p, h):
 
 
 def make_token(uid, sid, kind):
-    exp = now() + (timedelta(minutes=ACCESS_MIN) if kind == "access" else timedelta(days=REFRESH_DAYS))
+    exp = now() + {"access": timedelta(minutes=ACCESS_MIN), "2fa": timedelta(minutes=5)}.get(kind, timedelta(days=REFRESH_DAYS))
     return jwt.encode({"sub": uid, "sid": sid, "type": kind, "exp": exp}, os.environ["JWT_SECRET"], algorithm=JWT_ALG)
 
 
@@ -135,12 +136,46 @@ async def scope(user, client_id=None):
     return q
 
 
-async def audit(user, action, entity, entity_id, before=None, after=None, request=None):
+def _label(d):
+    if isinstance(d, dict):
+        for k in ("title", "name", "institution", "filename", "target_label", "tx_type", "category"):
+            if d.get(k) and not str(d[k]).startswith("enc:"):
+                return str(d[k])[:120]
+    return None
+
+
+async def audit(user, action, entity, entity_id, before=None, after=None, request=None, client_id=None, label=None):
     for d in (before, after):
         if isinstance(d, dict):
             d.pop("_id", None)
+    if client_id is None:
+        client_id = entity_id if entity == "clients" else next(
+            (d.get("client_id") for d in (after, before) if isinstance(d, dict) and d.get("client_id")), None)
     await db.audit_logs.insert_one({
         "id": new_id(), "tenant_id": user["tenant_id"], "user_id": user["id"], "user_email": user["email"],
-        "action": action, "entity": entity, "entity_id": entity_id, "before": before, "after": after,
-        "ip": ip_of(request) if request else None, "at": now_iso(),
+        "user_name": user.get("name"), "user_role": user.get("role"), "action": action.upper(), "entity": entity,
+        "entity_id": entity_id, "client_id": client_id, "label": label or _label(after) or _label(before),
+        "before": before, "after": after, "ip": ip_of(request) if request else None, "at": now_iso(),
     })
+
+
+async def client_user_ids(tenant_id, client_id):
+    return [u["id"] for u in await db.users.find({"tenant_id": tenant_id, "client_id": client_id, "role": "client", "active": True}, {"id": 1}).to_list(50)]
+
+
+async def consultant_ids(tenant_id, client_id):
+    c = await db.clients.find_one({"tenant_id": tenant_id, "id": client_id}, {"consultant_id": 1})
+    return [c["consultant_id"]] if c and c.get("consultant_id") else []
+
+
+async def notify(tenant_id, user_ids, kind, params=None, client_id=None, link=None, actor=None):
+    docs = [{"id": new_id(), "tenant_id": tenant_id, "user_id": u, "kind": kind, "params": params or {}, "client_id": client_id,
+             "link": link, "actor_name": (actor or {}).get("name"), "read": False, "created_at": now_iso()}
+            for u in set(user_ids) if u and u != (actor or {}).get("id")]
+    if docs:
+        await db.notifications.insert_many(docs)
+
+
+async def notify_other_side(user, client_id, kind, params=None, link=None):
+    ids = await consultant_ids(user["tenant_id"], client_id) if user["role"] == "client" else await client_user_ids(user["tenant_id"], client_id)
+    await notify(user["tenant_id"], ids, kind, params, client_id, link, user)

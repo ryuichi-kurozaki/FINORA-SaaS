@@ -12,19 +12,27 @@ import EntityManager from "@/components/EntityManager";
 import InsightPanel from "@/components/InsightPanel";
 import AIAssistant from "@/components/AIAssistant";
 import { DocumentsPanel } from "@/pages/Documents";
+import { PositionsTable } from "@/pages/Transactions";
+import { ConsultingPanels } from "@/pages/ConsultingHub";
+import { TimelineList } from "@/pages/Timeline";
+import GoalsPanel from "@/components/GoalsPanel";
+import HealthPanel from "@/components/HealthPanel";
+import SnapshotsPanel from "@/components/SnapshotsPanel";
+import CorrectionDialog from "@/components/CorrectionDialog";
 
 const PROFILE = ["client_type", "email", "phone", "address", "occupation", "business", "family", "related_corps", "annual_income", "income", "investment_experience", "investment_purpose", "risk_tolerance", "status", "notes"];
 const SELECTS = ["client_type", "risk_tolerance", "status"];
 
 export default function ClientDetail() {
   const { id } = useParams();
-  const { t, lang, clients } = useApp();
+  const { t, lang, clients, isClient, setScopeClient } = useApp();
   const c = clients.find((x) => x.id === id);
   const { data, reload } = useDashboard(id);
   const [ai, setAi] = useState(false);
+  const [corr, setCorr] = useState(false);
   if (!c || !data) return <Spinner />;
   const s = data.summary;
-  const tabs = ["overview", "accounts", "assets", "liabilities", "cashflows", "consulting", "documents", "tasks"];
+  const tabs = ["overview", "assets", "portfolio", "accounts", "transactions", "liabilities", "cashflows", "goals", "documents", "data_health", "ai_insight", "consulting", "timeline", "reports", "tasks"];
   return (
     <div data-testid="client-detail-page">
       <Link to="/clients" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-[#00A878]" data-testid="client-back-link"><ArrowLeft className="h-4 w-4" />{t("clients")}</Link>
@@ -61,11 +69,28 @@ export default function ClientDetail() {
           </div>
           <InsightPanel insights={data.insights} />
         </TabsContent>
-        {["accounts", "assets", "liabilities", "cashflows", "consulting", "tasks"].map((e) => (
+        {["accounts", "assets", "liabilities", "cashflows", "tasks"].map((e) => (
           <TabsContent key={e} value={e} className="mt-5"><EntityManager entity={e} clientId={id} title={t(e === "cashflows" ? "cashflow" : e)} onChange={reload} /></TabsContent>
         ))}
+        <TabsContent value="transactions" className="mt-5 space-y-6"><PositionsTable clientId={id} /><EntityManager entity="transactions" clientId={id} title={t("transactions")} onChange={reload} /></TabsContent>
+        <TabsContent value="portfolio" className="mt-5 space-y-6">
+          <div className="grid gap-6 md:grid-cols-3">
+            <Card><CardTitle>{t("by_currency")}</CardTitle><Donut data={data.breakdowns.currency} /></Card>
+            <Card><CardTitle>{t("by_country")}</CardTitle><Donut data={data.breakdowns.country} /></Card>
+            <Card><CardTitle>{t("by_sector")}</CardTitle><Donut data={data.breakdowns.sector} /></Card>
+          </div>
+          <SnapshotsPanel clientId={id} current={s} />
+          {!isClient && <button onClick={() => setCorr(true)} className="rounded-xl border border-[#C9A227]/50 bg-[#C9A227]/10 px-4 py-2 text-sm font-semibold text-[#8a6d12]" data-testid="portfolio-correction-btn">{t("request_correction")}</button>}
+        </TabsContent>
+        <TabsContent value="goals" className="mt-5 space-y-6"><GoalsPanel goals={data.goals} /><EntityManager entity="goals" clientId={id} title={t("goals")} onChange={reload} /></TabsContent>
+        <TabsContent value="data_health" className="mt-5"><HealthPanel health={data.health} clientId={id} /></TabsContent>
+        <TabsContent value="ai_insight" className="mt-5 space-y-6"><InsightPanel insights={data.insights} /><Card className="h-[560px]"><AIAssistant clientId={id} /></Card></TabsContent>
+        <TabsContent value="consulting" className="mt-5"><ConsultingPanels clientId={id} /></TabsContent>
+        <TabsContent value="timeline" className="mt-5"><Card><TimelineList clientId={id} /></Card></TabsContent>
+        <TabsContent value="reports" className="mt-5"><Card><Link to="/reports" onClick={() => setScopeClient(id)} className="btn-emerald inline-flex rounded-xl px-4 py-2.5 text-sm font-semibold" data-testid="client-reports-link">{t("reports")} →</Link></Card></TabsContent>
         <TabsContent value="documents" className="mt-5"><DocumentsPanel clientId={id} /></TabsContent>
       </Tabs>
+      <CorrectionDialog open={corr} onOpenChange={setCorr} clientId={id} entity="portfolio" targetLabel={c.corporate_name || c.name} />
       <Sheet open={ai} onOpenChange={setAi}>
         <SheetContent side="right" className="flex w-full flex-col bg-[#F7F9FC] sm:max-w-xl" data-testid="client-ai-drawer">
           <SheetHeader><SheetTitle className="flex items-center gap-2 font-display"><Sparkles className="h-4 w-4 text-[#00A878]" />FINORA AI · {c.corporate_name || c.name}</SheetTitle></SheetHeader>

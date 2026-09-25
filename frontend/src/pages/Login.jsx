@@ -18,6 +18,8 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [challenge, setChallenge] = useState(null);
+  const [code, setCode] = useState("");
   if (user) return <Navigate to="/" replace />;
 
   const submit = async (e) => {
@@ -25,7 +27,8 @@ export default function Login() {
     setBusy(true);
     setErr("");
     try {
-      const { data } = await api.post("/auth/login", { email, password });
+      const { data } = challenge ? await api.post("/auth/2fa/verify", { challenge_token: challenge, code }) : await api.post("/auth/login", { email, password });
+      if (data.requires_2fa) { setChallenge(data.challenge_token); return; }
       localStorage.setItem("finora_token", data.access_token);
       const me = await api.get("/auth/me");
       if (me.data.lang && !localStorage.getItem("finora_lang")) setLang(me.data.lang);
@@ -73,6 +76,12 @@ export default function Login() {
           <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5 h-11" data-testid="login-email-input" autoComplete="username" />
           <label className="mt-4 block text-xs font-medium text-slate-600">{t("password")}</label>
           <Input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5 h-11" data-testid="login-password-input" autoComplete="current-password" />
+          {challenge && (
+            <div className="mt-4 rounded-xl border border-[#00A878]/30 bg-emerald-50/50 p-3" data-testid="login-2fa-step">
+              <label className="block text-xs font-medium text-slate-600">{t("twofa_prompt")}</label>
+              <Input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" autoFocus className="mt-1.5 h-11 font-num tracking-[0.3em]" data-testid="login-2fa-code" />
+            </div>
+          )}
           {err && <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" data-testid="login-error">{err}</div>}
           <Button type="submit" disabled={busy} className="btn-emerald mt-6 h-11 w-full text-sm font-semibold" data-testid="login-submit-button">
             <Lock className="mr-2 h-4 w-4" />{busy ? t("loading") : t("login")}

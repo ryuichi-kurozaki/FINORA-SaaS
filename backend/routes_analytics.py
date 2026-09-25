@@ -4,7 +4,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 
-from core import db, new_id, now_iso, current, admin_only, audit, scope
+from core import db, new_id, now_iso, clean, current, admin_only, audit, scope
+from calc import positions, data_health, goals_progress
 from analytics import (load, summarize, cashflow, build_breakdowns, record_snapshots, trend, metrics, simulate, risk,
                        get_fx, DEFAULT_FX)
 import ai_engine
@@ -19,8 +20,13 @@ async def context(user, client_id=None):
     cf = cashflow(data["cashflows"])
     series = await trend(user, client_id)
     meetings = sorted([c["date"] for c in data["consulting"] if c.get("kind") == "meeting" and c.get("date")])
+    rk = risk(summ, data["assets"], data["liabilities"], cf)
+    docs = [clean(d) for d in await db.documents.find(await scope(user, client_id)).to_list(2000)]
+    pos = positions(data["transactions"], data["assets"])
     return {"data": data, "summary": summ, "cashflow": cf, "trend": series, "metrics": metrics(series),
-            "risk": risk(summ, data["assets"], data["liabilities"], cf), "breakdowns": build_breakdowns(data),
+            "risk": rk, "breakdowns": build_breakdowns(data), "positions": pos,
+            "health": data_health(data, data["transactions"], docs, pos),
+            "goals": goals_progress(data["goals"], summ, cf, data["liabilities"], rk["items"]),
             "last_meeting": meetings[-1] if meetings else None}
 
 
@@ -28,11 +34,27 @@ async def context(user, client_id=None):
 async def dashboard(client_id: Optional[str] = None, lang: str = "ja", user=Depends(current)):
     ctx = await context(user, client_id)
     d = ctx["data"]
-    return {k: ctx[k] for k in ("summary", "cashflow", "trend", "metrics", "risk", "breakdowns", "last_meeting")} | {
+    return {k: ctx[k] for k in ("summary", "cashflow", "trend", "metrics", "risk", "breakdowns", "last_meeting", "health", "goals")} | {
         "projection": simulate(ctx["summary"], ctx["cashflow"], d["liabilities"], {"years": 20}),
         "insights": ai_engine.insights(ctx, lang), "engine": ai_engine.ENGINE,
-        "counts": {k: len(d[k]) for k in ("clients", "accounts", "assets", "liabilities", "cashflows", "consulting", "tasks")},
+        "counts": {k: len(d[k]) for k in ("clients", "accounts", "assets", "liabilities", "cashflows", "consulting", "tasks", "transactions", "goals")},
     }
+
+
+@router.get("/positions")
+async def get_positions(client_id: Optional[str] = None, user=Depends(current)):
+    data = await load(user, client_id)
+    return positions(data["transactions"], data["assets"])
+
+
+@router.get("/data-health")
+async def get_health(client_id: Optional[str] = None, user=Depends(current)):
+    return (await context(user, client_id))["health"]
+
+
+@router.get("/goals/progress")
+async def get_goals(client_id: Optional[str] = None, user=Depends(current)):
+    return (await context(user, client_id))["goals"]
 
 
 class SimIn(BaseModel):
@@ -82,7 +104,9 @@ async def task_alerts(user=Depends(current)):
 
 @router.get("/settings")
 async def get_settings(user=Depends(current)):
-    return {"fx": await get_fx(user["tenant_id"]), "base_currency": "JPY", "ai_engine": ai_engine.ENGINE}
+    s = await db.settings.find_one({"tenant_id": user["tenant_id"]}) or {}
+    return {"fx": await get_fx(user["tenant_id"]), "base_currency": s.get("base_currency", "JPY"),
+            "fx_updated_at": s.get("fx_updated_at"), "ai_engine": ai_engine.ENGINE}
 
 
 class SettingsIn(BaseModel):
@@ -93,6 +117,6 @@ class SettingsIn(BaseModel):
 async def put_settings(body: SettingsIn, request: Request, user=Depends(admin_only)):
     fx = {k.upper()[:5]: float(v) for k, v in body.fx.items() if float(v) > 0}
     before = await get_fx(user["tenant_id"])
-    await db.settings.update_one({"tenant_id": user["tenant_id"]}, {"$set": {"fx": fx}}, upsert=True)
+    await db.settings.update_one({"tenant_id": user["tenant_id"]}, {"$set": {"fx": fx, "fx_updated_at": now_iso()}}, upsert=True)
     await audit(user, "update", "settings", user["tenant_id"], before={"fx": before}, after={"fx": fx}, request=request)
     return {"fx": {**DEFAULT_FX, **fx}}

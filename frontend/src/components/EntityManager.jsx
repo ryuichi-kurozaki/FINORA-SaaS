@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, FileSpreadsheet, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
+import { Download, Eye, FileSpreadsheet, Lock, MessageSquareWarning, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,26 +7,29 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useApp } from "@/context/AppContext";
 import { api, downloadFile, errMsg, useApi } from "@/lib/api";
-import { ENTITIES, EXPENSE_CATS, INCOME_CATS } from "@/config/entities";
+import { ENTITIES, EXPENSE_CATS, INCOME_CATS, OWNED } from "@/config/entities";
+import RecordDrawer from "@/components/RecordDrawer";
+import CorrectionDialog from "@/components/CorrectionDialog";
 import { fmtDate, num, plColor, yen } from "@/lib/format";
 import { Card, Empty, Spinner } from "@/components/common";
 
-function Cell({ f, row }) {
+function Cell({ f, row, assets }) {
   const { t, clientName } = useApp();
   const v = row[f.k];
   if (f.type === "client") return <span className="text-slate-700">{row.client_name || clientName(v) || "—"}</span>;
+  if (f.type === "asset") return <span>{assets.find((a) => a.id === v)?.name || "—"}</span>;
   if (f.type === "money") return <span className="font-num">{yen(v)}</span>;
   if (f.type === "pl") return <span className={`font-num ${plColor(v)}`}>{yen(v)}</span>;
   if (f.type === "number") return <span className="font-num">{num(v, 4)}</span>;
   if (f.type === "date") return <span className="font-num text-slate-600">{fmtDate(v)}</span>;
   if (f.type === "user") return <span>{row._userName || "—"}</span>;
-  if ((f.type === "select" || f.type === "category") && !f.raw) return v ? <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{t(v)}</span> : "—";
+  if ((f.type === "select" || f.type === "category") && !f.raw) return v ? <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{t((f.prefix || "") + v)}</span> : "—";
   return <span className="line-clamp-1 max-w-[260px]">{v || "—"}</span>;
 }
 
 const selCls = "h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A878]/40";
 
-function Field({ f, form, set, users, accounts }) {
+function Field({ f, form, set, users, accounts, assets }) {
   const { t, clients } = useApp();
   const v = form[f.k] ?? "";
   const id = `field-${f.k}`;
@@ -34,7 +37,9 @@ function Field({ f, form, set, users, accounts }) {
   let input;
   if (f.type === "select" || f.type === "category") {
     const opts = f.type === "category" ? (form.direction === "income" ? INCOME_CATS : EXPENSE_CATS) : f.opts;
-    input = <select id={id} data-testid={id} className={selCls} value={v} onChange={on}><option value="">—</option>{opts.map((o) => <option key={o} value={o}>{f.raw ? o : t(o)}</option>)}</select>;
+    input = <select id={id} data-testid={id} className={selCls} value={v} onChange={on}><option value="">—</option>{opts.map((o) => <option key={o} value={o}>{f.raw ? o : t((f.prefix || "") + o)}</option>)}</select>;
+  } else if (f.type === "asset") {
+    input = <select id={id} data-testid={id} className={selCls} value={v} onChange={on}><option value="">—</option>{assets.filter((a) => a.client_id === form.client_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>;
   } else if (f.type === "client") {
     input = <select id={id} data-testid={id} className={selCls} value={v} onChange={on}><option value="">—</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.corporate_name || c.name}</option>)}</select>;
   } else if (f.type === "user") {
@@ -55,7 +60,7 @@ function Field({ f, form, set, users, accounts }) {
 }
 
 export default function EntityManager({ entity, clientId, title, onChange, compact }) {
-  const { t, user, canWrite, scopeClient, refreshClients } = useApp();
+  const { t, user, canEdit, isClient, scopeClient, refreshClients } = useApp();
   const cid = clientId ?? scopeClient;
   const { data, loading, reload } = useApi(`/data/${entity}${cid ? `?client_id=${cid}` : ""}`, [cid]);
   const [q, setQ] = useState("");
@@ -64,15 +69,20 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
   const [del, setDel] = useState(null);
   const [users, setUsers] = useState([]);
   const [accounts, setAccounts] = useState([]);
+  const [assets, setAssets] = useState([]);
+  const [detail, setDetail] = useState(null);
+  const [corr, setCorr] = useState(null);
   const fileRef = useRef(null);
+  const canWrite = canEdit(entity);
+  const owned = OWNED.includes(entity);
   const fields = ENTITIES[entity].filter((f) => !(f.adminOnly && user.role !== "admin"));
   const cols = fields.filter((f) => f.table && !(clientId && f.type === "client"));
 
   useEffect(() => {
-    if (!canWrite) return;
-    api.get("/users").then((r) => setUsers(r.data)).catch(() => {});
-    if (entity === "assets") api.get("/data/accounts").then((r) => setAccounts(r.data)).catch(() => {});
-  }, [entity, canWrite]);
+    if (!isClient) api.get("/users").then((r) => setUsers(r.data)).catch(() => {});
+    if (["assets", "transactions"].includes(entity)) api.get("/data/accounts").then((r) => setAccounts(r.data)).catch(() => {});
+    if (entity === "transactions") api.get("/data/assets").then((r) => setAssets(r.data)).catch(() => {});
+  }, [entity, isClient]);
 
   const rows = useMemo(() => {
     const um = Object.fromEntries(users.map((u) => [u.id, u.name]));
@@ -132,10 +142,10 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input placeholder={t("search")} value={q} onChange={(e) => setQ(e.target.value)} className="h-9 w-48 pl-9" data-testid={`${entity}-search-input`} />
           </div>
+          <Button variant="outline" size="sm" onClick={() => exp("csv")} data-testid={`${entity}-export-csv`}><Download className="mr-1 h-4 w-4" />CSV</Button>
+          <Button variant="outline" size="sm" onClick={() => exp("xlsx")} data-testid={`${entity}-export-xlsx`}><FileSpreadsheet className="mr-1 h-4 w-4" />Excel</Button>
           {canWrite && (
             <>
-              <Button variant="outline" size="sm" onClick={() => exp("csv")} data-testid={`${entity}-export-csv`}><Download className="mr-1 h-4 w-4" />CSV</Button>
-              <Button variant="outline" size="sm" onClick={() => exp("xlsx")} data-testid={`${entity}-export-xlsx`}><FileSpreadsheet className="mr-1 h-4 w-4" />Excel</Button>
               <Button variant="outline" size="sm" onClick={() => fileRef.current.click()} data-testid={`${entity}-import-btn`}><Upload className="mr-1 h-4 w-4" />{t("import")}</Button>
               <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" hidden onChange={doImport} data-testid={`${entity}-import-input`} />
               <Button size="sm" className="btn-emerald" onClick={openNew} data-testid={`${entity}-add-btn`}><Plus className="mr-1 h-4 w-4" />{t("add")}</Button>
@@ -143,31 +153,35 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
           )}
         </div>
       </div>
+      {owned && !isClient && <div className="mb-3 flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600" data-testid={`${entity}-readonly-note`}><Lock className="h-3.5 w-3.5 text-[#C9A227]" />{t("readonly_note")}</div>}
       {loading ? <Spinner /> : !rows.length ? <Empty text={t("no_data")} /> : (
         <div className="-mx-2 overflow-x-auto">
           <table className="data-table w-full min-w-[720px] text-sm" data-testid={`${entity}-table`}>
-            <thead><tr>{cols.map((c) => <th key={c.k}>{t(c.label || c.k)}</th>)}{canWrite && <th className="text-right">{t("actions")}</th>}</tr></thead>
+            <thead><tr>{cols.map((c) => <th key={c.k}>{t(c.label || c.k)}</th>)}{owned && <th>{t("last_updated")}</th>}<th className="text-right">{t("actions")}</th></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} data-testid={`${entity}-row-${r.id}`}>
-                  {cols.map((c) => <td key={c.k}><Cell f={c} row={r} /></td>)}
-                  {canWrite && (
-                    <td className="whitespace-nowrap text-right">
-                      <button className="icon-btn" onClick={() => { setForm(r); setOpen(true); }} data-testid={`${entity}-edit-${r.id}`}><Pencil className="h-4 w-4" /></button>
-                      {(entity !== "clients" || user.role === "admin") && <button className="icon-btn hover:text-red-600" onClick={() => setDel(r)} data-testid={`${entity}-delete-${r.id}`}><Trash2 className="h-4 w-4" /></button>}
-                    </td>
-                  )}
+                  {cols.map((c) => <td key={c.k}><Cell f={c} row={r} assets={assets} /></td>)}
+                  {owned && <td className="whitespace-nowrap text-[11px] text-slate-500"><span className="font-num">{fmtDate(r.price_date || r.balance_date || r.updated_at)}</span> · {t(r.source || "MANUAL")}</td>}
+                  <td className="whitespace-nowrap text-right">
+                    {entity !== "clients" && <button className="icon-btn" onClick={() => setDetail(r)} title={t("view_detail")} data-testid={`${entity}-view-${r.id}`}><Eye className="h-4 w-4" /></button>}
+                    {owned && !isClient && <button className="icon-btn hover:text-[#C9A227]" onClick={() => setCorr(r)} title={t("request_correction")} data-testid={`${entity}-correction-${r.id}`}><MessageSquareWarning className="h-4 w-4" /></button>}
+                    {canEdit(entity, r) && <button className="icon-btn" onClick={() => { setForm(r); setOpen(true); }} data-testid={`${entity}-edit-${r.id}`}><Pencil className="h-4 w-4" /></button>}
+                    {canEdit(entity, r) && (entity !== "clients" || user.role === "admin") && <button className="icon-btn hover:text-red-600" onClick={() => setDel(r)} data-testid={`${entity}-delete-${r.id}`}><Trash2 className="h-4 w-4" /></button>}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+      <RecordDrawer row={detail} entity={entity} onClose={() => setDetail(null)} onCorrection={owned ? (r) => { setDetail(null); setCorr(r); } : null} />
+      <CorrectionDialog open={!!corr} onOpenChange={(o) => !o && setCorr(null)} clientId={corr?.client_id} entity={entity} targetId={corr?.id} targetLabel={corr?.name || corr?.institution || corr?.tx_type} />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto" data-testid={`${entity}-form-dialog`}>
           <DialogHeader><DialogTitle className="font-display">{form.id ? t("edit") : t("add")} — {t(entity)}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {fields.filter((f) => !f.computed && !(clientId && f.type === "client")).map((f) => <Field key={f.k} f={f} form={form} set={set} users={users} accounts={accounts} />)}
+            {fields.filter((f) => !f.computed && !(clientId && f.type === "client") && !(isClient && f.type === "client")).map((f) => <Field key={f.k} f={f} form={form} set={set} users={users} accounts={accounts} assets={assets} />)}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} data-testid={`${entity}-form-cancel`}>{t("cancel")}</Button>
