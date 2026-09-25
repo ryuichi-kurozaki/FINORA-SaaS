@@ -120,8 +120,12 @@ staff = require_roles("admin", "consultant")
 admin_only = require_roles("admin")
 
 
+def sees_all(user):
+    return user["role"] == "admin" and not user.get("is_consultant")
+
+
 async def accessible_ids(user):
-    if user["role"] == "admin":
+    if sees_all(user):
         return None
     if user["role"] == "client":
         return [user.get("client_id")]

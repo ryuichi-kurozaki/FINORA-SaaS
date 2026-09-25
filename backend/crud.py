@@ -2,7 +2,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Request, HTTPException, Depends
 
-from core import (db, now_iso, new_id, clean, encrypt, decrypt, current, admin_only, accessible_ids, scope, audit,
+from core import (sees_all, db, now_iso, new_id, clean, encrypt, decrypt, current, admin_only, accessible_ids, scope, audit,
                   notify_other_side, _label)
 
 router = APIRouter(prefix="/api/data")
@@ -91,9 +91,9 @@ async def list_query(user, entity, client_id=None):
             q["id"] = {"$in": ids}
         return q
     q = await scope(user, client_id)
-    if entity == "tasks" and user["role"] != "admin":
+    if entity == "tasks" and not sees_all(user):
         vis = {"$or": [{"owner_id": user["id"]}, {"visibility": "shared"}]}
-        if user["role"] == "consultant" and not client_id:
+        if user["role"] != "client" and not client_id:
             return {"tenant_id": user["tenant_id"], "$or": [{"owner_id": user["id"]}, {"$and": [{"client_id": q["client_id"]}, vis]}]}
         return {"$and": [q, vis]}
     return q
@@ -110,7 +110,7 @@ async def check_write(user, entity, doc, existing=None):
         if user["role"] == "client" or (entity == "contracts" and user["role"] != "admin"):
             raise HTTPException(403, "Forbidden")
         if entity == "clients":
-            if user["role"] == "consultant" and doc.get("consultant_id") != user["id"]:
+            if not sees_all(user) and doc.get("consultant_id") != user["id"]:
                 raise HTTPException(403, "No access to this client")
             return
         if not doc.get("client_id"):
@@ -214,6 +214,8 @@ async def delete_entity(entity: str, item_id: str, request: Request, user=Depend
         raise HTTPException(404, "Not found")
     if entity == "clients":
         await admin_only(request)
+        if not sees_all(user) and before.get("consultant_id") != user["id"]:
+            raise HTTPException(403, "No access to this client")
         for c in CASCADE:
             await db[c].delete_many({"tenant_id": user["tenant_id"], "client_id": item_id})
     else:
