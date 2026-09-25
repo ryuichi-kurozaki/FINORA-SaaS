@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 import pyotp
 
-from core import (db, now, now_iso, new_id, clean, hash_password, verify_password, make_token, decode_token,
+from core import (forbid_demo, db, now, now_iso, new_id, clean, hash_password, verify_password, make_token, decode_token,
                   ip_of, current, staff, admin_only, audit, encrypt, decrypt, ACCESS_MIN, REFRESH_DAYS)
 
 router = APIRouter(prefix="/api")
@@ -99,6 +99,7 @@ async def verify_2fa(body: TwoFAIn, request: Request, response: Response):
 
 @router.post("/auth/2fa/setup")
 async def setup_2fa(user=Depends(current)):
+    forbid_demo(user)
     secret = pyotp.random_base32()
     await db.users.update_one({"id": user["id"]}, {"$set": {"totp_pending": encrypt(secret)}})
     return {"secret": secret, "uri": pyotp.TOTP(secret).provisioning_uri(name=user["email"], issuer_name="FINORA")}
@@ -106,6 +107,7 @@ async def setup_2fa(user=Depends(current)):
 
 @router.post("/auth/2fa/enable")
 async def enable_2fa(body: CodeIn, request: Request, user=Depends(current)):
+    forbid_demo(user)
     u = await db.users.find_one({"id": user["id"]})
     if not _totp_ok(u.get("totp_pending"), body.code):
         raise HTTPException(400, "Invalid authentication code")
@@ -116,6 +118,7 @@ async def enable_2fa(body: CodeIn, request: Request, user=Depends(current)):
 
 @router.post("/auth/2fa/disable")
 async def disable_2fa(body: CodeIn, request: Request, user=Depends(current)):
+    forbid_demo(user)
     u = await db.users.find_one({"id": user["id"]})
     if not _totp_ok(u.get("totp_secret"), body.code):
         raise HTTPException(400, "Invalid authentication code")
@@ -171,6 +174,7 @@ async def me(user=Depends(current)):
 
 @router.post("/auth/change-password")
 async def change_password(body: PasswordIn, request: Request, user=Depends(current)):
+    forbid_demo(user)
     u = await db.users.find_one({"id": user["id"]})
     if not verify_password(body.current_password, u["password_hash"]):
         raise HTTPException(400, "Current password is incorrect")
@@ -196,6 +200,7 @@ async def list_users(user=Depends(staff)):
 
 @router.post("/users")
 async def create_user(body: UserIn, request: Request, user=Depends(admin_only)):
+    forbid_demo(user)
     if not body.email or not body.password or body.role not in ROLES:
         raise HTTPException(422, "email, password and valid role are required")
     if len(body.password) < 8:
@@ -214,6 +219,7 @@ async def create_user(body: UserIn, request: Request, user=Depends(admin_only)):
 
 @router.put("/users/{uid}")
 async def update_user(uid: str, body: UserIn, request: Request, user=Depends(admin_only)):
+    forbid_demo(user)
     before = clean(await db.users.find_one({"id": uid, "tenant_id": user["tenant_id"]}))
     if not before:
         raise HTTPException(404, "User not found")

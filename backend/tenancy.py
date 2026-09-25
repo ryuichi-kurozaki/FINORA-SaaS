@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from core import (db, new_id, now, now_iso, clean, staff, admin_only, platform_admin, scope, audit, notify, hash_password,
+from core import (forbid_demo, db, new_id, now, now_iso, clean, staff, admin_only, platform_admin, scope, audit, notify, hash_password,
                   encrypt, ip_of)
 
 router = APIRouter(prefix="/api")
@@ -79,6 +79,7 @@ class InviteIn(BaseModel):
 
 @router.post("/invitations")
 async def create_invitation(body: InviteIn, request: Request, user=Depends(staff)):
+    forbid_demo(user)
     await scope(user, body.client_id)
     email = body.email.strip().lower()
     if await db.users.find_one({"email": email}):

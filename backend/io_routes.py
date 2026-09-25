@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Request, UploadFile, File, Form, HTTPExc
 from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorGridFSBucket
 
-from core import db, new_id, now_iso, clean, current, scope, audit, notify_other_side
+from core import forbid_demo, db, new_id, now_iso, clean, current, scope, audit, notify_other_side
 from crud import ENTITIES, OWNED, sanitize, to_store, list_items, check_write
 
 router = APIRouter(prefix="/api")
@@ -37,6 +37,7 @@ async def export(entity: str, request: Request, fmt: str = "csv", client_id: Opt
 @router.post("/io/import/{entity}")
 async def import_data(entity: str, request: Request, file: UploadFile = File(...), client_id: Optional[str] = Form(None),
                       user=Depends(current)):
+    forbid_demo(user)
     if entity not in ENTITIES:
         raise HTTPException(404, "Unknown entity")
     if user["role"] == "client":
@@ -81,6 +82,7 @@ async def list_docs(client_id: Optional[str] = None, user=Depends(current)):
 async def upload_doc(request: Request, file: UploadFile = File(...), client_id: str = Form(...), category: str = Form("other"),
                      notes: str = Form(""), fiscal_year: str = Form(""), institution: str = Form(""), asset_id: str = Form(""),
                      expiry_date: str = Form(""), user=Depends(current)):
+    forbid_demo(user)
     if user["role"] != "client" or client_id != user.get("client_id"):
         raise HTTPException(403, "Only the client can upload their own documents")
     await scope(user, client_id)

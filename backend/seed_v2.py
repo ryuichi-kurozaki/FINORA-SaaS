@@ -13,7 +13,7 @@ def _d(days):
     return (datetime.now().date() - timedelta(days=days)).isoformat()
 
 
-async def seed_v2(t, pw, consultant_id):
+async def seed_v2(t, pw, consultant_id, client2_email="client2@finora.co.jp"):
     tid = t["id"]
     roles = {u["id"]: (u["role"], u.get("name")) for u in await db.users.find({"tenant_id": tid}).to_list(1000)}
     for uid, (role, name) in roles.items():
@@ -25,7 +25,7 @@ async def seed_v2(t, pw, consultant_id):
     if len(clients) < 3:
         return
     c1, c3 = clients[0], clients[2]
-    await upsert_user(tid, "client2@finora.co.jp", c3.get("name") or "Client 2", "client", pw, c3["id"])
+    await upsert_user(tid, client2_email, c3.get("name") or "Client 2", "client", pw, c3["id"])
     for task in await db.tasks.find({"tenant_id": tid, "owner_id": {"$exists": False}}).to_list(1000):
         await db.tasks.update_one({"id": task["id"]}, {"$set": {"owner_id": task.get("assignee_id") or consultant_id, "owner_role": "consultant",
                                                                  "visibility": "shared" if task.get("kind") in SHARED_KINDS else "internal"}})

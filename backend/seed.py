@@ -204,6 +204,9 @@ async def seed():
     pw = os.environ["DEMO_PASSWORD"]
     admin = await upsert_user(t["id"], os.environ["ADMIN_EMAIL"].lower(), "Ryuichi Kurozaki", "admin", os.environ["ADMIN_PASSWORD"])
     from seed_v3 import seed_v3
+    if os.environ["SEED_SHOWCASE"] == "true":
+        from seed_showcase import seed_showcase
+        await seed_showcase(pw)
     if os.environ["SEED_DEMO"] != "true":
         return await seed_v3(t, pw, demo=False)
     cons = await upsert_user(t["id"], "consultant@finora.co.jp", "田中 翔", "consultant", pw)

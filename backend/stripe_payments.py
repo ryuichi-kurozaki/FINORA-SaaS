@@ -8,7 +8,7 @@ import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from core import db, new_id, now_iso, current, admin_only, audit, notify, consultant_ids, client_user_ids
+from core import forbid_demo, db, new_id, now_iso, current, admin_only, audit, notify, consultant_ids, client_user_ids
 from billing import get_invoice, recompute
 from email_service import send_refund_receipt
 
@@ -53,6 +53,7 @@ async def _record(session, kind, user, amount, extra):
 
 @router.post("/stripe/checkout/invoice")
 async def checkout_invoice(body: CheckoutIn, user=Depends(current)):
+    forbid_demo(user)
     if user["role"] != "client":
         raise HTTPException(403, "Only the invoiced customer can pay by card")
     inv = await get_invoice(user, body.invoice_id or "")
@@ -66,6 +67,7 @@ async def checkout_invoice(body: CheckoutIn, user=Depends(current)):
 
 @router.post("/stripe/checkout/subscription")
 async def checkout_subscription(body: CheckoutIn, user=Depends(admin_only)):
+    forbid_demo(user)
     sub = await db.saas_subscriptions.find_one({"tenant_id": user["tenant_id"]})
     if not sub or not sub.get("amount"):
         raise HTTPException(409, "FINORA fee has not been set for this account yet")
@@ -126,6 +128,7 @@ async def payment_status(session_id: str):
 
 @router.post("/stripe/refund/invoice/{iid}")
 async def refund_invoice(iid: str, request: Request, user=Depends(admin_only)):
+    forbid_demo(user)
     await get_invoice(user, iid)
     pays = await db.payments.find({"invoice_id": iid, "tenant_id": user["tenant_id"], "source": "STRIPE", "refunded": {"$ne": True}}).to_list(100)
     if not pays:

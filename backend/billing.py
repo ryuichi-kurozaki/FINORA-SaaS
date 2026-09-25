@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from pymongo import ReturnDocument
 
-from core import (db, new_id, now_iso, clean, current, staff, admin_only, scope, audit, accessible_ids,
+from core import (forbid_demo, db, new_id, now_iso, clean, current, staff, admin_only, scope, audit, accessible_ids,
                   notify, client_user_ids, consultant_ids)
 
 router = APIRouter(prefix="/api")
@@ -259,6 +259,7 @@ async def get_profile(user=Depends(staff)):
 
 @router.put("/billing/profile")
 async def put_profile(body: dict, request: Request, user=Depends(admin_only)):
+    forbid_demo(user)
     prof = {k: str(body.get(k, ""))[:500] for k in PROFILE_FIELDS}
     t = await db.tenants.find_one({"id": user["tenant_id"]}) or {}
     await db.tenants.update_one({"id": user["tenant_id"]}, {"$set": {"billing_profile": prof}})

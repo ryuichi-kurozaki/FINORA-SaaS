@@ -110,6 +110,11 @@ def require_roles(*roles):
     return dep
 
 
+def forbid_demo(user):
+    if user.get("demo"):
+        raise HTTPException(403, "デモアカウントではこの操作はできません (Not available in the demo account)")
+
+
 current = require_roles("admin", "consultant", "client")
 staff = require_roles("admin", "consultant")
 admin_only = require_roles("admin")

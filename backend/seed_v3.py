@@ -11,13 +11,14 @@ def d(days):
     return (datetime.now().date() + timedelta(days=days)).isoformat()
 
 
-async def seed_v3(t, pw, demo=True):
+async def seed_v3(t, pw, demo=True, platform=True, tenant_b=True):
     tid = t["id"]
     for code, name, order in PLANS:
         await db.plans.update_one({"code": code}, {"$setOnInsert": {"id": new_id(), "code": code, "name": name, "order": order, "active": True,
                                                                    "price_monthly": None, "price_yearly": None, "max_customers": None, "description": ""}}, upsert=True)
     admin = await db.users.find_one({"tenant_id": tid, "role": "admin"})
-    await db.users.update_one({"id": admin["id"]}, {"$set": {"platform_admin": True}})
+    if platform:
+        await db.users.update_one({"id": admin["id"]}, {"$set": {"platform_admin": True}})
     if not t.get("status") and not demo:
         await db.tenants.update_one({"id": tid}, {"$set": {"status": "ACTIVE", "owner_user_id": admin["id"], "billing_profile": {
             "company_name": t.get("name"), "representative": admin.get("name"), "email": admin["email"]}}})
@@ -68,7 +69,7 @@ async def seed_v3(t, pw, demo=True):
     if "Ana Paula Ferreira" in cons:
         await inv(cons["Ana Paula Ferreira"], d(-20), d(10), 60000, "PARTIALLY_PAID")
     await db.counters.update_one({"tenant_id": tid, "key": f"invoice-{ym}"}, {"$set": {"seq": seq}}, upsert=True)
-    if not await db.tenants.find_one({"slug": "b-consulting"}):
+    if tenant_b and not await db.tenants.find_one({"slug": "b-consulting"}):
         tb = {"id": new_id(), "slug": "b-consulting", "name": "Bコンサルティング合同会社", "status": "ACTIVE", "created_at": now_iso()}
         await db.tenants.insert_one(tb)
         await upsert_user(tb["id"], "consultantb@finora.co.jp", "鈴木 大輔", "admin", pw)
