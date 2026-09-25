@@ -197,6 +197,8 @@ async def seed_demo(tenant_id, consultant_id, admin_id):
 
 async def seed():
     await ensure_indexes()
+    signup_tids = await db.tenants.distinct("id", {"signup_ip": {"$exists": True}})
+    await db.users.update_many({"tenant_id": {"$in": signup_tids}, "role": "admin"}, {"$set": {"is_consultant": True}})
     t = await db.tenants.find_one({"slug": "finora-demo"})
     if not t:
         t = {"id": new_id(), "slug": "finora-demo", "name": "FINORA Wealth Partners", "plan": "premium", "created_at": now_iso()}

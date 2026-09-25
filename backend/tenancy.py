@@ -59,7 +59,7 @@ async def signup(body: SignupIn, request: Request):
                                  "owner_user_id": uid, "status": status, "signup_ip": ip, "created_at": now_iso(),
                                  "billing_profile": {"company_name": body.company_name or body.name, "representative": body.name,
                                                      "address": body.address, "phone": body.phone, "email": email}})
-    user = {"id": uid, "tenant_id": tid, "email": email, "name": body.name, "role": "admin", "active": True,
+    user = {"id": uid, "tenant_id": tid, "email": email, "name": body.name, "role": "admin", "is_consultant": True, "active": True,
             "password_hash": hash_password(body.password), "phone": encrypt(body.phone), "address": encrypt(body.address),
             "profile": body.profile, "qualifications": body.qualifications, "created_at": now_iso()}
     await db.users.insert_one(user)

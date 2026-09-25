@@ -25,7 +25,7 @@ const ADMIN_HIDDEN = new Set(["accounts", "assets", "transactions", "portfolio",
 function SideNav({ onNavigate }) {
   const { t, lang, user } = useApp();
   const items = NAV.filter(([k]) => !(k === "clients" && user.role === "client") && !(k === "platform" && !user.platform_admin)
-    && !(user.role === "admin" && ADMIN_HIDDEN.has(k)));
+    && !(user.role === "admin" && !user.is_consultant && ADMIN_HIDDEN.has(k)));
   return (
     <div className="flex h-full flex-col">
       <div className="px-6 pb-6 pt-7"><Logo light tagline /></div>
@@ -108,7 +108,7 @@ function Header({ onMenu }) {
         <Alerts />
         <div className="hidden text-right md:block">
           <div className="text-sm font-semibold text-[#071A2B]" data-testid="header-user-name">{user.name}</div>
-          <div className="text-[11px] text-slate-500">{t(user.role === "client" ? "client_role" : user.role === "admin" ? "tenant_owner" : user.role)}</div>
+          <div className="text-[11px] text-slate-500">{t(user.role === "client" ? "client_role" : user.is_consultant ? "consultant" : user.role === "admin" ? "tenant_owner" : user.role)}</div>
         </div>
         <button onClick={async () => { await logout(); nav("/login"); }} className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-red-600" data-testid="logout-btn" title={t("logout")}>
           <LogOut className="h-5 w-5" strokeWidth={1.7} />
