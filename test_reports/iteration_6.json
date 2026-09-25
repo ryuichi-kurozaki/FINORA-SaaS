@@ -1,0 +1,28 @@
+{
+  "summary": "Verified seed() password-reset bug fix in isolated Mongo DB, confirmed preview demo logins, ran full change-password/re-login/revert flow for client@finora.co.jp, and did a single read-only production login check for the admin (200 + access_token).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Any page with charts (login was likely still in-flight)", "issues": ["Recharts prints repeated 'width(-1) height(-1)' console warnings when chart containers render before layout; cosmetic but noisy in console"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_seed_no_reset.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "seed.py upsert_user now correctly gates password self-heal behind SEED_DEMO=='true' (line 27). The fix is minimal and correct. Consider logging when the demo self-heal fires so a future accidental prod SEED_DEMO=true is easier to detect.",
+    "seed.py reads os.environ['SEED_DEMO'] directly which raises KeyError if unset; harmless in prod (var is set) but a `.get('SEED_DEMO','false')` would be safer.",
+    "Consider suppressing the recharts width/height warnings by giving chart containers explicit minHeight; not blocking."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "See /app/memory/test_credentials.md. Preview demo pwd Finora2026!. Production admin login tested once, still valid.",
+  "seed_data_creation": "Created & dropped throwaway Mongo DB 'seedtest_tmp' during the isolated seed test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Bug fix for silent password reset on backend restart is verified. Test script /app/backend/tests/test_seed_no_reset.py sets its own env and can be re-run standalone with `python /app/backend/tests/test_seed_no_reset.py`. Preview and production login both healthy. Do not brute force production (5 fail = 15min lock).",
+  "rca of the issue": "seed.upsert_user unconditionally re-hashed and overwrote the admin's password_hash whenever the stored hash didn't verify against ADMIN_PASSWORD from .env. On production (SEED_DEMO=false) this meant every backend restart reverted a user's freshly-changed admin password back to the .env value, eventually causing 5 failed logins -> 15 min lockout. Fix: gate the reset behind `elif os.environ['SEED_DEMO']=='true' and not verify_password(...)`, so production restarts leave existing password_hash untouched while demo self-heal still works. Verified in isolated DB: after user changes hash to NewPass456!, running seed() with SEED_DEMO=false preserves NewPass456!; with SEED_DEMO=true it resets back to ADMIN_PASSWORD as expected."
+}
