@@ -1,0 +1,52 @@
+{
+  "summary": "FINORA v2 spec end-to-end verification. Backend pytest suite (32 tests, /app/backend/tests/test_finora_v2.py): 30 PASSED, 1 FAILED (mixed: audit_logs assertion on legacy pre-v2 rows lacking user_role — see below), 1 SKIPPED (株式会社サクラ不動産 admin-only client not present in seed => could not verify consultant→admin-owned client 403; consultant read-only writes already verified via other test). Frontend Playwright: consultant client-detail tabs (all 15 tabs present), assets tab readonly-note, record-drawer + correction-dialog open. Client dashboard shows client-action-center, networth-history (all 7 range buttons), goals-panel, data-health-panel, header-notifications-btn. Consent gate appears on first client login and closes after agreeing. Client sees assets-add-btn and new-request-btn/request-submit. Mobile 390px: 0 horizontal overflow.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/security/audit-logs", "issue": "Older audit log rows (from initial seed prior to v2) do not contain user_role field. audit() adds user_role for all NEW writes correctly (verified). Consider a one-time migration in seed_v2 to backfill user_role on legacy audit_logs so admin UI/reports don't have to defensively handle missing field."},
+      {"endpoint": "/api/data/clients (admin seed)", "issue": "株式会社サクラ不動産 (admin-owned, referenced in review request) is not present in the seeded client list returned to admin. Only 3 clients seeded (all assigned to the consultant), so 'consultant blocked on admin-only client' cannot be automatically verified. Add a 4th client with consultant_id != consultant to enable this negative test."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Layout header client-scope <select>", "issues": ["Hydration warning: <span> cannot be a child of <option> (from x-source instrumentation wrapping the localized label). Cosmetic dev-time warning only."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_finora_v2.py",
+    "/app/test_reports/pytest/finora_v2.xml"
+  ],
+  "action_items": [
+    "(Low) Backfill user_role on legacy audit_logs (migration in seed_v2) so every log carries user_role as spec requires. New logs already correct.",
+    "(Low) Seed an admin-only 4th client (株式会社サクラ不動産) so the consultant-blocked-from-admin-owned-client isolation test can run automatically.",
+    "(Cosmetic) Address <option> hydration warning in Layout header (same finding as prior iterations)."
+  ],
+  "critical_code_review_comments": [
+    "check_write() for OWNED entities uses `existing` doc for authorization on UPDATE (before scope-check on merged doc). Correct behaviour verified: staff cannot POST/PUT/DELETE on assets/accounts/liabilities/cashflows/transactions/goals for any client — always returns 403 with clear message ('Client-owned data is read-only for staff. Please send a correction request.').",
+    "check_write on tasks uses `existing` for owner check on update but on CREATE `existing` is None, so anyone (with client scope) may create — as designed, but the owner is auto-set to the caller so consultant cannot create client-owned tasks. Verified working: client cannot edit consultant task (403).",
+    "notify_other_side + client_user_ids/consultant_ids correctly fan-out: consultant received `client_data_updated` unread notification after client created a goal. Good.",
+    "delete_entity keeps `before` snapshot in audit_logs (verified: DELETE of a TEST_DEL_ asset preserves before.name). Cascade on client-delete is admin-only — good.",
+    "resolve_correction/close_correction have proper RBAC (client-only vs staff-only) and both raise 403 with meaningful messages. Consultant cannot resolve; client cannot close (implicit via staff dep).",
+    "consulting requests: client creates, consultant manages, meeting_at path auto-creates a shared task with owner_id=consultant. Verified 200. RBAC correct (403 both directions).",
+    "history endpoint returns daily series with 120 pre-generated daily_snapshots from seed_v2 — client cross-access returns 403 via scope() (verified).",
+    "AI /ai/ask correctly 403s when a client passes another client's id in body.client_id (scope raises before ai_engine touches data).",
+    "2FA full cycle (setup→enable→login→verify→disable) works with pyotp on the consultant account; the challenge_token has a 5-min TTL and is honored. Left with 2FA disabled as instructed.",
+    "Admin backup returns JSON with all 17 collections; 403 for consultant. Good.",
+    "Documents route: only clients can upload/delete their own docs; staff can only download. Verified (403 for consultant upload).",
+    "Export as client is scoped to own client_id via list_items → scope(); passing another client_id → 403 (verified).",
+    "Minor: crud.py `check_write` calls twice in update path (once with `before` merged with data, once with `before`). Second call re-verifies scope with merged doc — this is redundant for OWNED (blocks staff outright first). Not a bug, minor DRY.",
+    "Minor: seed_v2 idempotency guard is `db.goals.find_one` — safe for reruns, but a manual test that clears goals collection would re-run everything including 120 daily snapshots per client (duplicates). Consider guarding daily_snapshots insert on presence of any snapshot per client."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_finora_v2.py"
+  ],
+  "success_rate": {"backend": "30/32 (94%, 1 minor legacy-data assertion, 1 skipped due to missing seed)", "frontend": "100% of tested selectors and flows"},
+  "test_credentials": "Used all four accounts from /app/memory/test_credentials.md — admin/consultant/client A/client B. 2FA left DISABLED on all accounts as instructed.",
+  "seed_data_creation": "During tests: created & deleted TEST_ASSET_*, TEST_G_*, TEST_DEL_*, TEST_TASK_INT (deleted), one TEST_C comment, one TEST_REQ consulting request (kept, status=meeting_scheduled), one correction request (kept, status=closed), one TEST_SNAP saved snapshot (kept). Client A consent records inserted for terms/privacy/personal_info v2026.1 (kept — required for client to use the app).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_finora_v2.py covers the whole v2 spec surface and can be reused for regression. The one failing assertion (audit_logs user_role on legacy rows) is a data-migration observation, NOT a code bug — new writes are correct. The skipped consultant-admin-only-client test needs a 4th seeded client with consultant_id != consultant_id to become active. Consent gate now shows only on brand-new client accounts; after client@finora.co.jp accepted during this run, it will not re-appear until CONSENT_DOCS version bumps.",
+  "rca of the issue": "TestAuditLogs.test_admin_audit_logs_uppercase_and_fields failed because early seed writes (or writes done before core.audit() was extended to include user_role in a prior iteration) exist in DB without user_role. New writes DO include user_role (verified separately). Fix: add a one-liner in seed_v2 to backfill: db.audit_logs.update_many({'user_role': {'$exists': False}}, {'$set': {'user_role': None}}) OR loop by user_id -> role."
+}

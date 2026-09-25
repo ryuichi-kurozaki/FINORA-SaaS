@@ -15,6 +15,10 @@ def _d(days):
 
 async def seed_v2(t, pw, consultant_id):
     tid = t["id"]
+    roles = {u["id"]: (u["role"], u.get("name")) for u in await db.users.find({"tenant_id": tid}).to_list(1000)}
+    for uid, (role, name) in roles.items():
+        await db.audit_logs.update_many({"tenant_id": tid, "user_id": uid, "user_role": {"$exists": False}},
+                                        {"$set": {"user_role": role, "user_name": name}})
     if await db.goals.find_one({"tenant_id": tid}):
         return
     clients = await db.clients.find({"tenant_id": tid}).sort("created_at", 1).to_list(100)

@@ -27,6 +27,14 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - Testing: iteration_1 — backend 25/25, frontend all flows pass
 - Brand logos (4 variants) applied: sidebar, login, favicon, reports
 - Public landing page at / (logged-out): hero, brand, data flow, features, AI showcase, target users, security, pricing (contact-based), contact form → /api/public/inquiries (honeypot + 5/h rate limit), admin Inquiries tab, /legal (terms & privacy), JA/EN/PT — iteration_2 all pass
+- Demo login one-click autofill (frontend .env REACT_APP_DEMO_*; remove before public launch)
+- v2 spec (追加機能・不足機能): client-owned financial data (client CRUD, staff read-only enforced in API), correction requests (consultant→client→resolved), Transactions + positions (avg cost, realized/unrealized, dividends/interest cum.), saved snapshots, daily net-worth history (1M–ALL), price_date/balance_date/source/updated_by_role provenance, FX date & base currency setting, Data Health (13 checks, ok/review/attention, never auto-fix), Goals + goal simulation, Timeline (derived from audit log), Notification Center, consulting requests workflow, record-linked comments, document metadata (client-only upload/delete), task ownership/visibility, AI labels FACT/CALCULATION/SIMULATION/AI INSIGHT/DATA WARNING + health/goals intents, dashboard redesign + client Action Center, audit logs with user_role/client_id/uppercase actions, versioned consents gate, client self-export, optional TOTP 2FA, admin JSON backup, reports: goals/data health/transactions — iteration_3: backend 30/32 (1 legacy-audit fixed, 1 skipped), frontend 100%
+- New modules: backend calc.py, features.py, seed_v2.py; frontend pages Transactions, GoalsHealth, ConsultingHub, Timeline, Notifications; components RecordDrawer, CorrectionDialog, CommentThread, HealthPanel, GoalsPanel, NetWorthHistory, SnapshotsPanel, ActionCenter, ConsentGate, SecurityExtras
+
+## Backlog
+- P1: market price / FX API providers (source=API), email notifications for deadlines, Data Health warning notifications to consultants, request attachments UI
+- P1: admin-owned demo client to exercise consultant isolation in tests; base-currency switch UI
+- P2: accounting/bank API integration, scheduled backups, LLM-backed AI (optional, paid)
 
 ## Backlog
 - P0: 2FA (TOTP)
