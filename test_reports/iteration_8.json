@@ -1,0 +1,33 @@
+{
+  "summary": "Verified consultant-signup role fix end-to-end. Backend: 4/4 pytest pass (signup creates role=admin + is_consultant=true, /auth/me returns the flag, new signup user can list /api/invoices, FINORA admin ryuichi is still plain admin without is_consultant, consultant@finora.co.jp still role=consultant). Frontend preview: new signup user auto-logged in, header role label shows 'コンサルタント' (not 'テナント管理者'), sidebar shows all 16 expected items (dashboard, clients, accounts, assets, transactions, portfolio, liabilities, cashflow, goals, analytics, risk, data_health, consulting, billing, reports, settings), no platform link, /billing shows new-invoice-btn (請求書を作成). FINORA admin (no is_consultant) still has the 12 items hidden and platform link visible, label テナント管理者. Preview consultant@finora.co.jp still shows full menu, label コンサルタント. Production read-only: demo-admin@finora.co.jp -> 12 items hidden, label テナント管理者; demo-consultant@finora.co.jp -> full menu, label コンサルタント. No production writes performed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Layout header client-scope <select>", "issues": ["Hydration warning: <span> cannot be a child of <option>. Some framework instrumentation is injecting <span style='display:contents'> inside <option> elements in the header client-scope selector; likely x-source dev instrumentation only, but produces a React hydration console error on every page load. Cosmetic in dev, worth checking that this instrumentation is stripped in prod build."]},
+      {"screen": "Dashboard first paint", "issues": ["Recharts 'width(-1) height(-1)' warnings still spam console on initial render (carryover from iteration_6/7, cosmetic)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_consultant_signup.py",
+    "/app/test_reports/pytest/consultant_signup.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Layout.jsx role-label logic (line 111) correctly prioritizes is_consultant over role='admin', so any admin with is_consultant=true renders as コンサルタント. Good.",
+    "ADMIN_HIDDEN set (Layout.jsx line 23) filters exactly the 12 expected menu keys and is only applied when role==='admin' && !is_consultant. Matches requirement.",
+    "seed.py migration (line 200-201) back-fills is_consultant=true for all existing signup-tenant admins (identified by signup_ip). Idempotent and safe to re-run.",
+    "tenancy.signup sets is_consultant=True at creation time (line 62) — correct.",
+    "Note (not blocking): the header client-scope select emits option children with injected <span>, producing a React hydration warning on every login. Root cause looks like Emergent's dev x-source instrumentation, not app code, but worth verifying in prod bundle.",
+    "Note: /api/public/signup is rate-limited to 5/hour per IP (tenancy.py line 51). Automated test suites should share one signup per module (already done in test_consultant_signup.py)."
+  ],
+  "updated_files": ["/app/backend/tests/test_consultant_signup.py"],
+  "success_rate": {"backend": "100% (4/4)", "frontend": "100% (4/4 scenarios)"},
+  "test_credentials": "See /app/memory/test_credentials.md; preview demo Finora2026!, prod demo FinoraDemo2026!.",
+  "seed_data_creation": "One preview signup tenant created via /api/public/signup (email qa-consultant-<random>@example.com) as part of backend test. This is expected; it consumes 1 of the 5/hour signup slots for the test pod IP. Also one UI-signup tenant during Playwright test. No production writes.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression file /app/backend/tests/test_consultant_signup.py covers the signup->is_consultant flow and existing role invariants. It shares a module-scoped signup so re-runs consume 1 signup slot per IP per hour (limit 5). If /public/signup returns 429, wait an hour or rotate IP. UI check: role label lives in span sibling of [data-testid=header-user-name]; expected values are コンサルタント / テナント管理者 / システム管理者 depending on i18n keys.",
+  "rca of the issue": "N/A — regression verification only. Previous bug (consultant signup users showing as テナント管理者 with 12 hidden items) is fixed. Fix consists of: (a) signup writes is_consultant=True (tenancy.py:62), (b) seed migration back-fills existing signup admins (seed.py:201), (c) Layout.jsx role label branch (line 111) and ADMIN_HIDDEN filter (line 28) both check !is_consultant."
+}
