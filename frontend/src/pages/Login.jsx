@@ -7,6 +7,7 @@ import { useApp } from "@/context/AppContext";
 import { api, errMsg } from "@/lib/api";
 import { LANGS } from "@/i18n/dict";
 import { LogoFull, LogoMark } from "@/components/Logo";
+import DemoLogins from "@/components/DemoLogins";
 
 const LETTERS = [["F", "Finance"], ["I", "Intelligence"], ["N", "Navigation"], ["O", "Optimization"], ["R", "Risk Management"], ["A", "Advisory"]];
 
@@ -77,6 +78,7 @@ export default function Login() {
             <Lock className="mr-2 h-4 w-4" />{busy ? t("loading") : t("login")}
           </Button>
           <div className="mt-6 flex items-start gap-2 text-[11px] text-slate-500"><ShieldCheck className="h-4 w-4 shrink-0 text-[#00A878]" />{t("secure_note")}</div>
+          <DemoLogins active={email} onPick={(e, p) => { setEmail(e); setPassword(p); setErr(""); }} />
         </form>
       </div>
     </div>
