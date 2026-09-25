@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Ban, Eye, FileDown, Plus, RefreshCw, Send, Trash2, Wallet } from "lucide-react";
+import { Ban, CreditCard, Eye, FileDown, Plus, RefreshCw, Send, Trash2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -94,8 +94,11 @@ function PaymentDialog({ inv, onClose, onDone }) {
 }
 
 export function InvoiceList({ clientId }) {
-  const { t, user } = useApp();
+  const { t, user, isClient } = useApp();
   const owner = user.role === "admin";
+  const payCard = async (i) => {
+    try { const { data } = await api.post("/stripe/checkout/invoice", { invoice_id: i.id, origin_url: window.location.origin }); window.location.href = data.checkout_url; } catch (e) { toast.error(errMsg(e)); }
+  };
   const { data, loading, reload } = useApi(`/invoices${clientId ? `?client_id=${clientId}` : ""}`, [clientId]);
   const [view, setView] = useState(null);
   const [pay, setPay] = useState(null);
@@ -118,6 +121,7 @@ export function InvoiceList({ clientId }) {
                     <button className="icon-btn" onClick={() => setView(i.id)} data-testid={`invoice-view-${i.id}`}><Eye className="h-4 w-4" /></button>
                     {owner && i.status === "DRAFT" && <button className="icon-btn text-sky-600" onClick={() => act(`/invoices/${i.id}/issue`)} title={t("issue")} data-testid={`invoice-issue-${i.id}`}><Send className="h-4 w-4" /></button>}
                     {owner && ["ISSUED", "PARTIALLY_PAID", "OVERDUE"].includes(i.status) && <button className="icon-btn text-[#00A878]" onClick={() => setPay(i)} title={t("record_payment")} data-testid={`invoice-pay-${i.id}`}><Wallet className="h-4 w-4" /></button>}
+                    {isClient && ["ISSUED", "PARTIALLY_PAID", "OVERDUE"].includes(i.status) && i.balance > 0 && <button className="ml-1 inline-flex items-center gap-1 rounded-lg bg-[#071A2B] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#00A878]" onClick={() => payCard(i)} data-testid={`invoice-card-pay-${i.id}`}><CreditCard className="h-3.5 w-3.5" />{t("pay_by_card")}</button>}
                     {owner && !i.paid && !["CANCELLED", "PAID"].includes(i.status) && <button className="icon-btn hover:text-red-600" onClick={() => act(`/invoices/${i.id}/cancel`)} title={t("CANCELLED")} data-testid={`invoice-cancel-${i.id}`}><Ban className="h-4 w-4" /></button>}
                   </td>
                 </tr>

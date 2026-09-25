@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/context/AppContext";
 import { api, errMsg, useApi } from "@/lib/api";
@@ -30,6 +31,9 @@ function BillingProfile() {
 function Subscription() {
   const { t } = useApp();
   const { data } = useApi("/subscription");
+  const paySaas = async () => {
+    try { const r = await api.post("/stripe/checkout/subscription", { origin_url: window.location.origin }); window.location.href = r.data.checkout_url; } catch (e) { toast.error(errMsg(e)); }
+  };
   if (!data) return <Spinner />;
   const s = data.subscription || {};
   return (
@@ -44,6 +48,7 @@ function Subscription() {
         <dt className="text-slate-500">{t("payment_status")}</dt><dd>{s.payment_status || "—"}</dd>
       </dl>
       <p className="mt-3 text-[11px] text-slate-500">{t("saas_separate_note")}</p>
+      {s.amount > 0 && <Button className="btn-emerald mt-4" onClick={paySaas} data-testid="saas-card-pay-btn"><CreditCard className="mr-1 h-4 w-4" />{t("pay_by_card")} ({yen(s.amount)})</Button>}
     </Card>
   );
 }
