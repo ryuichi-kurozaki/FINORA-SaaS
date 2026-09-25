@@ -41,3 +41,14 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - P1: LLM plug-in for AI engine (optional, paid), market price / FX API sync, email deadline notifications (cron)
 - P1: meeting-minutes AI summarization, per-tenant risk threshold settings
 - P2: accounting system / bank API integration, backup UI, multi-tenant signup
+
+## v3 — Consultant membership / contracts / billing (2026-06)
+- Consultant signup → own tenant (TRIAL/ACTIVE/SUSPENDED/CANCELLED) + saas_subscription; plans FREE/TRIAL/STANDARD/PRO/ENTERPRISE (prices not hardcoded)
+- Roles: FINORA_ADMIN (platform_admin flag) / TENANT_OWNER (admin) / CONSULTANT / CUSTOMER; secondary_consultant_ids
+- Customer invitations (PENDING/ACCEPTED/EXPIRED/CANCELLED) — email delivery MOCKED (copy link)
+- Consulting contracts (per-customer fees), invoices (embedded items, numbering, tax modes, auto OVERDUE), partial payments, recurring draft generation, billing profile, invoice PDF
+- Revenue summary, consultant business overview, clients overview table, customer billing view
+- Platform admin (tenants/plans/audit, counts only; suspend blocks login); SaaS ledger separate from customer invoices
+- iteration_4: backend 31/31, frontend 100% (ClientDetail hook-order fix applied)
+- 2nd demo tenant: consultantb@finora.co.jp / clientb@finora.co.jp
+- Backlog: real email (Resend) for invites/invoices, online card payment (Stripe), scheduled monthly invoice job, staff permission UI

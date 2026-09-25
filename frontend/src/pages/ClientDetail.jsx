@@ -33,10 +33,10 @@ export default function ClientDetail() {
   const { data, reload } = useDashboard(id);
   const [ai, setAi] = useState(false);
   const [corr, setCorr] = useState(false);
+  const { data: invs } = useApi(`/invoices?client_id=${id}`, [id]);
   if (!c || !data) return <Spinner />;
   const s = data.summary;
   const tabs = ["overview", "assets", "portfolio", "accounts", "transactions", "liabilities", "cashflows", "goals", "documents", "data_health", "ai_insight", "consulting", "timeline", "reports", "contracts", "billing", "tasks"];
-  const { data: invs } = useApi(`/invoices?client_id=${id}`, [id]);
   const unpaid = (invs || []).reduce((a, i) => a + (["ISSUED", "PARTIALLY_PAID", "OVERDUE"].includes(i.status) ? i.balance : 0), 0);
   return (
     <div data-testid="client-detail-page">

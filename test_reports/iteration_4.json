@@ -1,0 +1,53 @@
+{
+  "summary": "FINORA v3 (SaaS multi-tenant + billing) end-to-end verification. Backend pytest suite (31 tests, /app/backend/tests/test_finora_v3.py) 31/31 PASSED after fixing one test-only ordering artifact (revoked session after tenant-B suspend/restore requires re-login). Isolation is strict across all tested surfaces (invoices, contracts, clients, payments, invitations, clients/overview, audit logs). RBAC enforced: consultant/client blocked on POST /api/invoices, /api/payments, /api/data/contracts (all 403). Full contract→invoice→payment lifecycle verified end-to-end (DRAFT → ISSUED → PARTIALLY_PAID → PAID; overpayment 422; cancel-with-payments 409; delete payment recomputes status). generate-recurring, /billing/summary (overdue_count>=1), /consultant/overview, signup (TRIAL tenant + owner login + zero clients + duplicate 409), invitation (public info → accept → 410 on re-accept → linked client user), platform tenant suspend blocks login + restore, plan update — all pass. Frontend: landing/login/signup pages, dashboard business-overview tiles (bo-clients_count/…) + rev-* tiles + monthly chart, Clients page (client-overview-table, client-invite-* modal → invite-email/invite-send → invite-link displayed and copyable), Billing page (billing-tab-invoices/contracts/payments/revenue, new-invoice-btn, invoice-issue-/pay-/view- with invoice-document + invoice-pdf-btn), Settings billing_profile (bp-save + subscription-card), Platform (sidebar-nav-platform, platform-tenant-table, platform-edit-*). Client role: /billing shows only own invoices, NO new-invoice-btn, invoice-view/PDF works, mobile 390px NO horizontal overflow. Invite acceptance page uses testids invite-name / invite-password / invite-accept-submit (correct — earlier miss was a test-script naming mismatch).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/platform/tenants/{id} (status suspend)", "issue": "Suspending a tenant revokes ALL its users' sessions (correct). No side-effect issue — just note: any test that had cached headers for tenant B must re-login after restore."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ClientDetail.jsx", "issue": "CRITICAL runtime error 'Rendered more hooks than during the previous render.' The `useApi('/invoices?client_id=…')` hook was placed AFTER the `if (!c || !data) return <Spinner/>` early return (line 39 after line 36). React hooks rules violation — on first render (data=null) hook is not called, on next render it IS called ⇒ crash. Any user opening /clients/{id} sees the runtime-error overlay. **Fixed in this iteration** by moving the `useApi(...)` and the `unpaid` computation ABOVE the early return. Verified: page now renders, client-tab-contracts / client-tab-billing / client-unpaid-badge all present.", "selector": "/clients/{id}", "priority": "HIGH (was blocking)"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Layout header client-scope <select>", "issues": ["Persistent hydration warning: '<span> cannot be a child of <option>' — dev-instrumentation wrapping localised label in <option>. Cosmetic dev-only warning, same as prior iterations."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_finora_v3.py",
+    "/app/test_reports/pytest/finora_v3.xml"
+  ],
+  "action_items": [
+    "(Verify) Confirm the ClientDetail hook-order fix in /app/frontend/src/pages/ClientDetail.jsx is preserved. Consider adding an ESLint rule react-hooks/rules-of-hooks in CI so this class of bug is caught pre-merge.",
+    "(Low, cosmetic) Address the remaining <option>/<span> hydration warning in Layout header (same finding as iteration 3).",
+    "(Nice-to-have) The invite modal returns a link only — email-delivery is intentionally MOCKED. If real email is planned, integrate SES/SendGrid; UI already supports copy-to-clipboard."
+  ],
+  "critical_code_review_comments": [
+    "billing.py totals() uses `round()` which is banker's rounding — acceptable for JPY (integer) but worth noting for future currencies with sub-units.",
+    "billing.py get_invoice() hides DRAFT invoices from client role by returning 404 (correct behaviour, prevents information leak of draft existence).",
+    "billing.py mark_overdue() mutates DB on every list call — cheap for now but at scale should move to a scheduled job. It also correctly notifies both client & consultant.",
+    "billing.py recompute() correctly handles zero-total edge case (if total==0 → not marked PAID). Good.",
+    "billing.py generate-recurring dedup key is (contract_id, period, status != CANCELLED). Safe & idempotent across the day. YEARLY uses YYYY prefix — verified.",
+    "tenancy.py signup enforces IP rate-limit (≤5/hour) and lowercases email — good. Password min 8, no complexity — acceptable for MVP.",
+    "tenancy.py invitation: token stored as sha256 hash (not plaintext) — good security posture. Also cancels prior PENDING invites for the same client before creating a new one — clean.",
+    "tenancy.py platform_update_tenant revokes all sessions of a tenant when it moves to SUSPENDED/CANCELLED — correct enforcement.",
+    "core.py scope() enforces tenant AND accessible-client scoping in one query — consultantb (owner of tenant B) requests fall through to tenant_id filter and NEVER touch tenant A rows: verified.",
+    "crud.py check_write() blocks non-admin writes to contracts (STAFF_ENTITIES gated on role=='admin'). Verified via test_consultant_cannot_post_contract.",
+    "auth_routes.py login checks tenant.status IN ('SUSPENDED','CANCELLED') → 403; platform_admin flag bypasses this (correct so FINORA_ADMIN can still log in). Verified via TestPlatform.test_suspend_and_restore_tenantB.",
+    "server.py CORS uses CORS_ORIGINS from env with allow_credentials=true; cookies set httponly/secure/samesite=none — correct for cross-site preview.",
+    "React: /clients/{id} had a hooks-ordering bug that crashed the page (rendered-more-hooks). Fixed. This should have been caught by ESLint (react-hooks/rules-of-hooks). Recommend adding it to the frontend lint config."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_finora_v3.py",
+    "/app/frontend/src/pages/ClientDetail.jsx"
+  ],
+  "success_rate": {"backend": "31/31 (100%)", "frontend": "100% after ClientDetail hook fix"},
+  "test_credentials": "All 6 accounts from /app/memory/test_credentials.md worked. Suspended tenant B once then RESTORED to ACTIVE — verified consultantb+clientb can log in again.",
+  "seed_data_creation": "Created (test-only, kept — flagged with TEST_ prefix where possible): one TEST_V3_CONTRACT (owner tenant, status set to CANCELLED at end so not affecting revenue), several invitations to synthetic emails (ui_invite_*@example.com, invitee_*@example.com, invite_final_test@example.com) — one accepted, others left PENDING. Signup tests created 1 new tenant per run (test_v3_<hex>@example.com owner). These are throw-away emails; safe to purge with db.tenants.deleteMany({name:'TEST_V3_CO'}) + cascade if desired.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_finora_v3.py covers the full v3 spec surface (isolation, RBAC, billing lifecycle, signup, invitations, platform admin, audit). Reusable regression suite. Run with `REACT_APP_BACKEND_URL=<preview> pytest backend/tests/test_finora_v3.py -n 0`. The ClientDetail hook-order fix was applied here; verify it isn't regressed. When suspending tenants, always restore them at the end, and re-login the user AFTER restore (their sessions were revoked on suspend).",
+  "rca of the issue": "Bug: ClientDetail.jsx crashed with 'Rendered more hooks than during the previous render.'. RCA: The useApi() hook that fetches per-client invoices for the unpaid-badge was placed AFTER an early `if (!c || !data) return <Spinner/>` guard. React requires that all hooks are called in the same order on every render. On the first render when the dashboard data is loading, the early return happens BEFORE the useApi hook is reached — so React registers only the hooks called before the return. On the subsequent render, when data resolves, execution continues past the return and reaches useApi — React sees an extra hook and throws. Reproduction: log in as owner and navigate to /clients/{id}. Mitigation: Move useApi and the unpaid computation ABOVE the early return so the hook is always called. Applied fix moves lines 39-40 to before line 36. Prevention: enable `eslint-plugin-react-hooks` with `rules-of-hooks:error` in the frontend lint config."
+}
