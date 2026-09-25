@@ -25,6 +25,8 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - Phase7: consulting records, 11 report types with PDF, documents (upload/download/delete)
 - Phase8: tasks + deadline alerts bell, CSV/Excel import/export, audit logs (who/when/what/before/after)
 - Testing: iteration_1 — backend 25/25, frontend all flows pass
+- Brand logos (4 variants) applied: sidebar, login, favicon, reports
+- Public landing page at / (logged-out): hero, brand, data flow, features, AI showcase, target users, security, pricing (contact-based), contact form → /api/public/inquiries (honeypot + 5/h rate limit), admin Inquiries tab, /legal (terms & privacy), JA/EN/PT — iteration_2 all pass
 
 ## Backlog
 - P0: 2FA (TOTP)

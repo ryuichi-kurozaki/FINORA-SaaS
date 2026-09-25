@@ -1,0 +1,38 @@
+{
+  "summary": "Tested FINORA landing page + public inquiries feature. Backend: 8/8 pytest cases pass in /app/backend/tests/test_public_inquiries.py covering POST /api/public/inquiries (valid, invalid email 422, invalid type 422, honeypot silently ok), rate limit 5/hour/IP -> 429, admin GET /api/inquiries + PUT status persistence + 404 for missing id + 422 for bad status, and RBAC 403 for consultant & client on GET /api/inquiries. Frontend (Playwright, desktop 1920 & mobile 390): unauth root shows landing-page (not redirect), landing-hero-title changes across landing-lang-ja/en/pt, all nav links (nav_features/nav_security/nav_pricing/nav_contact) present, pricing plans show 'お問い合わせ' contact-for-price label (plan-pl2), footer-terms & footer-privacy render, landing-login-btn navigates to /login, login-back-home present, /legal renders (legal-page), contact form submit reached backend and displayed backend 429 error via contact-error element correctly (rate limit was already consumed by pytest run from same IP - handling verified). Mobile 390px: no horizontal overflow (0px), landing-menu-btn opens nav. Regression: admin login works, logged-in user at / sees Dashboard (Layout) NOT landing, settings-tab-inquiries lists 5 inquiries with inquiry-status-<id> selects and status change to 'done' persists after reload.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing (all viewports)", "issues": ["Persistent console warnings 'The width(-1) and height(-1) of chart should be greater than 0' — Recharts inside HeroPreview mounts before container has size. Cosmetic; recommend giving ResponsiveContainer explicit height/aspect (already noted in iteration_1)."]},
+      {"screen": "Language selector inside <select> in Login page", "issues": ["React hydration warning '<span> cannot be a child of <option>' still present from iteration_1."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_public_inquiries.py",
+    "/app/test_reports/pytest/inquiries.xml"
+  ],
+  "action_items": [
+    "(Low, carryover) Fix Recharts ResponsiveContainer width/height warnings.",
+    "(Low, carryover) Remove <span> children inside <option> to clear hydration warning.",
+    "(Optional) In footer, LINKS uses href={`/${h}`} producing '/#features' — works but when user is already on / it creates a leading '/' that some browsers may not smooth-scroll. Consider `href={h}` when already on landing route."
+  ],
+  "critical_code_review_comments": [
+    "public_routes.create_inquiry uses `db.tenants.find_one({}, sort=[('created_at', 1)])` to pick a tenant for public inquiries. Works for single-tenant deployment but for multi-tenant SaaS it silently attaches every public inquiry to the OLDEST tenant. Consider a dedicated 'public' tenant or a tenant discriminator on the marketing domain.",
+    "Rate limit uses count of stored inquiries per IP in last hour (5). Silent-honeypot submissions and invalid-payload submissions do NOT count (they fail before insert). Good, but no rate limit on failed attempts means abuse of the endpoint (invalid emails) is unbounded. Consider a per-IP request-count limiter in front of the endpoint.",
+    "ip_of(request) is only as good as trusted proxy config; if X-Forwarded-For is honored without a trusted-proxy list, an attacker can bypass the 5/hr cap by spoofing that header. Verify the helper's implementation.",
+    "InquiryIn.email is validated with a regex but stored `email.strip().lower()`; already sanitized. Pydantic EmailStr would be cleaner but this is fine.",
+    "Settings.Inquiries has no pagination / search — will not scale past a few hundred inquiries."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_public_inquiries.py"
+  ],
+  "success_rate": {"backend": "100% (8/8 new tests)", "frontend": "100% of tested selectors + flows"},
+  "test_credentials": "admin ryuichi.kurozaki@gmail.com / Finora2026! (used); consultant/client used for RBAC 403 verification.",
+  "seed_data_creation": "5 TEST_* inquiries were created via public endpoint during pytest (they saturate the 5/hr IP rate limit). One inquiry status was mutated to 'done' during UI test. Safe to leave; admin can clean via UI.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Rate limit is 5/hr per IP for /api/public/inquiries. Backend test suite intentionally exhausts it as the LAST test. Any subsequent contact-form UI submission from the same IP within the hour will return 429; frontend correctly surfaces this via contact-error. If retesting a fresh happy-path submission, either wait ~1h, run from a different IP, or temporarily raise the cap in public_routes.py.",
+  "rca of the issue": "N/A — no failures."
+}

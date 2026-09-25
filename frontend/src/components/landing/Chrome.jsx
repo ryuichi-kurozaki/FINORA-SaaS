@@ -52,7 +52,7 @@ export function LandingFooter() {
       <div className="mx-auto grid max-w-7xl gap-10 px-5 py-14 sm:px-8 md:grid-cols-[1.5fr_1fr_1fr]">
         <div><LogoFull dark className="h-20 w-auto" /><p className="mt-5 max-w-sm text-sm">{t("tagline")}</p></div>
         <div className="space-y-2.5 text-sm">
-          {LINKS.map(([k, h]) => <a key={k} href={`/${h}`} className="block hover:text-white">{t(k)}</a>)}
+          {LINKS.map(([k, h]) => <a key={k} href={h} className="block hover:text-white">{t(k)}</a>)}
         </div>
         <div className="space-y-2.5 text-sm">
           <Link to="/legal" className="block hover:text-white" data-testid="footer-terms">{t("terms")}</Link>
