@@ -1,0 +1,112 @@
+@import url("https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@500,700,800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 216 45% 98%;
+    --foreground: 208 23% 16%;
+    --card: 0 0% 100%;
+    --card-foreground: 208 23% 16%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 208 23% 16%;
+    --primary: 208 72% 10%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 214 32% 95%;
+    --secondary-foreground: 208 72% 10%;
+    --muted: 214 32% 95%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 162 100% 33%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 162 100% 33%;
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body {
+    @apply bg-background text-foreground;
+    margin: 0;
+    font-family: "IBM Plex Sans JP", "Noto Sans JP", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #202A33;
+  }
+  ::selection { background: rgba(0, 168, 120, 0.22); }
+}
+
+.font-display { font-family: "Cabinet Grotesk", "IBM Plex Sans JP", sans-serif; }
+.font-num { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; }
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 1px 2px rgba(7, 26, 43, 0.04), 0 8px 24px -12px rgba(7, 26, 43, 0.08);
+  transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+}
+.glass-card:hover { box-shadow: 0 1px 2px rgba(7, 26, 43, 0.05), 0 16px 36px -16px rgba(7, 26, 43, 0.16); }
+
+.kpi { position: relative; overflow: hidden; }
+.kpi::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; opacity: 0.9; }
+.kpi:hover { transform: translateY(-2px); }
+.kpi-emerald::before { background: linear-gradient(90deg, #00A878, transparent); }
+.kpi-emerald .kpi-icon { color: #00A878; }
+.kpi-gold::before { background: linear-gradient(90deg, #C9A227, transparent); }
+.kpi-gold .kpi-icon { color: #C9A227; }
+.kpi-navy::before { background: linear-gradient(90deg, #071A2B, transparent); }
+.kpi-navy .kpi-icon { color: #071A2B; }
+.kpi-red::before { background: linear-gradient(90deg, #DC2626, transparent); }
+.kpi-red .kpi-icon { color: #DC2626; }
+
+.sidebar {
+  background: radial-gradient(120% 60% at 0% 0%, rgba(0, 168, 120, 0.12), transparent 60%), #071A2B;
+  color: #cbd5e1;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+.sidebar-scroll::-webkit-scrollbar { width: 4px; }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+.nav-item {
+  display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 10px; color: #94a3b8;
+  transition: background-color 0.2s ease, color 0.2s ease; position: relative;
+}
+.nav-item:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+.nav-active { background: linear-gradient(90deg, rgba(0, 168, 120, 0.22), rgba(0, 168, 120, 0.04)); color: #fff; }
+.nav-active::before { content: ""; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: #00A878; box-shadow: 0 0 12px #00A878; }
+.nav-active svg { color: #00A878; }
+
+.btn-emerald { background: #00A878 !important; color: #fff !important; transition: background-color 0.2s ease, box-shadow 0.2s ease; }
+.btn-emerald:hover { background: #009068 !important; box-shadow: 0 6px 20px -6px rgba(0, 168, 120, 0.6); }
+.icon-btn { display: inline-flex; padding: 6px; border-radius: 8px; color: #718096; transition: background-color 0.2s, color 0.2s; }
+.icon-btn:hover { background: #F1F5F9; color: #071A2B; }
+
+.data-table th { text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #718096; padding: 10px 8px; border-bottom: 1px solid #E2E8F0; white-space: nowrap; }
+.data-table td { padding: 12px 8px; border-bottom: 1px solid #F1F5F9; color: #202A33; white-space: nowrap; }
+.data-table tbody tr { transition: background-color 0.15s ease; }
+.data-table tbody tr:hover { background: rgba(0, 168, 120, 0.04); }
+
+.ai-panel { background: radial-gradient(80% 120% at 100% 0%, rgba(0, 168, 120, 0.18), transparent 55%), radial-gradient(60% 80% at 0% 100%, rgba(201, 162, 39, 0.10), transparent 60%), #071A2B; }
+.ai-glow { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px); background-size: 28px 28px; mask-image: linear-gradient(180deg, #000, transparent 70%); pointer-events: none; }
+.ai-orb { position: relative; display: flex; height: 36px; width: 36px; align-items: center; justify-content: center; border-radius: 12px; background: linear-gradient(135deg, #00A878, #0B3A5B); box-shadow: 0 0 0 1px rgba(0,168,120,0.4), 0 0 24px rgba(0,168,120,0.45); animation: orb 3s ease-in-out infinite; }
+@keyframes orb { 0%, 100% { box-shadow: 0 0 0 1px rgba(0,168,120,0.4), 0 0 18px rgba(0,168,120,0.35); } 50% { box-shadow: 0 0 0 1px rgba(0,168,120,0.6), 0 0 32px rgba(0,168,120,0.6); } }
+.ai-scan { animation: scan 1.2s ease-in-out infinite; }
+@keyframes scan { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+
+.fade-up { animation: fadeUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+.login-bg { background: radial-gradient(70% 60% at 20% 10%, rgba(0,168,120,0.22), transparent 60%), radial-gradient(50% 50% at 90% 90%, rgba(201,162,39,0.12), transparent 60%), #071A2B; }
+.grid-lines { background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 40px 40px; }
+
+.report-doc { font-family: "IBM Plex Sans JP", sans-serif; color: #202A33; background: #fff; }
+
+@media (prefers-reduced-motion: reduce) { .fade-up, .ai-orb, .ai-scan { animation: none; } }
+
+[data-debug-wrapper="true"] { display: contents !important; }

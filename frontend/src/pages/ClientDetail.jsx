@@ -1,0 +1,77 @@
+import { useParams, Link } from "react-router-dom";
+import { ArrowLeft, Sparkles } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useState } from "react";
+import { useApp } from "@/context/AppContext";
+import { useDashboard } from "@/lib/useDashboard";
+import { compact, pct, yen } from "@/lib/format";
+import { Card, CardTitle, KpiCard, PageHeader, Spinner } from "@/components/common";
+import { Donut, TrendChart } from "@/components/charts";
+import EntityManager from "@/components/EntityManager";
+import InsightPanel from "@/components/InsightPanel";
+import AIAssistant from "@/components/AIAssistant";
+import { DocumentsPanel } from "@/pages/Documents";
+
+const PROFILE = ["client_type", "email", "phone", "address", "occupation", "business", "family", "related_corps", "annual_income", "income", "investment_experience", "investment_purpose", "risk_tolerance", "status", "notes"];
+const SELECTS = ["client_type", "risk_tolerance", "status"];
+
+export default function ClientDetail() {
+  const { id } = useParams();
+  const { t, lang, clients } = useApp();
+  const c = clients.find((x) => x.id === id);
+  const { data, reload } = useDashboard(id);
+  const [ai, setAi] = useState(false);
+  if (!c || !data) return <Spinner />;
+  const s = data.summary;
+  const tabs = ["overview", "accounts", "assets", "liabilities", "cashflows", "consulting", "documents", "tasks"];
+  return (
+    <div data-testid="client-detail-page">
+      <Link to="/clients" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-[#00A878]" data-testid="client-back-link"><ArrowLeft className="h-4 w-4" />{t("clients")}</Link>
+      <PageHeader eyebrow={`${t(c.client_type)} · ${c.status ? t(c.status) : ""}`} title={c.corporate_name || c.name} sub={c.corporate_name ? c.name : c.occupation}>
+        <button onClick={() => setAi(true)} className="btn-emerald inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold" data-testid="client-ask-ai-btn"><Sparkles className="h-4 w-4" />{t("ask_ai")}</button>
+      </PageHeader>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <KpiCard label={t("total_assets")} value={s.total_assets} format={(v) => compact(v, lang)} testid="client-kpi-assets" />
+        <KpiCard label={t("total_liabilities")} value={s.total_liabilities} format={(v) => compact(v, lang)} accent="navy" testid="client-kpi-liabilities" />
+        <KpiCard label={t("net_worth")} value={s.net_worth} format={(v) => compact(v, lang)} accent="gold" testid="client-kpi-networth" />
+        <KpiCard label={t("yield")} value={s.total_return_pct} format={(v) => pct(v)} testid="client-kpi-yield" />
+      </div>
+      <Tabs defaultValue="overview" className="mt-6">
+        <TabsList className="h-auto flex-wrap justify-start bg-white/70 p-1">
+          {tabs.map((k) => <TabsTrigger key={k} value={k} data-testid={`client-tab-${k}`} className="data-[state=active]:bg-[#071A2B] data-[state=active]:text-white">{t(k === "cashflows" ? "cashflow" : k === "overview" ? "overview" : k)}</TabsTrigger>)}
+        </TabsList>
+        <TabsContent value="overview" className="mt-5 space-y-6">
+          <div className="grid gap-6 xl:grid-cols-3">
+            <Card>
+              <CardTitle>{t("profile")}</CardTitle>
+              <dl className="space-y-2.5 text-sm">
+                {PROFILE.filter((k) => c[k]).map((k) => (
+                  <div key={k} className="grid grid-cols-[120px_1fr] gap-2"><dt className="text-xs text-slate-500">{t(k === "income" ? "income_field" : k)}</dt>
+                    <dd className="break-words text-slate-800">{SELECTS.includes(k) ? t(c[k]) : typeof c[k] === "number" ? yen(c[k]) : c[k]}</dd></div>
+                ))}
+              </dl>
+              <p className="mt-4 rounded-lg bg-emerald-50/60 p-2.5 text-[11px] text-emerald-800">{t("derived_note")}</p>
+            </Card>
+            <Card className="xl:col-span-2"><CardTitle>{t("net_worth_trend")}</CardTitle><TrendChart data={data.trend} keys={["net_worth", "invested_value"]} testid="client-trend-chart" /></Card>
+          </div>
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card><CardTitle>{t("allocation")}</CardTitle><Donut data={data.breakdowns.asset_class} /></Card>
+            <Card><CardTitle>{t("by_institution")}</CardTitle><Donut data={data.breakdowns.institution} /></Card>
+          </div>
+          <InsightPanel insights={data.insights} />
+        </TabsContent>
+        {["accounts", "assets", "liabilities", "cashflows", "consulting", "tasks"].map((e) => (
+          <TabsContent key={e} value={e} className="mt-5"><EntityManager entity={e} clientId={id} title={t(e === "cashflows" ? "cashflow" : e)} onChange={reload} /></TabsContent>
+        ))}
+        <TabsContent value="documents" className="mt-5"><DocumentsPanel clientId={id} /></TabsContent>
+      </Tabs>
+      <Sheet open={ai} onOpenChange={setAi}>
+        <SheetContent side="right" className="flex w-full flex-col bg-[#F7F9FC] sm:max-w-xl" data-testid="client-ai-drawer">
+          <SheetHeader><SheetTitle className="flex items-center gap-2 font-display"><Sparkles className="h-4 w-4 text-[#00A878]" />FINORA AI · {c.corporate_name || c.name}</SheetTitle></SheetHeader>
+          <div className="mt-4 min-h-0 flex-1"><AIAssistant clientId={id} /></div>
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}

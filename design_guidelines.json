@@ -1,0 +1,109 @@
+{
+  "project_name": "FINORA — Investment Management & Consulting SaaS",
+  "concept": "金融情報を知性に変え、資産の現在と未来を可視化する。(Transforming financial data into intelligence, visualizing the present and future of wealth.)",
+  "design_theme": "Premium FinTech × Near Future (Luxury financial service meets near-future AI technology)",
+  "language_support": ["ja", "en", "pt"],
+  "tech_stack": {
+    "frontend": "React (JavaScript .jsx / .js)",
+    "styling": "Tailwind CSS + shadcn/ui primitives + Lucide Icons",
+    "data_viz": "Recharts",
+    "pdf_export": "html2pdf.js / jsPDF / native print styling"
+  },
+  "brand_colors": {
+    "primary_midnight_navy": "#071A2B",
+    "brand_emerald_green": "#00A878",
+    "accent_premium_gold": "#C9A227",
+    "background_ice_white": "#F7F9FC",
+    "card_white": "#FFFFFF",
+    "text_charcoal": "#202A33",
+    "text_slate_gray": "#718096",
+    "danger_red": "#DC2626",
+    "success_green": "#00A878",
+    "border_subtle": "#E2E8F0",
+    "glow_emerald": "rgba(0, 168, 120, 0.15)",
+    "glow_gold": "rgba(201, 162, 39, 0.15)"
+  },
+  "typography": {
+    "heading_font_family": "'Cabinet Grotesk', 'Outfit', 'Noto Sans JP', sans-serif",
+    "body_font_family": "'Inter', 'Noto Sans JP', sans-serif",
+    "numeric_font_family": "'JetBrains Mono', 'IBM Plex Mono', monospace",
+    "scale": {
+      "h1": "text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight",
+      "h2": "text-2xl sm:text-3xl font-bold tracking-tight",
+      "h3": "text-lg sm:text-xl font-semibold",
+      "body": "text-sm sm:text-base leading-relaxed",
+      "caption": "text-xs text-slate-500 tracking-wider uppercase font-medium"
+    }
+  },
+  "layout_architecture": {
+    "pc_structure": "Left fixed sidebar (Midnight Navy #071A2B, 260px) + Top fixed header (Glassmorphism / Ice White) + Main content scroll area (Ice White #F7F9FC)",
+    "mobile_structure": "Top header with mobile drawer trigger for sidebar nav",
+    "sidebar_navigation": [
+      "Dashboard",
+      "Clients",
+      "Assets",
+      "Portfolio",
+      "Accounts",
+      "Liabilities",
+      "Cash Flow",
+      "Analytics",
+      "Simulation",
+      "Risk",
+      "AI Insight",
+      "Consulting",
+      "Reports",
+      "Documents",
+      "Tasks",
+      "Settings"
+    ]
+  },
+  "ai_insight_badges": {
+    "Fact": "bg-slate-100 text-slate-800 border-slate-300",
+    "Calc": "bg-blue-50 text-blue-700 border-blue-200",
+    "Est": "bg-amber-50 text-amber-700 border-amber-200",
+    "AI": "bg-emerald-50 text-emerald-700 border-emerald-300 font-semibold shadow-xs"
+  },
+  "image_urls": [
+    {
+      "category": "advisor_meeting",
+      "url": "https://images.pexels.com/photos/5816285/pexels-photo-5816285.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Professional business discussion between advisor and client"
+    },
+    {
+      "category": "corporate_consulting",
+      "url": "https://images.unsplash.com/photo-1551135049-8a33b5883817?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDV8MHwxfHNlYXJjaHw0fHxmaW5hbmNpYWwlMjBhZHZpc29yJTIwbWVldGluZyUyMGNvcnBvcmF0ZSUyMGNvbnN1bHRpbmd8ZW58MHx8fHwxNzkwMjk0NDEzfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Executive consulting and strategic financial paper review"
+    },
+    {
+      "category": "luxury_wealth",
+      "url": "https://images.unsplash.com/photo-1762463176312-1757d5125c85?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTN8MHwxfHNlYXJjaHwyfHxsdXh1cnklMjB3ZWFsdGglMjBmaW5hbmNlJTIwYWR2aXNvciUyMGNvbnN1bHRpbmd8ZW58MHx8fHwxNzkwMjk0NDEzfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Gold bars symbol for high-net-worth asset management"
+    }
+  ],
+  "testing_and_accessibility": {
+    "rule": "All interactive elements, buttons, inputs, tabs, modal triggers, and key numerical KPIs MUST include explicit data-testid attributes in kebab-case.",
+    "data_testid_examples": [
+      "data-testid=\"sidebar-nav-dashboard\"",
+      "data-testid=\"sidebar-nav-clients\"",
+      "data-testid=\"language-selector-ja\"",
+      "data-testid=\"kpi-total-assets-value\"",
+      "data-testid=\"ai-insight-panel\"",
+      "data-testid=\"client-drawer-ai-chat-input\"",
+      "data-testid=\"simulation-scenario-bull\"",
+      "data-testid=\"report-pdf-export-button\""
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Ensure Javascript React component structure (.js/.jsx) is maintained throughout frontend code.",
+    "Implement language switching state (JA / PT / EN) globally using context or state hook.",
+    "Apply strict palette: Primary #071A2B, Emerald #00A878, Accent Gold #C9A227 sparingly, Ice White #F7F9FC background.",
+    "Include AI Insight badge labels (Fact, Calc, Est, AI) clearly on all AI suggestions and risk items.",
+    "Include responsive client drawer, CRUD modals, interactive Recharts charts, and PDF report export function."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "Do not use transparent header without backdrop blur or background color.",
+    "Always specify data-testid attributes on all interactive components.",
+    "Avoid generic centered text layouts or default Vercel designs; enforce high-density FinTech layout.",
+    "Ensure contrast ratio complies with WCAG standards for dark header/sidebar text and light main panels."
+  ]
+}
