@@ -203,6 +203,9 @@ async def seed():
         await db.tenants.insert_one(t)
     pw = os.environ["DEMO_PASSWORD"]
     admin = await upsert_user(t["id"], os.environ["ADMIN_EMAIL"].lower(), "Ryuichi Kurozaki", "admin", os.environ["ADMIN_PASSWORD"])
+    from seed_v3 import seed_v3
+    if os.environ["SEED_DEMO"] != "true":
+        return await seed_v3(t, pw, demo=False)
     cons = await upsert_user(t["id"], "consultant@finora.co.jp", "田中 翔", "consultant", pw)
     if not await db.clients.find_one({"tenant_id": t["id"]}):
         cids = await seed_demo(t["id"], cons["id"], admin["id"])
@@ -211,5 +214,4 @@ async def seed():
         await upsert_user(t["id"], "client@finora.co.jp", "佐藤 健一", "client", pw)
     from seed_v2 import seed_v2
     await seed_v2(t, pw, cons["id"])
-    from seed_v3 import seed_v3
     await seed_v3(t, pw)

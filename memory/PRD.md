@@ -67,3 +67,9 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - Stripe errors now return 400 with message (Cloudflare replaces 502 with its own page)
 - STRIPE_WEBHOOK_SECRET / STRIPE_PUBLISHABLE_KEY / STRIPE_ACCOUNT_ID still old test values (publishable/account unused in code). Need a live webhook endpoint -> /api/stripe/webhook and its whsec after deploy. Success page polling (/api/payments/status) still marks payments as paid without the webhook.
 - App not deployed yet: production secrets must be set via Deployment UI (Secrets)
+
+## 2026-06 Production deploy to own VPS (ConoHa 160.251.120.127)
+- Live at https://finora.co.jp (www.finora.co.jp pending DNS A record). See /app/memory/DEPLOY_VPS.md
+- New SEED_DEMO env flag: false in prod -> only admin tenant, plans, platform_admin, subscription (no demo data/users). Preview uses true
+- Login page demo-account buttons hidden in prod build (empty REACT_APP_DEMO_* vars)
+- Stripe live webhook registered; Stripe account still not activated for live charges (charges_enabled=false)

@@ -11,21 +11,24 @@ def d(days):
     return (datetime.now().date() + timedelta(days=days)).isoformat()
 
 
-async def seed_v3(t, pw):
+async def seed_v3(t, pw, demo=True):
     tid = t["id"]
     for code, name, order in PLANS:
         await db.plans.update_one({"code": code}, {"$setOnInsert": {"id": new_id(), "code": code, "name": name, "order": order, "active": True,
                                                                    "price_monthly": None, "price_yearly": None, "max_customers": None, "description": ""}}, upsert=True)
     admin = await db.users.find_one({"tenant_id": tid, "role": "admin"})
     await db.users.update_one({"id": admin["id"]}, {"$set": {"platform_admin": True}})
-    if not t.get("status"):
+    if not t.get("status") and not demo:
+        await db.tenants.update_one({"id": tid}, {"$set": {"status": "ACTIVE", "owner_user_id": admin["id"], "billing_profile": {
+            "company_name": t.get("name"), "representative": admin.get("name"), "email": admin["email"]}}})
+    elif not t.get("status"):
         await db.tenants.update_one({"id": tid}, {"$set": {"status": "ACTIVE", "owner_user_id": admin["id"], "billing_profile": {
             "company_name": t.get("name"), "representative": admin.get("name"), "address": "東京都千代田区丸の内1-1-1", "phone": "03-0000-0000",
             "email": admin["email"], "registration_no": "T0000000000000", "bank_info": "FINORA銀行 丸の内支店 普通 1234567 フィノラ(カ", "invoice_note": "お振込手数料はご負担ください。"}}})
     await db.saas_subscriptions.update_one({"tenant_id": tid}, {"$setOnInsert": {"id": new_id(), "plan_code": "PRO", "start_date": d(-400), "renewal_date": d(30),
                                                                                 "billing_period": "monthly", "amount": None, "status": "ACTIVE", "payment_status": "paid",
                                                                                 "created_at": now_iso()}}, upsert=True)
-    if await db.contracts.find_one({"tenant_id": tid}):
+    if not demo or await db.contracts.find_one({"tenant_id": tid}):
         return
     clients = {c["name"]: c for c in await db.clients.find({"tenant_id": tid}).to_list(100)}
     specs = [("佐藤 健一", "資産運用顧問契約", "月額コンサルティング", "MONTHLY", 30000), ("山本 美咲", "法人財務アドバイザリー", "月額法人顧問", "MONTHLY", 50000),
