@@ -1,3 +1,6 @@
+import { L } from "./landing";
+
+
 const D = {
   dashboard: ["ダッシュボード", "Dashboard", "Painel"], clients: ["顧客", "Clients", "Clientes"], assets: ["資産", "Assets", "Ativos"],
   portfolio: ["ポートフォリオ", "Portfolio", "Portfólio"], accounts: ["金融口座", "Accounts", "Contas"], liabilities: ["負債", "Liabilities", "Passivos"],
@@ -109,4 +112,5 @@ const D = {
 
 export const LANGS = [{ code: "ja", label: "日本語", short: "JA" }, { code: "en", label: "English", short: "EN" }, { code: "pt", label: "Português", short: "PT" }];
 const IDX = { ja: 0, en: 1, pt: 2 };
-export const translate = (lang, key) => (D[key] ? D[key][IDX[lang] ?? 0] : key);
+const ALL = { ...D, ...L };
+export const translate = (lang, key) => (ALL[key] ? ALL[key][IDX[lang] ?? 0] : key);

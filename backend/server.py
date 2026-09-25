@@ -13,6 +13,7 @@ import auth_routes  # noqa: E402
 import crud  # noqa: E402
 import routes_analytics  # noqa: E402
 import io_routes  # noqa: E402
+import public_routes  # noqa: E402
 from seed import seed  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -24,7 +25,7 @@ async def root():
     return {"service": "FINORA", "status": "ok"}
 
 
-for r in (auth_routes.router, routes_analytics.router, io_routes.router, crud.router):
+for r in (auth_routes.router, routes_analytics.router, io_routes.router, public_routes.router, crud.router):
     app.include_router(r)
 
 

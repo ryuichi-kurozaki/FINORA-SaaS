@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
-import { Lock, ShieldCheck } from "lucide-react";
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { ArrowLeft, Lock, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useApp } from "@/context/AppContext";
@@ -37,7 +37,7 @@ export default function Login() {
     <div className="grid min-h-screen lg:grid-cols-[1.15fr_1fr]">
       <div className="login-bg relative hidden overflow-hidden p-12 text-white lg:flex lg:flex-col">
         <div className="grid-lines absolute inset-0" />
-        <div className="relative"><LogoFull dark className="h-28 w-auto" /></div>
+        <div className="relative"><Link to="/" data-testid="login-logo-home"><LogoFull dark className="h-28 w-auto" /></Link></div>
         <div className="relative mt-auto max-w-xl">
           <div className="mb-4 text-xs font-semibold uppercase tracking-[0.3em] text-[#00A878]">Investment Intelligence Platform</div>
           <h1 className="font-display text-5xl font-extrabold leading-[1.1] tracking-tight">Finance <span className="text-slate-500">×</span> Intelligence <span className="text-slate-500">×</span> <span className="text-[#00A878]">Future</span></h1>
@@ -55,7 +55,8 @@ export default function Login() {
       </div>
       <div className="flex flex-col items-center justify-center bg-[#F7F9FC] px-6 py-12">
         <div className="mb-8 flex w-full max-w-sm items-center justify-between">
-          <div className="lg:hidden"><LogoFull className="h-12 w-auto" /></div>
+          <Link to="/" className="hidden items-center gap-1 text-xs text-slate-500 hover:text-[#00A878] lg:inline-flex" data-testid="login-back-home"><ArrowLeft className="h-3.5 w-3.5" />{t("back_home")}</Link>
+          <Link to="/" className="lg:hidden" data-testid="login-back-home-mobile"><LogoFull className="h-12 w-auto" /></Link>
           <div className="ml-auto flex rounded-xl border border-slate-200 bg-white p-0.5">
             {LANGS.map((l) => (
               <button key={l.code} onClick={() => setLang(l.code)} data-testid={`login-lang-${l.code}`}

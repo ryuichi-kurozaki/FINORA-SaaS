@@ -187,9 +187,37 @@ function System() {
   );
 }
 
+function Inquiries() {
+  const { t } = useApp();
+  const { data, reload } = useApi("/inquiries");
+  const setStatus = async (id, status) => { try { await api.put(`/inquiries/${id}`, { status }); reload(); } catch (e) { toast.error(errMsg(e)); } };
+  return (
+    <Card>
+      <CardTitle>{t("inquiries")}</CardTitle>
+      <div className="space-y-3" data-testid="inquiries-list">
+        {!(data || []).length && <div className="py-8 text-center text-sm text-slate-400">{t("no_data")}</div>}
+        {(data || []).map((q) => (
+          <div key={q.id} className="rounded-xl border border-slate-200 p-4" data-testid={`inquiry-${q.id}`}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold text-[#071A2B]">{q.name}</span>{q.company && <span className="text-sm text-slate-500">／{q.company}</span>}
+              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px]">{t(q.inquiry_type)}</span>
+              <span className="text-xs text-slate-400">{q.lang?.toUpperCase()}</span>
+              <select value={q.status} onChange={(e) => setStatus(q.id, e.target.value)} className="ml-auto h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs" data-testid={`inquiry-status-${q.id}`}>
+                <option value="new">{t("new_status")}</option><option value="in_progress">{t("in_progress")}</option><option value="done">{t("done")}</option>
+              </select>
+            </div>
+            <div className="mt-1 text-xs text-slate-500"><a href={`mailto:${q.email}`} className="text-[#00A878]">{q.email}</a>{q.phone && ` · ${q.phone}`} · <span className="font-num">{fmtDateTime(q.created_at)}</span></div>
+            <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{q.message}</p>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 export default function SettingsPage() {
   const { t, user } = useApp();
-  const tabs = [["security", Security], ["fx_rates", Fx], ...(user.role !== "client" ? [["data_io", DataIO]] : []), ...(user.role === "admin" ? [["users", Users], ["audit_logs", Audit]] : []), ["system", System]];
+  const tabs = [["security", Security], ["fx_rates", Fx], ...(user.role !== "client" ? [["data_io", DataIO]] : []), ...(user.role === "admin" ? [["users", Users], ["audit_logs", Audit], ["inquiries", Inquiries]] : []), ["system", System]];
   return (
     <div data-testid="settings-page">
       <PageHeader eyebrow="Settings" title={t("settings")} />

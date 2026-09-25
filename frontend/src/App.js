@@ -1,5 +1,5 @@
 import "@/App.css";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { AppProvider, useApp } from "@/context/AppContext";
 import Layout from "@/components/Layout";
@@ -17,11 +17,14 @@ import AIInsight from "@/pages/AIInsight";
 import Reports from "@/pages/Reports";
 import Documents from "@/pages/Documents";
 import SettingsPage from "@/pages/Settings";
+import Landing from "@/pages/Landing";
+import Legal from "@/pages/Legal";
 
 function Protected() {
   const { user } = useApp();
+  const { pathname } = useLocation();
   if (user === null) return <div className="min-h-screen bg-[#F7F9FC]"><Spinner /></div>;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return pathname === "/" ? <Landing /> : <Navigate to="/login" replace />;
   return <Layout />;
 }
 
@@ -32,6 +35,7 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/legal" element={<Legal />} />
             <Route element={<Protected />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/clients" element={<Clients />} />
