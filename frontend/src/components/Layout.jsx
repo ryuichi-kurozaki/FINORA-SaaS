@@ -20,9 +20,12 @@ export const NAV = [
   ["notifications", "Notifications", "/notifications", BellRing], ["reports", "Reports", "/reports", FileBarChart], ["settings", "Settings", "/settings", Settings], ["platform", "Platform", "/platform", Building2],
 ];
 
+const ADMIN_HIDDEN = new Set(["accounts", "assets", "transactions", "portfolio", "liabilities", "cashflow", "goals", "analytics", "risk", "data_health", "consulting", "reports"]);
+
 function SideNav({ onNavigate }) {
   const { t, lang, user } = useApp();
-  const items = NAV.filter(([k]) => !(k === "clients" && user.role === "client") && !(k === "platform" && !user.platform_admin));
+  const items = NAV.filter(([k]) => !(k === "clients" && user.role === "client") && !(k === "platform" && !user.platform_admin)
+    && !(user.role === "admin" && ADMIN_HIDDEN.has(k)));
   return (
     <div className="flex h-full flex-col">
       <div className="px-6 pb-6 pt-7"><Logo light tagline /></div>
