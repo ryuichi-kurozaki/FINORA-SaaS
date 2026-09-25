@@ -121,6 +121,33 @@ async def payment_status(session_id: str):
     return {"session_id": session_id, "status": tx["status"], "payment_status": tx["payment_status"]}
 
 
+@router.post("/stripe/refund/invoice/{iid}")
+async def refund_invoice(iid: str, request: Request, user=Depends(admin_only)):
+    inv = await get_invoice(user, iid)
+    pays = await db.payments.find({"invoice_id": iid, "tenant_id": user["tenant_id"], "source": "STRIPE", "refunded": {"$ne": True}}).to_list(100)
+    if not pays:
+        raise HTTPException(409, "No card payment to refund")
+    total = 0
+    for p in pays:
+        ref = p.get("reference") or ""
+        try:
+            pi = ref if ref.startswith("pi_") else stripe.checkout.Session.retrieve(ref).payment_intent
+            r = stripe.Refund.create(payment_intent=pi, idempotency_key=f"finora-refund-{p['id']}")
+        except stripe.error.StripeError as e:
+            raise HTTPException(400, f"Stripe: {e.user_message or 'refund failed'}")
+        await db.payments.update_one({"id": p["id"]}, {"$set": {"refunded": True, "refund_id": r.id, "refund_status": r.status,
+                                                                "refunded_at": now_iso(), "refunded_by": user["id"]}})
+        await db.payment_transactions.update_one({"stripe_payment_intent_id": pi}, {"$set": {"status": "refunded", "payment_status": "refunded", "updated_at": now_iso()}})
+        total += p["amount"]
+    after = await recompute(iid)
+    await audit(user, "refund", "payments", pays[0]["id"], before={"paid": inv["paid"]}, after={"paid": after["paid"], "refunded": total},
+                request=request, client_id=inv["client_id"], label=f"{inv['number']} ¥{total:,.0f} (card refund)")
+    await notify(user["tenant_id"], await client_user_ids(user["tenant_id"], inv["client_id"]), "payment_refunded",
+                 {"label": inv["number"], "amount": total}, inv["client_id"], "/billing", user)
+    after.pop("_id", None)
+    return after
+
+
 @router.post("/stripe/webhook")
 async def stripe_webhook(request: Request):
     payload = await request.body()

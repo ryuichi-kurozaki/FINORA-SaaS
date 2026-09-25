@@ -52,7 +52,12 @@ export const B = {
   ntf_invitation_accepted: ["顧客が招待を承認しました", "Client accepted the invitation", "Cliente aceitou o convite"], ntf_contract_new: ["新しい契約が登録されました", "New contract", "Novo contrato"],
   ntf_contract_status: ["契約状態が変更されました", "Contract status changed", "Status do contrato alterado"], ntf_invoice_issued: ["請求書が発行されました", "Invoice issued", "Fatura emitida"],
   ntf_payment_confirmed: ["入金が確認されました", "Payment confirmed", "Pagamento confirmado"], ntf_invoice_overdue: ["支払期限を過ぎた請求があります", "Invoice overdue", "Fatura vencida"],
-  pay_by_card: ["カードで支払う", "Pay by card", "Pagar com cartão"], payment_processing: ["決済を確認しています…", "Confirming your payment…", "Confirmando o pagamento…"],
+  pay_by_card: ["カードで支払う", "Pay by card", "Pagar com cartão"],
+  ntf_payment_refunded: ["カード決済が返金されました", "Card payment refunded", "Pagamento com cartão reembolsado"],
+  refund: ["返金", "Refund", "Reembolsar"], refunded: ["返金済", "Refunded", "Reembolsado"], refund_done: ["返金しました", "Refund completed", "Reembolso concluído"],
+  refund_title: ["カード決済を返金しますか？", "Refund this card payment?", "Reembolsar este pagamento?"],
+  refund_body: ["{amount} を顧客のカードに全額返金します。この操作は取り消せません。請求書は未払いに戻ります。", "{amount} will be fully refunded to the customer's card. This cannot be undone. The invoice returns to unpaid.", "{amount} será reembolsado integralmente no cartão do cliente. Esta ação não pode ser desfeita. A fatura volta a ficar em aberto."],
+  refund_confirm: ["返金する", "Refund", "Reembolsar"], cancel_action: ["キャンセル", "Cancel", "Cancelar"], payment_processing: ["決済を確認しています…", "Confirming your payment…", "Confirmando o pagamento…"],
   payment_success: ["お支払いが完了しました", "Payment completed", "Pagamento concluído"], payment_failed: ["決済を確認できませんでした", "Payment could not be confirmed", "Não foi possível confirmar o pagamento"],
   payment_cancelled: ["決済はキャンセルされました", "Payment cancelled", "Pagamento cancelado"], back_to_billing: ["契約・請求へ戻る", "Back to billing", "Voltar ao faturamento"],
 };

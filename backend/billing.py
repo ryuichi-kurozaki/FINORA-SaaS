@@ -65,7 +65,7 @@ async def get_invoice(user, iid):
 
 async def recompute(iid):
     inv = await db.invoices.find_one({"id": iid})
-    paid = sum(p["amount"] for p in await db.payments.find({"invoice_id": iid}).to_list(1000))
+    paid = sum(p["amount"] for p in await db.payments.find({"invoice_id": iid, "refunded": {"$ne": True}}).to_list(1000))
     st = inv["status"]
     if st not in ("DRAFT", "CANCELLED"):
         st = "PAID" if paid >= inv["total"] - 0.5 and inv["total"] > 0 else "PARTIALLY_PAID" if paid > 0 else "ISSUED"
@@ -120,7 +120,9 @@ async def list_invoices(client_id: Optional[str] = None, status: Optional[str] =
         q["status"] = {"$ne": "DRAFT"}
     invs = await mark_overdue(user, await db.invoices.find(q).sort("issue_date", -1).to_list(5000))
     nm = await names(user["tenant_id"])
-    out = [clean(i) | {"client_name": nm.get(i["client_id"])} for i in invs]
+    refundable = set(await db.payments.distinct("invoice_id", {"tenant_id": user["tenant_id"], "source": "STRIPE", "refunded": {"$ne": True}})) \
+        if user["role"] == "admin" else set()
+    out = [clean(i) | {"client_name": nm.get(i["client_id"]), "card_refundable": i["id"] in refundable} for i in invs]
     return [i for i in out if not status or i["status"] == status]
 
 

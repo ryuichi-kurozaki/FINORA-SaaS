@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
-import { Ban, CreditCard, Eye, FileDown, Plus, RefreshCw, Send, Trash2, Wallet } from "lucide-react";
+import { Ban, CreditCard, Eye, FileDown, Plus, RefreshCw, RotateCcw, Send, Trash2, Wallet } from "lucide-react";
 import { toast } from "sonner";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -93,6 +94,30 @@ function PaymentDialog({ inv, onClose, onDone }) {
   );
 }
 
+function RefundDialog({ inv, onClose, onDone }) {
+  const { t } = useApp();
+  const [busy, setBusy] = useState(false);
+  const go = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try { await api.post(`/stripe/refund/invoice/${inv.id}`); toast.success(t("refund_done")); onDone(); onClose(); } catch (err) { toast.error(errMsg(err)); } finally { setBusy(false); }
+  };
+  return (
+    <AlertDialog open={!!inv} onOpenChange={(o) => !o && !busy && onClose()}>
+      <AlertDialogContent data-testid="refund-dialog">
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t("refund_title")}</AlertDialogTitle>
+          <AlertDialogDescription data-testid="refund-dialog-body">{inv?.number} — {t("refund_body").replace("{amount}", yen(inv?.paid || 0))}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={busy} data-testid="refund-cancel">{t("cancel_action")}</AlertDialogCancel>
+          <AlertDialogAction disabled={busy} onClick={go} className="bg-red-600 hover:bg-red-700" data-testid="refund-confirm">{busy ? "…" : t("refund_confirm")}</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 export function InvoiceList({ clientId }) {
   const { t, user, isClient } = useApp();
   const owner = user.role === "admin";
@@ -103,6 +128,7 @@ export function InvoiceList({ clientId }) {
   const [view, setView] = useState(null);
   const [pay, setPay] = useState(null);
   const [nw, setNw] = useState(false);
+  const [refund, setRefund] = useState(null);
   const act = async (path) => { try { await api.post(path); toast.success(t("saved")); reload(); } catch (e) { toast.error(errMsg(e)); } };
   return (
     <Card>
@@ -122,6 +148,7 @@ export function InvoiceList({ clientId }) {
                     {owner && i.status === "DRAFT" && <button className="icon-btn text-sky-600" onClick={() => act(`/invoices/${i.id}/issue`)} title={t("issue")} data-testid={`invoice-issue-${i.id}`}><Send className="h-4 w-4" /></button>}
                     {owner && ["ISSUED", "PARTIALLY_PAID", "OVERDUE"].includes(i.status) && <button className="icon-btn text-[#00A878]" onClick={() => setPay(i)} title={t("record_payment")} data-testid={`invoice-pay-${i.id}`}><Wallet className="h-4 w-4" /></button>}
                     {isClient && ["ISSUED", "PARTIALLY_PAID", "OVERDUE"].includes(i.status) && i.balance > 0 && <button className="ml-1 inline-flex items-center gap-1 rounded-lg bg-[#071A2B] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#00A878]" onClick={() => payCard(i)} data-testid={`invoice-card-pay-${i.id}`}><CreditCard className="h-3.5 w-3.5" />{t("pay_by_card")}</button>}
+                    {owner && i.card_refundable && <button className="icon-btn text-amber-600 hover:text-red-600" onClick={() => setRefund(i)} title={t("refund")} aria-label={t("refund")} data-testid={`invoice-refund-${i.id}`}><RotateCcw className="h-4 w-4" /></button>}
                     {owner && !i.paid && !["CANCELLED", "PAID"].includes(i.status) && <button className="icon-btn hover:text-red-600" onClick={() => act(`/invoices/${i.id}/cancel`)} title={t("CANCELLED")} data-testid={`invoice-cancel-${i.id}`}><Ban className="h-4 w-4" /></button>}
                   </td>
                 </tr>
@@ -132,6 +159,7 @@ export function InvoiceList({ clientId }) {
       )}
       <InvoiceView id={view} onClose={() => setView(null)} />
       <PaymentDialog key={pay?.id} inv={pay} onClose={() => setPay(null)} onDone={reload} />
+      <RefundDialog inv={refund} onClose={() => setRefund(null)} onDone={reload} />
       {nw && <NewInvoice open={nw} onClose={() => setNw(false)} clientId={clientId} onDone={reload} />}
     </Card>
   );
@@ -149,7 +177,7 @@ export function PaymentsList({ clientId }) {
           <table className="data-table w-full min-w-[640px] text-sm" data-testid="payment-table">
             <thead><tr>{["payment_date", "invoice_no", "client", "amount", "method", "reference", ""].map((h) => <th key={h}>{h && t(h)}</th>)}</tr></thead>
             <tbody>{data.map((p) => (
-              <tr key={p.id}><td className="font-num">{p.date}</td><td className="font-num">{p.invoice_number}</td><td>{p.client_name}</td><td className="font-num text-[#00A878]">{yen(p.amount)}</td><td>{t(p.method)}</td><td>{p.reference || "—"}</td>
+              <tr key={p.id}><td className="font-num">{p.date}</td><td className="font-num">{p.invoice_number}</td><td>{p.client_name}</td><td className="font-num text-[#00A878]">{p.refunded ? <span className="text-slate-400 line-through">{yen(p.amount)}</span> : yen(p.amount)}{p.refunded && <span className="ml-2 rounded-md bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 no-underline" data-testid={`payment-refunded-${p.id}`}>{t("refunded")}</span>}</td><td>{t(p.method)}</td><td>{p.reference || "—"}</td>
                 <td>{user.role === "admin" && <button className="icon-btn hover:text-red-600" onClick={() => del(p.id)} data-testid={`payment-delete-${p.id}`}><Trash2 className="h-4 w-4" /></button>}</td></tr>
             ))}</tbody>
           </table>
