@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { ArrowLeftRight, Bell, BellRing, Brain, Briefcase, CalendarClock, ChartLine, ChartPie, FileBarChart, FolderLock, Gauge, HeartPulse, History, Landmark, LayoutDashboard, LogOut, Menu, Settings, ShieldAlert, Target, Telescope, Users, Wallet, Scale, Waves } from "lucide-react";
+import { ArrowLeftRight, Bell, BellRing, Brain, Briefcase, Building2, CalendarClock, ChartLine, ChartPie, FileBarChart, FolderLock, Gauge, HeartPulse, History, Landmark, LayoutDashboard, LogOut, Menu, Receipt, Settings, ShieldAlert, Target, Telescope, Users, Wallet, Scale, Waves } from "lucide-react";
 import { NotificationBell } from "@/pages/Notifications";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -15,14 +15,14 @@ export const NAV = [
   ["assets", "Assets", "/assets", Wallet], ["transactions", "Transactions", "/transactions", ArrowLeftRight], ["portfolio", "Portfolio", "/portfolio", ChartPie],
   ["liabilities", "Liabilities", "/liabilities", Scale], ["cashflow", "Cash Flow", "/cashflow", Waves], ["goals", "Goals", "/goals", Target],
   ["analytics", "Analytics", "/analytics", ChartLine], ["simulation", "Simulation", "/simulation", Telescope], ["risk", "Risk", "/risk", ShieldAlert],
-  ["data_health", "Data Health", "/data-health", HeartPulse], ["ai_insight", "AI Insight", "/ai", Brain], ["consulting", "Consulting", "/consulting", Briefcase],
+  ["data_health", "Data Health", "/data-health", HeartPulse], ["ai_insight", "AI Insight", "/ai", Brain], ["consulting", "Consulting", "/consulting", Briefcase], ["billing", "Billing", "/billing", Receipt],
   ["documents", "Documents", "/documents", FolderLock], ["timeline", "Timeline", "/timeline", History], ["tasks", "Tasks", "/tasks", CalendarClock],
-  ["notifications", "Notifications", "/notifications", BellRing], ["reports", "Reports", "/reports", FileBarChart], ["settings", "Settings", "/settings", Settings],
+  ["notifications", "Notifications", "/notifications", BellRing], ["reports", "Reports", "/reports", FileBarChart], ["settings", "Settings", "/settings", Settings], ["platform", "Platform", "/platform", Building2],
 ];
 
 function SideNav({ onNavigate }) {
   const { t, lang, user } = useApp();
-  const items = user.role === "client" ? NAV.filter(([k]) => k !== "clients") : NAV;
+  const items = NAV.filter(([k]) => !(k === "clients" && user.role === "client") && !(k === "platform" && !user.platform_admin));
   return (
     <div className="flex h-full flex-col">
       <div className="px-6 pb-6 pt-7"><Logo light tagline /></div>
@@ -105,7 +105,7 @@ function Header({ onMenu }) {
         <Alerts />
         <div className="hidden text-right md:block">
           <div className="text-sm font-semibold text-[#071A2B]" data-testid="header-user-name">{user.name}</div>
-          <div className="text-[11px] text-slate-500">{t(user.role === "client" ? "client_role" : user.role)}</div>
+          <div className="text-[11px] text-slate-500">{t(user.role === "client" ? "client_role" : user.role === "admin" ? "tenant_owner" : user.role)}</div>
         </div>
         <button onClick={async () => { await logout(); nav("/login"); }} className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-red-600" data-testid="logout-btn" title={t("logout")}>
           <LogOut className="h-5 w-5" strokeWidth={1.7} />

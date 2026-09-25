@@ -23,6 +23,9 @@ import Transactions from "@/pages/Transactions";
 import { GoalsPage, DataHealthPage } from "@/pages/GoalsHealth";
 import Timeline from "@/pages/Timeline";
 import Notifications from "@/pages/Notifications";
+import Billing from "@/pages/Billing";
+import Platform from "@/pages/Platform";
+import { Signup, InviteAccept } from "@/pages/Signup";
 import Legal from "@/pages/Legal";
 
 function Protected() {
@@ -41,6 +44,8 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/legal" element={<Legal />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/invite/:token" element={<InviteAccept />} />
             <Route element={<Protected />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/clients" element={<Clients />} />
@@ -60,6 +65,8 @@ function App() {
               <Route path="/data-health" element={<DataHealthPage />} />
               <Route path="/timeline" element={<Timeline />} />
               <Route path="/notifications" element={<Notifications />} />
+              <Route path="/billing" element={<Billing />} />
+              <Route path="/platform" element={<Platform />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/documents" element={<Documents />} />
               <Route path="/tasks" element={<EntityPage entity="tasks" />} />

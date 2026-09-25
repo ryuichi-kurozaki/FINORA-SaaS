@@ -1,3 +1,4 @@
+import BusinessOverview from "@/components/BusinessOverview";
 import { Banknote, Coins, Landmark, Percent, PiggyBank, TrendingUp, Waves } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useDashboard, useScopeLabel } from "@/lib/useDashboard";
@@ -27,6 +28,7 @@ export default function Dashboard() {
     <div data-testid="dashboard-page">
       <PageHeader eyebrow={`${t("dashboard")} · ${scope}`} title={`${lang === "ja" ? "" : "Welcome, "}${user.name}${lang === "ja" ? " 様" : ""}`} sub={t("tagline")} />
       {isClient && <div className="mb-6"><ActionCenter health={data.health} /></div>}
+      {!isClient && !scopeClient && <BusinessOverview />}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
         {kpis.map(([k, v, f, I, a], i) => <KpiCard key={k} label={t(k)} value={v} format={f} icon={I} accent={a} testid={`kpi-${k}`} delay={i * 60} />)}
       </div>

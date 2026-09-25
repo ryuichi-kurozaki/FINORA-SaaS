@@ -88,6 +88,7 @@ export default function Login() {
           </Button>
           <div className="mt-6 flex items-start gap-2 text-[11px] text-slate-500"><ShieldCheck className="h-4 w-4 shrink-0 text-[#00A878]" />{t("secure_note")}</div>
           <DemoLogins active={email} onPick={(e, p) => { setEmail(e); setPassword(p); setErr(""); }} />
+          <Link to="/signup" className="mt-4 block text-center text-xs font-medium text-[#00A878] hover:underline" data-testid="login-signup-link">{t("no_account")}</Link>
         </form>
       </div>
     </div>

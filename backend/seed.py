@@ -211,3 +211,5 @@ async def seed():
         await upsert_user(t["id"], "client@finora.co.jp", "佐藤 健一", "client", pw)
     from seed_v2 import seed_v2
     await seed_v2(t, pw, cons["id"])
+    from seed_v3 import seed_v3
+    await seed_v3(t, pw)

@@ -1,3 +1,4 @@
+import ClientOverviewTable from "@/components/ClientOverviewTable";
 import { Link } from "react-router-dom";
 import { Building2, ChevronRight, UserRound } from "lucide-react";
 import { useApp } from "@/context/AppContext";
@@ -31,6 +32,7 @@ export default function Clients() {
           </Link>
         ))}
       </div>
+      <ClientOverviewTable />
       <EntityManager entity="clients" clientId="" title={t("clients")} />
     </div>
   );

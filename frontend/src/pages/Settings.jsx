@@ -1,3 +1,4 @@
+import TenantSettings from "@/components/TenantSettings";
 import { TwoFactorCard, ConsentHistory } from "@/components/SecurityExtras";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -220,7 +221,7 @@ function Inquiries() {
 
 export default function SettingsPage() {
   const { t, user } = useApp();
-  const tabs = [["security", Security], ["fx_rates", Fx], ...(user.role !== "client" ? [["data_io", DataIO]] : []), ...(user.role === "admin" ? [["users", Users], ["audit_logs", Audit], ["inquiries", Inquiries]] : []), ["system", System]];
+  const tabs = [["security", Security], ["fx_rates", Fx], ...(user.role !== "client" ? [["data_io", DataIO]] : []), ...(user.role === "admin" ? [["billing_profile", TenantSettings], ["users", Users], ["audit_logs", Audit], ["inquiries", Inquiries]] : []), ["system", System]];
   return (
     <div data-testid="settings-page">
       <PageHeader eyebrow="Settings" title={t("settings")} />

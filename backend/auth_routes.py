@@ -61,6 +61,9 @@ async def login(body: LoginIn, request: Request, response: Response):
                                            "reason": "repeated_failure" if count >= 3 else "bad_credentials", "at": now_iso()})
         raise HTTPException(401, "Invalid email or password")
     await db.login_attempts.delete_one({"identifier": ident})
+    tenant = await db.tenants.find_one({"id": user["tenant_id"]}, {"status": 1})
+    if tenant and tenant.get("status") in ("SUSPENDED", "CANCELLED") and not user.get("platform_admin"):
+        raise HTTPException(403, "This FINORA account is suspended. Please contact support.")
     if user.get("totp_enabled"):
         return {"requires_2fa": True, "challenge_token": make_token(user["id"], None, "2fa")}
     return await complete_login(user, request, response)

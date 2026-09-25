@@ -1,5 +1,6 @@
 import { L } from "./landing";
 import { F } from "./features";
+import { B } from "./billing";
 
 
 const D = {
@@ -113,5 +114,5 @@ const D = {
 
 export const LANGS = [{ code: "ja", label: "日本語", short: "JA" }, { code: "en", label: "English", short: "EN" }, { code: "pt", label: "Português", short: "PT" }];
 const IDX = { ja: 0, en: 1, pt: 2 };
-const ALL = { ...D, ...L, ...F };
+const ALL = { ...D, ...L, ...F, ...B };
 export const translate = (lang, key) => (ALL[key] ? ALL[key][IDX[lang] ?? 0] : key);

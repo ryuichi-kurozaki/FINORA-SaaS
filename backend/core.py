@@ -120,8 +120,15 @@ async def accessible_ids(user):
         return None
     if user["role"] == "client":
         return [user.get("client_id")]
-    cs = await db.clients.find({"tenant_id": user["tenant_id"], "consultant_id": user["id"]}, {"id": 1}).to_list(5000)
+    cs = await db.clients.find({"tenant_id": user["tenant_id"], "$or": [{"consultant_id": user["id"]}, {"secondary_consultant_ids": user["id"]}]}, {"id": 1}).to_list(5000)
     return [c["id"] for c in cs]
+
+
+async def platform_admin(request: Request):
+    user = await get_current_user(request)
+    if not user.get("platform_admin"):
+        raise HTTPException(403, "FINORA platform admin only")
+    return user
 
 
 async def scope(user, client_id=None):

@@ -109,4 +109,16 @@ export const ENTITIES = {
     { k: "visibility", type: "select", opts: ["internal", "shared"], table: true },
     { k: "notes", type: "textarea", wide: true },
   ],
+  contracts: [
+    { k: "client_id", type: "client", table: true, req: true },
+    { k: "name", label: "contract_name", table: true, req: true }, { k: "service_name", table: true },
+    { k: "fee_type", type: "select", opts: ["MONTHLY", "YEARLY", "ONE_TIME", "CUSTOM"], table: true, req: true },
+    { k: "fee", type: "money", table: true, req: true },
+    { k: "tax_mode", type: "select", opts: ["exclusive", "inclusive", "exempt"] }, { k: "tax_rate", type: "number" },
+    { k: "start_date", label: "start_date_c", type: "date", table: true }, { k: "end_date", type: "date" },
+    { k: "billing_cycle", type: "select", opts: ["MONTHLY", "YEARLY", "ONE_TIME", "CUSTOM"] }, { k: "billing_day", type: "number" },
+    { k: "payment_terms_days", type: "number" }, { k: "auto_renew", type: "select", opts: ["yes", "no"] },
+    { k: "status", type: "select", opts: ["DRAFT", "ACTIVE", "PAUSED", "ENDED", "CANCELLED"], table: true, req: true },
+    { k: "description", type: "textarea", wide: true }, { k: "notes", type: "textarea", wide: true },
+  ],
 };

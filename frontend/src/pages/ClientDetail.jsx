@@ -18,6 +18,9 @@ import { TimelineList } from "@/pages/Timeline";
 import GoalsPanel from "@/components/GoalsPanel";
 import HealthPanel from "@/components/HealthPanel";
 import SnapshotsPanel from "@/components/SnapshotsPanel";
+import { InvoiceList, PaymentsList } from "@/pages/Billing";
+import { InvitationsList } from "@/components/ClientOverviewTable";
+import { useApi } from "@/lib/api";
 import CorrectionDialog from "@/components/CorrectionDialog";
 
 const PROFILE = ["client_type", "email", "phone", "address", "occupation", "business", "family", "related_corps", "annual_income", "income", "investment_experience", "investment_purpose", "risk_tolerance", "status", "notes"];
@@ -32,7 +35,9 @@ export default function ClientDetail() {
   const [corr, setCorr] = useState(false);
   if (!c || !data) return <Spinner />;
   const s = data.summary;
-  const tabs = ["overview", "assets", "portfolio", "accounts", "transactions", "liabilities", "cashflows", "goals", "documents", "data_health", "ai_insight", "consulting", "timeline", "reports", "tasks"];
+  const tabs = ["overview", "assets", "portfolio", "accounts", "transactions", "liabilities", "cashflows", "goals", "documents", "data_health", "ai_insight", "consulting", "timeline", "reports", "contracts", "billing", "tasks"];
+  const { data: invs } = useApi(`/invoices?client_id=${id}`, [id]);
+  const unpaid = (invs || []).reduce((a, i) => a + (["ISSUED", "PARTIALLY_PAID", "OVERDUE"].includes(i.status) ? i.balance : 0), 0);
   return (
     <div data-testid="client-detail-page">
       <Link to="/clients" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-[#00A878]" data-testid="client-back-link"><ArrowLeft className="h-4 w-4" />{t("clients")}</Link>
@@ -45,6 +50,7 @@ export default function ClientDetail() {
         <KpiCard label={t("net_worth")} value={s.net_worth} format={(v) => compact(v, lang)} accent="gold" testid="client-kpi-networth" />
         <KpiCard label={t("yield")} value={s.total_return_pct} format={(v) => pct(v)} testid="client-kpi-yield" />
       </div>
+      {unpaid > 0 && <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-700" data-testid="client-unpaid-badge">{t("unpaid_badge")} · <span className="font-num">{yen(unpaid)}</span></div>}
       <Tabs defaultValue="overview" className="mt-6">
         <TabsList className="h-auto flex-wrap justify-start bg-white/70 p-1">
           {tabs.map((k) => <TabsTrigger key={k} value={k} data-testid={`client-tab-${k}`} className="data-[state=active]:bg-[#071A2B] data-[state=active]:text-white">{t(k === "cashflows" ? "cashflow" : k === "overview" ? "overview" : k)}</TabsTrigger>)}
@@ -89,6 +95,8 @@ export default function ClientDetail() {
         <TabsContent value="timeline" className="mt-5"><Card><TimelineList clientId={id} /></Card></TabsContent>
         <TabsContent value="reports" className="mt-5"><Card><Link to="/reports" onClick={() => setScopeClient(id)} className="btn-emerald inline-flex rounded-xl px-4 py-2.5 text-sm font-semibold" data-testid="client-reports-link">{t("reports")} →</Link></Card></TabsContent>
         <TabsContent value="documents" className="mt-5"><DocumentsPanel clientId={id} /></TabsContent>
+        <TabsContent value="contracts" className="mt-5"><EntityManager entity="contracts" clientId={id} title={t("contracts")} /></TabsContent>
+        <TabsContent value="billing" className="mt-5 space-y-6"><InvoiceList clientId={id} /><PaymentsList clientId={id} /><InvitationsList clientId={id} /></TabsContent>
       </Tabs>
       <CorrectionDialog open={corr} onOpenChange={setCorr} clientId={id} entity="portfolio" targetLabel={c.corporate_name || c.name} />
       <Sheet open={ai} onOpenChange={setAi}>

@@ -10,7 +10,7 @@ router = APIRouter(prefix="/api/data")
 ENTITIES = {
     "clients": {"fields": ["client_type", "name", "corporate_name", "email", "phone", "address", "occupation", "business",
                            "family", "related_corps", "annual_income", "income", "investment_experience",
-                           "investment_purpose", "risk_tolerance", "consultant_id", "status", "notes"],
+                           "investment_purpose", "risk_tolerance", "consultant_id", "secondary_consultant_ids", "status", "notes"],
                 "num": ["annual_income", "income"], "enc": ["phone", "address", "family", "notes"]},
     "accounts": {"fields": ["client_id", "institution", "account_type", "region", "owner_type", "currency", "branch",
                             "account_number", "notes"], "enc": ["account_number"]},
@@ -27,15 +27,18 @@ ENTITIES = {
                      "num": ["quantity", "unit_price", "amount", "fx_rate", "fee", "tax"]},
     "goals": {"fields": ["client_id", "name", "category", "target_amount", "current_value", "target_date", "priority", "notes"],
               "num": ["target_amount", "current_value"], "nullable": ["current_value"]},
+    "contracts": {"fields": ["client_id", "name", "service_name", "description", "fee_type", "fee", "tax_mode", "tax_rate",
+                             "start_date", "end_date", "billing_cycle", "billing_day", "payment_terms_days", "auto_renew", "status", "notes"],
+                  "num": ["fee", "tax_rate", "billing_day", "payment_terms_days"]},
     "cashflows": {"fields": ["client_id", "direction", "category", "name", "amount", "frequency", "owner_type", "notes"],
                   "num": ["amount"]},
     "consulting": {"fields": ["client_id", "kind", "date", "title", "content", "next_action", "status"], "enc": ["content"]},
     "tasks": {"fields": ["client_id", "kind", "title", "due_date", "status", "priority", "assignee_id", "visibility", "notes"]},
 }
 OWNED = {"accounts", "assets", "liabilities", "cashflows", "transactions", "goals"}
-STAFF_ENTITIES = {"clients", "consulting"}
+STAFF_ENTITIES = {"clients", "consulting", "contracts"}
 CASCADE = ["accounts", "assets", "liabilities", "cashflows", "consulting", "tasks", "snapshots", "documents", "transactions",
-           "goals", "corrections", "requests", "comments", "saved_snapshots", "daily_snapshots"]
+           "goals", "corrections", "requests", "comments", "saved_snapshots", "daily_snapshots", "contracts", "invoices", "payments", "invitations"]
 
 
 def cfg(entity):
@@ -104,7 +107,7 @@ async def check_write(user, entity, doc, existing=None):
             raise HTTPException(403, "No access to this client")
         return
     if entity in STAFF_ENTITIES:
-        if user["role"] == "client":
+        if user["role"] == "client" or (entity == "contracts" and user["role"] != "admin"):
             raise HTTPException(403, "Forbidden")
         if entity == "clients":
             if user["role"] == "consultant" and doc.get("consultant_id") != user["id"]:
@@ -123,6 +126,9 @@ async def check_write(user, entity, doc, existing=None):
 
 
 async def after_client_change(user, entity, action, doc):
+    if entity == "contracts" and (action == "create" or doc.get("status") in ("ENDED", "CANCELLED", "PAUSED")):
+        kind = "contract_new" if action == "create" else "contract_status"
+        await notify_other_side(user, doc.get("client_id"), kind, {"label": doc.get("name"), "status": doc.get("status")}, "/billing")
     if user["role"] == "client" and entity in OWNED:
         await notify_other_side(user, doc.get("client_id"), "client_data_updated",
                                 {"entity": entity, "action": action, "label": _label(doc)}, f"/clients/{doc.get('client_id')}")

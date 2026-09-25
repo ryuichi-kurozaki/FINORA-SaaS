@@ -54,6 +54,7 @@ export function AppProvider({ children }) {
     if (!user) return false;
     if (OWNED.includes(entity)) return isClient;
     if (entity === "tasks") return !row || row.owner_id === user.id;
+    if (entity === "contracts") return user.role === "admin";
     return !isClient;
   };
   return (

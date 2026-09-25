@@ -31,6 +31,7 @@ export function LandingNav() {
         </nav>
         <div className="ml-auto flex items-center gap-3">
           <div className="hidden sm:block"><LangSwitch dark /></div>
+          <Link to="/signup" className="hidden rounded-full border border-white/30 px-4 py-2 text-sm text-white hover:border-[#00A878] sm:inline-flex" data-testid="landing-signup-btn">{t("signup")}</Link>
           <Link to="/login" className="btn-emerald rounded-full px-5 py-2 text-sm font-semibold" data-testid="landing-login-btn">{t("cta_login")}</Link>
           <button className="text-white md:hidden" onClick={() => setOpen(!open)} data-testid="landing-menu-btn">{open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}</button>
         </div>
