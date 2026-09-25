@@ -24,7 +24,7 @@ async def upsert_user(tenant_id, email, name, role, password, client_id=None):
         await db.users.insert_one({"id": new_id(), "tenant_id": tenant_id, "email": email, "name": name, "role": role,
                                    "client_id": client_id, "active": True, "lang": "ja",
                                    "password_hash": hash_password(password), "created_at": now_iso()})
-    elif not verify_password(password, u["password_hash"]):
+    elif os.environ["SEED_DEMO"] == "true" and not verify_password(password, u["password_hash"]):
         await db.users.update_one({"email": email}, {"$set": {"password_hash": hash_password(password)}})
     return await db.users.find_one({"email": email})
 
