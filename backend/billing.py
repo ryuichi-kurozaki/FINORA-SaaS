@@ -65,7 +65,8 @@ async def get_invoice(user, iid):
 
 async def recompute(iid):
     inv = await db.invoices.find_one({"id": iid})
-    paid = sum(p["amount"] for p in await db.payments.find({"invoice_id": iid, "refunded": {"$ne": True}}).to_list(1000))
+    pays = await db.payments.find({"invoice_id": iid}).to_list(1000)
+    paid = sum(p["amount"] - (p["amount"] if p.get("refunded") else p.get("refunded_amount") or 0) for p in pays)
     st = inv["status"]
     if st not in ("DRAFT", "CANCELLED"):
         st = "PAID" if paid >= inv["total"] - 0.5 and inv["total"] > 0 else "PARTIALLY_PAID" if paid > 0 else "ISSUED"

@@ -1,4 +1,5 @@
 """Stripe card payments: (A) FINORA SaaS fee paid by tenant owner, (B) customer pays consultant invoice. Separate ledgers."""
+import asyncio
 import os
 from datetime import date, timedelta
 from typing import Optional
@@ -9,11 +10,13 @@ from pydantic import BaseModel, Field
 
 from core import db, new_id, now_iso, current, admin_only, audit, notify, consultant_ids, client_user_ids
 from billing import get_invoice, recompute
+from email_service import send_refund_receipt
 
 router = APIRouter(prefix="/api")
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY") or "sk_test_emergent"
 WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 PAYABLE = ("ISSUED", "PARTIALLY_PAID", "OVERDUE")
+_BG = set()
 
 
 class CheckoutIn(BaseModel):
@@ -123,29 +126,61 @@ async def payment_status(session_id: str):
 
 @router.post("/stripe/refund/invoice/{iid}")
 async def refund_invoice(iid: str, request: Request, user=Depends(admin_only)):
-    inv = await get_invoice(user, iid)
+    await get_invoice(user, iid)
     pays = await db.payments.find({"invoice_id": iid, "tenant_id": user["tenant_id"], "source": "STRIPE", "refunded": {"$ne": True}}).to_list(100)
     if not pays:
         raise HTTPException(409, "No card payment to refund")
-    total = 0
     for p in pays:
-        ref = p.get("reference") or ""
+        done = p.get("refunded_amount") or 0
         try:
-            pi = ref if ref.startswith("pi_") else stripe.checkout.Session.retrieve(ref).payment_intent
-            r = stripe.Refund.create(payment_intent=pi, idempotency_key=f"finora-refund-{p['id']}")
+            pi = await _pi_of(p)
+            r = stripe.Refund.create(payment_intent=pi, idempotency_key=f"finora-refund-{p['id']}-{int(done)}")
         except stripe.error.StripeError as e:
             raise HTTPException(400, f"Stripe: {e.user_message or 'refund failed'}")
-        await db.payments.update_one({"id": p["id"]}, {"$set": {"refunded": True, "refund_id": r.id, "refund_status": r.status,
-                                                                "refunded_at": now_iso(), "refunded_by": user["id"]}})
-        await db.payment_transactions.update_one({"stripe_payment_intent_id": pi}, {"$set": {"status": "refunded", "payment_status": "refunded", "updated_at": now_iso()}})
-        total += p["amount"]
-    after = await recompute(iid)
-    await audit(user, "refund", "payments", pays[0]["id"], before={"paid": inv["paid"]}, after={"paid": after["paid"], "refunded": total},
-                request=request, client_id=inv["client_id"], label=f"{inv['number']} ¥{total:,.0f} (card refund)")
-    await notify(user["tenant_id"], await client_user_ids(user["tenant_id"], inv["client_id"]), "payment_refunded",
-                 {"label": inv["number"], "amount": total}, inv["client_id"], "/billing", user)
-    after.pop("_id", None)
+        await apply_refund(p, done + r.amount, r.id, user, request)
+    after = await db.invoices.find_one({"id": iid}, {"_id": 0})
     return after
+
+
+async def _pi_of(p):
+    ref = p.get("reference") or ""
+    return ref if ref.startswith("pi_") else stripe.checkout.Session.retrieve(ref).payment_intent
+
+
+async def apply_refund(p, refunded_total, refund_id, actor, request=None):
+    """Idempotently records a cumulative refunded amount on a card payment; side effects run once per increase."""
+    new = min(float(refunded_total), p["amount"])
+    full = new >= p["amount"] - 0.5
+    old = await db.payments.find_one_and_update(
+        {"id": p["id"], "refunded": {"$ne": True}, "$or": [{"refunded_amount": {"$lt": new}}, {"refunded_amount": {"$exists": False}}]},
+        {"$set": {"refunded_amount": new, "refunded": full, "refund_id": refund_id, "refunded_at": now_iso(), "refunded_by": actor["id"]}})
+    if not old:
+        return
+    delta = new - (old.get("refunded_amount") or 0)
+    inv = await db.invoices.find_one({"id": p["invoice_id"], "tenant_id": p["tenant_id"]})
+    st = "refunded" if full else "partially_refunded"
+    await db.payment_transactions.update_one({"stripe_payment_intent_id": p.get("reference")}, {"$set": {"status": st, "payment_status": st, "updated_at": now_iso()}})
+    after = await recompute(inv["id"])
+    await audit(actor, "refund", "payments", p["id"], before={"paid": inv["paid"]}, after={"paid": after["paid"], "refunded": delta, "via": actor["name"]},
+                request=request, client_id=inv["client_id"], label=f"{inv['number']} ¥{delta:,.0f} (card refund{'' if full else ', partial'})")
+    await notify(p["tenant_id"], await client_user_ids(p["tenant_id"], inv["client_id"]), "payment_refunded",
+                 {"label": inv["number"], "amount": delta}, inv["client_id"], "/billing", None if actor["role"] == "system" else actor)
+    task = asyncio.create_task(send_refund_receipt(p["tenant_id"], inv, delta))
+    _BG.add(task)
+    task.add_done_callback(_BG.discard)
+
+
+async def _refund_from_stripe(charge):
+    pi = charge.get("payment_intent")
+    p = await db.payments.find_one({"source": "STRIPE", "reference": pi})
+    if not p:
+        tx = await db.payment_transactions.find_one({"stripe_payment_intent_id": pi})
+        p = tx and await db.payments.find_one({"source": "STRIPE", "reference": tx["session_id"]})
+    if not p:
+        return
+    refunds = (charge.get("refunds") or {}).get("data") or []
+    actor = {"id": "stripe", "tenant_id": p["tenant_id"], "email": "stripe", "name": "Stripe", "role": "system"}
+    await apply_refund(p, charge.get("amount_refunded") or 0, refunds[0]["id"] if refunds else None, actor)
 
 
 @router.post("/stripe/webhook")
@@ -158,6 +193,8 @@ async def stripe_webhook(request: Request):
     obj, t = event["data"]["object"], event["type"]
     if t in ("checkout.session.completed", "checkout.session.async_payment_succeeded") and obj.get("payment_status") == "paid":
         await _fulfill(obj["id"], obj.get("payment_intent"))
+    elif t == "charge.refunded":
+        await _refund_from_stripe(obj)
     elif t in ("checkout.session.async_payment_failed", "checkout.session.expired"):
         st = "failed" if t.endswith("failed") else "expired"
         await db.payment_transactions.update_one({"session_id": obj["id"], "payment_status": {"$ne": "paid"}}, {"$set": {"status": st, "payment_status": st}})

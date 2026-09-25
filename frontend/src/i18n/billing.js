@@ -54,7 +54,7 @@ export const B = {
   ntf_payment_confirmed: ["入金が確認されました", "Payment confirmed", "Pagamento confirmado"], ntf_invoice_overdue: ["支払期限を過ぎた請求があります", "Invoice overdue", "Fatura vencida"],
   pay_by_card: ["カードで支払う", "Pay by card", "Pagar com cartão"],
   ntf_payment_refunded: ["カード決済が返金されました", "Card payment refunded", "Pagamento com cartão reembolsado"],
-  refund: ["返金", "Refund", "Reembolsar"], refunded: ["返金済", "Refunded", "Reembolsado"], refund_done: ["返金しました", "Refund completed", "Reembolso concluído"],
+  refund: ["返金", "Refund", "Reembolsar"], refunded: ["返金済", "Refunded", "Reembolsado"], partially_refunded: ["一部返金", "Partially refunded", "Reembolso parcial"], refund_done: ["返金しました", "Refund completed", "Reembolso concluído"],
   refund_title: ["カード決済を返金しますか？", "Refund this card payment?", "Reembolsar este pagamento?"],
   refund_body: ["{amount} を顧客のカードに全額返金します。この操作は取り消せません。請求書は未払いに戻ります。", "{amount} will be fully refunded to the customer's card. This cannot be undone. The invoice returns to unpaid.", "{amount} será reembolsado integralmente no cartão do cliente. Esta ação não pode ser desfeita. A fatura volta a ficar em aberto."],
   refund_confirm: ["返金する", "Refund", "Reembolsar"], cancel_action: ["キャンセル", "Cancel", "Cancelar"], payment_processing: ["決済を確認しています…", "Confirming your payment…", "Confirmando o pagamento…"],
