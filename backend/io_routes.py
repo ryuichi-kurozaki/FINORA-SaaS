@@ -62,6 +62,8 @@ async def import_data(entity: str, request: Request, file: UploadFile = File(...
             created += 1
         except HTTPException as e:
             errors.append({"row": n, "error": e.detail})
+        except Exception as e:
+            errors.append({"row": n, "error": str(e)[:200]})
     await audit(user, "import", entity, None, after={"created": created, "errors": len(errors), "file": file.filename}, request=request)
     return {"created": created, "errors": errors[:50]}
 

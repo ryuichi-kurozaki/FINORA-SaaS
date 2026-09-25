@@ -1,0 +1,40 @@
+{
+  "summary": "First test run of FINORA. Backend: 25/25 pytest tests pass covering auth (login/lockout/refresh-less me/change-password revert), RBAC for admin/consultant/client (incl. RBAC on assets scoped access and read-only 403 for client), CRUD on /api/data/{entity}, dashboard/simulation/AI ask/AI report/tasks alerts/settings, CSV & XLSX export, CSV import, documents (upload/list/download/delete via GridFS), field-level encryption at rest (audit_logs.after contains 'enc:' prefix while GET returns decrypted values) and audit before/after on update. Frontend: login flow, wrong-pw error, admin dashboard renders 7 KPI cards, FINORA AI INSIGHT panel with insight groups, language selectors JA/EN/PT, header-client-scope, alerts bell, Clients page + add button, client detail with 8 tabs and Ask AI drawer + prompt chips, Reports (11 report types, report-document, PDF export button), Simulation (17 sim-* controls, milestone-10), Risk (risk-score + 8 risk-items), Documents (client/category/file/upload selectors), Settings, and Assets EntityManager (add/export csv/export xlsx/import). RBAC on frontend: client role has NO Clients nav link and NO assets-add-btn. Consultant sees exactly 3 clients and NO サクラ不動産.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Login form / language selector (native <select>)", "issues": ["React hydration warning: '<span> cannot be a child of <option>'. Suggests JSX-styled content is placed inside a <option>. Cosmetic but produces console error."]},
+      {"screen": "Dashboard charts (Recharts)", "issues": ["Numerous console warnings 'The width(-1) and height(-1) of chart should be greater than 0' during initial mount. Charts render fine after; consider giving ResponsiveContainer a minHeight/aspect to remove noise."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Low) Fix hydration warning: remove any <span>/JSX children inside <option> elements in language-selector or replace native <select> with the custom Select component used elsewhere.",
+    "(Low) Set an explicit height/aspect on Recharts ResponsiveContainer to remove width(-1)/height(-1) console warnings during initial mount."
+  ],
+  "critical_code_review_comments": [
+    "core.decrypt swallows InvalidToken and returns '' silently. Consider logging a warning so tampered/rotated keys are detectable.",
+    "seed.upsert_user only updates the password_hash when it doesn't match; other user profile fields (name/role/client_id) are never re-synced. For the demo client user, in the else-branch (when clients already exist) the client_id is not re-linked — works only because the doc already has it from first seed.",
+    "auth_routes.login_history insertion when user is None still stores email/ip but tenant_id/user_id are null; index on tenant_id could grow unbounded across bogus emails — fine for now but consider TTL or capped collection.",
+    "crud.update_entity/create_entity: audit.after is stored as-is including encrypted values (good for tamper-evidence) but audit.before on update is the raw DB doc (also encrypted) — that's consistent. Documented in tests.",
+    "io_routes.import_data: no per-row schema validation beyond sanitize; malformed rows raise HTTPException(422) inside sanitize but other exceptions (e.g. bad numeric types) may leak as 500. Consider catch-all Exception -> row error.",
+    "routes_analytics.task_alerts uses datetime.now() (naive/local) while due_date is date-string; on containers with UTC TZ this is fine but mixing tz-naive/aware elsewhere (core.now = UTC aware) is inconsistent."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py"
+  ],
+  "success_rate": {"backend": "100% (25/25)", "frontend": "100% of tested selectors present and RBAC enforced"},
+  "test_credentials": "admin ryuichi.kurozaki@gmail.com / Finora2026!; consultant consultant@finora.co.jp / Finora2026!; client client@finora.co.jp / Finora2026!  (all revert-checked)",
+  "seed_data_creation": "No new seed data. Tests create+delete their own TEST_* rows. change-password test toggles admin password to TempPass_2026! and reverts to Finora2026!.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Full backend regression at /app/backend/tests/backend_test.py runs in ~8s and covers all major features + encryption/audit invariants. Lockout test uses a throwaway email to avoid locking real admin. Frontend selectors verified via Playwright are correct. Only outstanding items are two low-priority console warnings (option/span hydration + Recharts init size)."
+}
