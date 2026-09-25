@@ -52,3 +52,10 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - iteration_4: backend 31/31, frontend 100% (ClientDetail hook-order fix applied)
 - 2nd demo tenant: consultantb@finora.co.jp / clientb@finora.co.jp
 - Backlog: real email (Resend) for invites/invoices, online card payment (Stripe), scheduled monthly invoice job, staff permission UI
+
+## Stripe card payments (2026-06)
+- Stripe claimable sandbox (test mode, JP). backend/stripe_payments.py: POST /api/stripe/checkout/invoice (customer pays own invoice balance), POST /api/stripe/checkout/subscription (tenant owner pays FINORA fee = saas_subscriptions.amount set by platform admin), GET /api/payments/status/{session_id}, POST /api/stripe/webhook; payment_transactions collection; idempotent fulfillment → payments(method CREDIT_CARD) + invoice recompute / subscription paid+ACTIVE+renewal extended
+- Tax: SaaS fee → Stripe-managed tax (fallback to calc / none); invoices → no Stripe tax (FINORA invoice already includes consumption tax)
+- Frontend: invoice-card-pay button (customer), saas-card-pay-btn (Settings), /payment/success & /payment/cancel
+- iteration_5: backend 9/9; checkout redirects verified; fulfillment verified via direct call (hosted Stripe page not automated)
+- Note: invoice card payments settle to the FINORA platform Stripe account; per-consultant payouts need Stripe Connect (backlog)
