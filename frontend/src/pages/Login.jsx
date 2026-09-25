@@ -8,6 +8,7 @@ import { api, errMsg } from "@/lib/api";
 import { LANGS } from "@/i18n/dict";
 import { LogoFull, LogoMark } from "@/components/Logo";
 import DemoLogins from "@/components/DemoLogins";
+import { PasswordInput } from "@/components/PasswordInput";
 
 const LETTERS = [["F", "Finance"], ["I", "Intelligence"], ["N", "Navigation"], ["O", "Optimization"], ["R", "Risk Management"], ["A", "Advisory"]];
 
@@ -75,7 +76,7 @@ export default function Login() {
           <label className="mt-7 block text-xs font-medium text-slate-600">{t("email")}</label>
           <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5 h-11" data-testid="login-email-input" autoComplete="username" />
           <label className="mt-4 block text-xs font-medium text-slate-600">{t("password")}</label>
-          <Input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5 h-11" data-testid="login-password-input" autoComplete="current-password" />
+          <PasswordInput required value={password} onChange={(e) => setPassword(e.target.value)} wrapperClassName="mt-1.5" className="h-11" data-testid="login-password-input" autoComplete="current-password" />
           {challenge && (
             <div className="mt-4 rounded-xl border border-[#00A878]/30 bg-emerald-50/50 p-3" data-testid="login-2fa-step">
               <label className="block text-xs font-medium text-slate-600">{t("twofa_prompt")}</label>

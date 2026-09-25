@@ -73,3 +73,5 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - New SEED_DEMO env flag: false in prod -> only admin tenant, plans, platform_admin, subscription (no demo data/users). Preview uses true
 - Login page demo-account buttons hidden in prod build (empty REACT_APP_DEMO_* vars)
 - Stripe live webhook registered; Stripe account still not activated for live charges (charges_enabled=false)
+- 2026-09 Password show/hide eye toggle (components/PasswordInput.jsx) on Login, Signup (+invite accept), Settings password change; i18n show_password/hide_password. Deployed to prod (frontend only)
+- Prod ¥100 live card payment test PASSED (INV-202609-0001 PAID via webhook). Test client payment-test@finora.co.jp still exists; refund/cleanup pending user decision

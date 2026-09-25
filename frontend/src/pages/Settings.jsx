@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/PasswordInput";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApp } from "@/context/AppContext";
 import { api, downloadFile, errMsg, useApi } from "@/lib/api";
@@ -25,8 +26,8 @@ function Security() {
       <Card>
         <CardTitle>{t("change_password")}</CardTitle>
         <div className="space-y-3">
-          <Input type="password" placeholder={t("current_password")} value={f.current_password} onChange={(e) => setF({ ...f, current_password: e.target.value })} data-testid="current-password-input" />
-          <Input type="password" placeholder={t("new_password")} value={f.new_password} onChange={(e) => setF({ ...f, new_password: e.target.value })} data-testid="new-password-input" />
+          <PasswordInput placeholder={t("current_password")} value={f.current_password} onChange={(e) => setF({ ...f, current_password: e.target.value })} data-testid="current-password-input" autoComplete="current-password" />
+          <PasswordInput placeholder={t("new_password")} value={f.new_password} onChange={(e) => setF({ ...f, new_password: e.target.value })} data-testid="new-password-input" autoComplete="new-password" />
           <Button className="btn-emerald" onClick={change} data-testid="change-password-btn">{t("save")}</Button>
         </div>
       </Card>

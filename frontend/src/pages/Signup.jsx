@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useApp } from "@/context/AppContext";
 import { api, errMsg, useApi } from "@/lib/api";
 import { LogoFull } from "@/components/Logo";
+import { PasswordInput } from "@/components/PasswordInput";
 
 const inp = "mt-1 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A878]/40";
 
@@ -60,7 +61,7 @@ export function Signup() {
         {field("qualifications", "qualifications")}
         <label className="text-xs text-slate-600">{t("plan")}<select value={f.plan_code} onChange={set("plan_code")} className={inp} data-testid="signup-plan">{(plans || []).map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}</select></label>
         <label className="text-xs text-slate-600 sm:col-span-2">{t("profile_text")}<textarea value={f.profile} onChange={set("profile")} rows={3} className="mt-1 w-full rounded-lg border border-slate-200 p-3 text-sm" data-testid="signup-profile" /></label>
-        <label className="text-xs text-slate-600 sm:col-span-2">{t("password")} * (8+)<input type="password" required minLength={8} value={f.password} onChange={set("password")} className={inp} data-testid="signup-password" /></label>
+        <label className="text-xs text-slate-600 sm:col-span-2">{t("password")} * (8+)<PasswordInput required minLength={8} value={f.password} onChange={set("password")} wrapperClassName="mt-1" className={inp} data-testid="signup-password" autoComplete="new-password" /></label>
         <Button type="submit" className="btn-emerald h-11 sm:col-span-2" disabled={busy} data-testid="signup-submit">{busy ? t("loading") : t("create_account")}</Button>
       </form>
     </Shell>
@@ -86,7 +87,7 @@ export function InviteAccept() {
         <form onSubmit={submit} className="grid gap-3" data-testid="invite-accept-form">
           <div className="rounded-lg bg-slate-50 p-3 text-sm">{data.client_name} · <span className="font-num">{data.email}</span></div>
           <label className="text-xs text-slate-600">{t("name")}<input required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={inp} data-testid="invite-name" /></label>
-          <label className="text-xs text-slate-600">{t("password")} (8+)<input type="password" required minLength={8} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} className={inp} data-testid="invite-password" /></label>
+          <label className="text-xs text-slate-600">{t("password")} (8+)<PasswordInput required minLength={8} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} wrapperClassName="mt-1" className={inp} data-testid="invite-password" autoComplete="new-password" /></label>
           <Button type="submit" className="btn-emerald h-11" disabled={busy} data-testid="invite-accept-submit">{t("accept_invite")}</Button>
         </form>
       )}
