@@ -69,7 +69,7 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - App not deployed yet: production secrets must be set via Deployment UI (Secrets)
 
 ## 2026-06 Production deploy to own VPS (ConoHa 160.251.120.127)
-- Live at https://finora.co.jp (www.finora.co.jp pending DNS A record). See /app/memory/DEPLOY_VPS.md
+- Live at https://www.finora.co.jp (apex redirects to www). See /app/memory/DEPLOY_VPS.md
 - New SEED_DEMO env flag: false in prod -> only admin tenant, plans, platform_admin, subscription (no demo data/users). Preview uses true
 - Login page demo-account buttons hidden in prod build (empty REACT_APP_DEMO_* vars)
 - Stripe live webhook registered; Stripe account still not activated for live charges (charges_enabled=false)
