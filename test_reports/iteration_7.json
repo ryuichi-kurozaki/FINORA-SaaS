@@ -1,0 +1,29 @@
+{
+  "summary": "Full production + preview verification of the public demo tenant + one-click login feature. 17/17 pytest cases pass; login UI works on desktop (1920) and mobile (390); autofill correct for all 3 demo roles; submit lands demo-admin on dashboard populated with demo-tenant data (4 demo clients, デモ 管理者). Data isolation confirmed (no real tenant clients or invoices leak into demo tenant view). Demo restrictions confirmed via API (change-password, 2FA setup, create-user, billing profile PUT, Stripe checkout/refund all return 403). Real prod admin login executed exactly once and succeeded. Preview demo logins for all 3 roles still return access_token.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dashboard after demo login", "issues": ["Recharts logs many repeated 'width(-1) height(-1)' console warnings during initial render — cosmetic but noisy; already noted in iteration_6"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_prod_demo.py",
+    "/app/test_reports/pytest/prod_demo.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Data-isolation invariant is enforced through tenant_id scoping in accessible_ids/scope — confirmed working on live prod for demo tenant. No leak observed.",
+    "Minor data hygiene: on demo tenant, invoice INV-202609-0003 shows client_name='株式会社ノヴァテック' while its client_id resolves to '山本 美咲' in /api/data/clients. The invoice's stored client_name looks like a stale denormalized value from seed. Not a security issue but confusing in UI; consider refreshing denormalized fields in seed_showcase.py or dropping stored client_name in favor of a join on read.",
+    "forbid_demo() is correctly applied at every mutation endpoint listed in the request (verified by direct API calls). Suggestion: add a lightweight backend test alongside test_prod_demo.py that runs in preview to prevent regressions if any new mutation route is added without forbid_demo()."
+  ],
+  "updated_files": ["/app/backend/tests/test_prod_demo.py"],
+  "success_rate": {"backend": "100% (17/17)", "frontend": "100%"},
+  "test_credentials": "See /app/memory/test_credentials.md; prod demo pw FinoraDemo2026!, preview demo pw Finora2026!. Real prod admin used exactly once.",
+  "seed_data_creation": "None. Only live reads and forbid_demo mutation attempts (all rejected with 403 as expected, so no data was written).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression suite for the prod public demo tenant is /app/backend/tests/test_prod_demo.py — runs against live https://www.finora.co.jp AND preview host. Cheap (~13s) and safe (all writes are demo-forbidden). Note: /api/dashboard does not exist; the read-endpoint smoke test uses /api/analytics/dashboard and /api/invoices. Stripe checkout requires an origin_url field in the body even for demo-forbidden calls (otherwise 422 masks the 403).",
+  "rca of the issue": "N/A — feature verification only, no bug."
+}
