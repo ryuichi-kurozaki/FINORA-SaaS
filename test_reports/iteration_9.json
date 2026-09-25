@@ -1,0 +1,38 @@
+{
+  "summary": "Consultant isolation fix verified end-to-end. Backend pytest 10/11 pass (1 unrelated seed-data drift in preview consultant assignments, not a code bug). Consultant A (role=admin + is_consultant=true) via signup: sees only own client, staff's client + asset hidden, GET/PUT/DELETE staff client -> 403, POST /api/data/clients with consultant_id=other -> 403. Staff consultant sees only its own client. FINORA admin ryuichi (no is_consultant) still sees all 4+ tenant clients. Preview client sees only own record. Frontend preview: fresh signup consultant sees only 'A顧客UI' on /clients page and header client selector shows '全顧客 (1)' (no cross-tenant leakage). Production smoke: demo-consultant@finora.co.jp login OK, /api/data/clients returns 3 assigned clients (Ana Paula Ferreira, 山本 美咲, 佐藤 健一). No prod writes.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "seed data / test_credentials.md", "issue": "Preview consultant@finora.co.jp assigned clients are actually [佐藤 健一, 山本 美咲, Ana Paula Ferreira] (ノヴァテック not currently assigned). test_credentials.md still lists ノヴァテック. Not a code bug — update the memory file or reassign the seed."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Header client selector <select>", "issues": ["Console hydration warning: <span> inserted inside <option> by the x-source-editable devtools instrumentation. Harmless in production but noisy in preview console."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_consultant_isolation.py",
+    "/app/test_reports/pytest/consultant_isolation.xml"
+  ],
+  "action_items": [
+    "Update /app/memory/test_credentials.md to reflect actual preview consultant assigned clients (山本 美咲 in place of ノヴァテック) OR re-seed to match documented list."
+  ],
+  "critical_code_review_comments": [
+    "core.sees_all + accessible_ids + scope + crud.check_write/delete_entity correctly restrict is_consultant admins to only their own clients (consultant_id == self or in secondary_consultant_ids), same rule path as staff consultants.",
+    "crud.create_entity sets consultant_id=self for is_consultant admins because check_write enforces sees_all(user) OR doc.consultant_id == user.id. Verified 403 when admin-is-consultant tries to assign a client to another user.",
+    "crud.update_entity for clients pops consultant_id only when role=='consultant' — is_consultant admin can therefore still transfer ownership away from themselves via PUT; consider blocking or defaulting consultant_id updates for is_consultant admins too."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_consultant_isolation.py"
+  ],
+  "success_rate": {"backend": "91%", "frontend": "100%"},
+  "test_credentials": "See /app/memory/test_credentials.md. Ad-hoc signups used unique @example.test emails, cleaned up.",
+  "seed_data_creation": "Ephemeral: 1 signup tenant + 1 staff user + 1 client + 1 asset created per pytest run and deleted in fixture teardown. 1 UI-test signup tenant created and manually deleted after browser test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Signup rate-limited to 5/IP/hour. Each pytest run consumes 1 slot. If 429, wait or reduce runs. Regression file: /app/backend/tests/test_consultant_isolation.py covers isolation for is_consultant admins + staff consultants + regression for FINORA admin/consultant/client.",
+  "rca of the issue": "Original bug: is_consultant admins had role=='admin' so sees_all returned True everywhere, leaking other consultants' clients. Fix: core.sees_all now returns admin AND NOT is_consultant; accessible_ids/scope treat is_consultant admins with the same query as staff consultants (consultant_id or secondary_consultant_ids). crud.check_write and delete_entity gate writes/deletes on `sees_all(user) or doc.consultant_id == user.id`. Verified with 8 dedicated tests."
+}

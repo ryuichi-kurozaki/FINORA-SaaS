@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="11" time="5.962" timestamp="2026-09-25T15:45:08.932176+00:00" hostname="agent-env-c79a1c0a-0012-4654-8a6f-25c41105a593"><testcase classname="tests.test_consultant_isolation" name="test_a_lists_only_own_client" time="1.448" /><testcase classname="tests.test_consultant_isolation" name="test_a_assets_excludes_staff_client_asset" time="0.090" /><testcase classname="tests.test_consultant_isolation" name="test_a_cannot_get_staff_client_dashboard" time="0.101" /><testcase classname="tests.test_consultant_isolation" name="test_a_cannot_get_staff_client_by_id" time="0.111" /><testcase classname="tests.test_consultant_isolation" name="test_a_cannot_update_staff_client" time="0.075" /><testcase classname="tests.test_consultant_isolation" name="test_a_cannot_delete_staff_client" time="0.085" /><testcase classname="tests.test_consultant_isolation" name="test_a_cannot_create_client_assigned_to_staff" time="0.096" /><testcase classname="tests.test_consultant_isolation" name="test_staff_sees_only_its_own_client" time="0.515" /><testcase classname="tests.test_consultant_isolation" name="test_finora_admin_sees_all_tenant_clients" time="1.518" /><testcase classname="tests.test_consultant_isolation" name="test_preview_consultant_sees_only_assigned" time="0.528"><failure message="AssertionError: expected ['Ana Paula Ferreira', 'ノヴァテック', '佐藤 健一'], got ['Ana Paula Ferreira', '佐藤 健一', '山本 美咲']&#10;assert ['Ana Paula F... 健一', '山本 美咲'] == ['Ana Paula F...テック', '佐藤 健一']&#10;  &#10;  At index 1 diff: '佐藤 健一' != 'ノヴァテック'&#10;  &#10;  Full diff:&#10;    [&#10;        'Ana Paula Ferreira',&#10;  -     'ノヴァテック',...&#10;  &#10;  ...Full output truncated (3 lines hidden), use '-vv' to show">backend/tests/test_consultant_isolation.py:198: in test_preview_consultant_sees_only_assigned
+    assert names == expected, f"expected {expected}, got {names}"
+E   AssertionError: expected ['Ana Paula Ferreira', 'ノヴァテック', '佐藤 健一'], got ['Ana Paula Ferreira', '佐藤 健一', '山本 美咲']
+E   assert ['Ana Paula F... 健一', '山本 美咲'] == ['Ana Paula F...テック', '佐藤 健一']
+E     
+E     At index 1 diff: '佐藤 健一' != 'ノヴァテック'
+E     
+E     Full diff:
+E       [
+E           'Ana Paula Ferreira',
+E     -     'ノヴァテック',...
+E     
+E     ...Full output truncated (3 lines hidden), use '-vv' to show</failure></testcase><testcase classname="tests.test_consultant_isolation" name="test_preview_client_sees_only_self" time="0.561" /></testsuite></testsuites>
