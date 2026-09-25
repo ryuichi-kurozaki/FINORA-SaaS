@@ -8,7 +8,7 @@ import { useDashboard } from "@/lib/useDashboard";
 import { fmtDate, pct, plColor, yen } from "@/lib/format";
 import { Card, PageHeader, Spinner } from "@/components/common";
 import { Donut, TrendChart } from "@/components/charts";
-import { LogoMark } from "@/components/Logo";
+import { LogoFull } from "@/components/Logo";
 import { InsightItems } from "@/components/InsightPanel";
 import { AnswerSections } from "@/components/AIAssistant";
 
@@ -91,7 +91,7 @@ export default function Reports() {
           {!data ? <Spinner /> : (
             <div ref={ref} className="report-doc mx-auto w-[794px] max-w-none p-10 shadow-xl" data-testid="report-document">
               <div className="flex items-center justify-between border-b-2 border-[#071A2B] pb-4">
-                <div className="flex items-center gap-3"><LogoMark size={36} /><div><div className="font-display text-xl font-extrabold tracking-[0.14em]"><span className="text-[#071A2B]">FIN</span><span className="text-[#00A878]">ORA</span></div><div className="text-[9px] uppercase tracking-[0.25em] text-slate-500">Investment Intelligence</div></div></div>
+                <LogoFull className="h-14 w-auto" />
                 <div className="text-right text-[11px] text-slate-500"><div className="font-semibold text-[#C9A227]">{t("confidential")}</div><div>{t("generated")}: {new Date().toISOString().slice(0, 10)}</div><div>{t("prepared_by")}: {user.name}</div></div>
               </div>
               <h2 className="mt-6 font-display text-2xl font-extrabold text-[#071A2B]" data-testid="report-title">{t(type)}</h2>

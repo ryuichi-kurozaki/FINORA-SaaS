@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useApp } from "@/context/AppContext";
 import { api, errMsg } from "@/lib/api";
 import { LANGS } from "@/i18n/dict";
-import { Logo, LogoMark } from "@/components/Logo";
+import { LogoFull, LogoMark } from "@/components/Logo";
 
 const LETTERS = [["F", "Finance"], ["I", "Intelligence"], ["N", "Navigation"], ["O", "Optimization"], ["R", "Risk Management"], ["A", "Advisory"]];
 
@@ -37,7 +37,7 @@ export default function Login() {
     <div className="grid min-h-screen lg:grid-cols-[1.15fr_1fr]">
       <div className="login-bg relative hidden overflow-hidden p-12 text-white lg:flex lg:flex-col">
         <div className="grid-lines absolute inset-0" />
-        <div className="relative"><Logo light size={40} tagline /></div>
+        <div className="relative"><LogoFull dark className="h-28 w-auto" /></div>
         <div className="relative mt-auto max-w-xl">
           <div className="mb-4 text-xs font-semibold uppercase tracking-[0.3em] text-[#00A878]">Investment Intelligence Platform</div>
           <h1 className="font-display text-5xl font-extrabold leading-[1.1] tracking-tight">Finance <span className="text-slate-500">×</span> Intelligence <span className="text-slate-500">×</span> <span className="text-[#00A878]">Future</span></h1>
@@ -55,7 +55,7 @@ export default function Login() {
       </div>
       <div className="flex flex-col items-center justify-center bg-[#F7F9FC] px-6 py-12">
         <div className="mb-8 flex w-full max-w-sm items-center justify-between">
-          <div className="lg:hidden"><Logo /></div>
+          <div className="lg:hidden"><LogoFull className="h-12 w-auto" /></div>
           <div className="ml-auto flex rounded-xl border border-slate-200 bg-white p-0.5">
             {LANGS.map((l) => (
               <button key={l.code} onClick={() => setLang(l.code)} data-testid={`login-lang-${l.code}`}

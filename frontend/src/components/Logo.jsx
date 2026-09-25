@@ -1,20 +1,22 @@
+export const BRAND = {
+  iconDark: "/brand/finora-icon-dark.png",
+  iconLight: "/brand/finora-icon-light.png",
+  logoDark: "/brand/finora-logo-dark.png",
+  logoLight: "/brand/finora-logo-light.png",
+};
+
+// light=true → placed on a dark surface (uses the dark app icon)
 export function LogoMark({ size = 32, light = false }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" aria-hidden="true">
-      <defs>
-        <linearGradient id="fg" x1="0" y1="40" x2="40" y2="0">
-          <stop offset="0" stopColor="#00A878" />
-          <stop offset="1" stopColor="#5FE0B8" />
-        </linearGradient>
-      </defs>
-      <rect x="1" y="1" width="38" height="38" rx="11" fill={light ? "rgba(255,255,255,0.06)" : "#071A2B"} stroke="rgba(0,168,120,0.45)" />
-      <path d="M12 30V11h15" stroke="url(#fg)" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M12 20h9" stroke="url(#fg)" strokeWidth="3.2" strokeLinecap="round" />
-      <path d="M21 29l4-5 3 2 4-7" stroke="#C9A227" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="32" cy="19" r="2" fill="#C9A227" />
-      <circle cx="27" cy="11" r="1.6" fill="#5FE0B8" />
-    </svg>
+    <img src={light ? BRAND.iconDark : BRAND.iconLight} alt="FINORA" width={size} height={size} data-testid="finora-logo-mark"
+      className={`shrink-0 rounded-[24%] object-cover ${light ? "shadow-[0_0_18px_rgba(0,168,120,0.35)]" : "shadow-sm ring-1 ring-slate-200"}`} style={{ width: size, height: size }} />
   );
+}
+
+// Full logo (symbol + wordmark + tagline). dark=true for dark backgrounds.
+export function LogoFull({ dark = false, className = "" }) {
+  return <img src={dark ? BRAND.logoDark : BRAND.logoLight} alt="FINORA — Investment Management & Consulting Platform" data-testid="finora-logo-full"
+    className={`select-none object-contain ${className}`} />;
 }
 
 export function Logo({ light = false, size = 32, tagline = false }) {
