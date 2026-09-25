@@ -35,7 +35,10 @@ def _session(name, amount, origin, meta, tax_code=None, tax_mode="none"):
             return stripe.checkout.Session.create(**kwargs, automatic_tax={"enabled": True}, billing_address_collection="required")
         except stripe.error.InvalidRequestError:
             pass
-    return stripe.checkout.Session.create(**kwargs)
+    try:
+        return stripe.checkout.Session.create(**kwargs)
+    except stripe.error.StripeError as e:
+        raise HTTPException(400, f"Stripe: {e.user_message or 'payment could not be started'}")
 
 
 async def _record(session, kind, user, amount, extra):

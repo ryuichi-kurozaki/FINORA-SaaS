@@ -59,3 +59,11 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - Frontend: invoice-card-pay button (customer), saas-card-pay-btn (Settings), /payment/success & /payment/cancel
 - iteration_5: backend 9/9; checkout redirects verified; fulfillment verified via direct call (hosted Stripe page not automated)
 - Note: invoice card payments settle to the FINORA platform Stripe account; per-consultant payouts need Stripe Connect (backlog)
+
+
+## 2026-06 Stripe live key switch
+- Preview backend/.env: STRIPE_SECRET_KEY = user's own LIVE key (acct_1TBE8tFtJwbFJjRZ, JP, JPY), STRIPE_MODE=live
+- Stripe account NOT yet activated (charges_enabled=false): checkout returns 400 "Your account cannot currently make live charges."
+- Stripe errors now return 400 with message (Cloudflare replaces 502 with its own page)
+- STRIPE_WEBHOOK_SECRET / STRIPE_PUBLISHABLE_KEY / STRIPE_ACCOUNT_ID still old test values (publishable/account unused in code). Need a live webhook endpoint -> /api/stripe/webhook and its whsec after deploy. Success page polling (/api/payments/status) still marks payments as paid without the webhook.
+- App not deployed yet: production secrets must be set via Deployment UI (Secrets)
