@@ -148,3 +148,10 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - sign_notify.wa_send helper; email body white-space:pre-line
 - Preview .env WHATSAPP_SERVICE_URL=http://127.0.0.1:3999 (intentionally unreachable; system_state seeded down to avoid alert emails)
 - iteration_17: backend 8/8, frontend pass; tz bug fixed & verified. Deployed to prod (prod wa_health ok)
+
+## 2026-09 Language unification (JA/EN/PT)
+- Fixed i18n key collisions (ALL = {...D,...L,...F,...B} later files overrode): billing balance→inv_balance, issue→inv_issue, fee→contract_fee; features current_value→goal_current_value, internal/shared→vis_internal/vis_shared (entities visibility prefix "vis_"); landing ai_title→landing_ai_title; removed dict 'platform' dup and features close/target dups
+- New keys: REFUNDED/SENT/SIGNED/FAILED/SKIPPED, welcome_prefix/suffix, months_unit, years_later, premium_plan, required_suffix, import_errors; hardcoded strings replaced
+- Backend: all HTTPException details English-only in code; backend/i18n_errors.py translates by X-Lang header (frontend api.js sends finora_lang); RequestValidationError → single localized string. Mixed "日本語 (English)" messages removed
+- Audit tool: node /root/tools/i18n_audit.mjs (DUP KEYS / MISSING KEYS / hardcoded text). Keep DUP KEYS = 0 when adding keys
+- iteration_18: backend 17/17, frontend pass. Deployed to prod
