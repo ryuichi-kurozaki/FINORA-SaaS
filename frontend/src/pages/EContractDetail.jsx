@@ -93,7 +93,8 @@ export default function EContractDetail() {
     const a = document.createElement("a"); a.href = URL.createObjectURL(data); a.download = doc.pdf_filename || `${doc.number}.pdf`; a.click();
   };
   const saas = d.contract_type === "FINORA_SAAS";
-  const timeline = [...(d.acts || []).map((a) => ({ at: a.at, who: a.user_email, what: `${a.act} · ${a.document_type} v${a.document_version}`, ip: a.ip })),
+  const timeline = [...(d.messages || []).map((m) => ({ at: m.at, who: m.to, what: `${m.channel} ${m.status} · ${m.kind}`, ip: "" })),
+    ...(d.acts || []).map((a) => ({ at: a.at, who: a.user_email, what: `${a.act} · ${a.document_type} v${a.document_version}`, ip: a.ip })),
     ...(d.history || []).map((h) => ({ at: h.at, who: h.user_email, what: `${h.action} · ${h.after?.status || h.after?.document_type || ""}`, ip: h.ip }))].sort((a, b) => (a.at < b.at ? -1 : 1));
   const info = [["ec_type", t(saas ? "ec_finora_contract" : "ec_client_contract")], [saas ? "tenants" : "client", saas ? d.tenant_name : d.client_name], ["ec_service", d.terms.service_name],
     ["ec_fee", saas ? yen(d.fee_amount) : `${yen(d.terms.fee)} / ${t(`cyc_${d.terms.fee_type}`)}`], ["ec_start", fmtDate(d.terms.start_date)], ["ec_end", fmtDate(d.end_date || d.terms.end_date)],

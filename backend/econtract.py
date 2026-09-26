@@ -1,5 +1,6 @@
 """Two-tier e-contracts. FINORA_SAAS: FINORA (issuer) ⇄ consultant tenant owner (recipient).
 CONSULTING: consultant (issuer) ⇄ client (recipient). Order (statement → confirm → agreement → recipient sign → issuer sign) is enforced here."""
+import asyncio
 import hashlib
 import io
 import json
@@ -15,6 +16,9 @@ from econtract_pdf import render
 from io_routes import bucket
 from billing import build_invoice, InvoiceIn
 from tenancy import customer_fee
+from sign_notify import KINDS, send_sign_request
+
+_BG = set()
 
 router = APIRouter(prefix="/api/econtracts")
 PRE_ACTIVE = ["DRAFT", "IMPORTANT_INFO_SENT", "IMPORTANT_INFO_CONFIRMED", "CONTRACT_SENT", "FIRST_PARTY_SIGNED"]
@@ -192,8 +196,15 @@ async def _people(c, side):
 
 async def _tell(c, side, kind, actor=None):
     link = f"/econtracts/{c['id']}"
-    for tid, uid in await _people(c, side):
+    people = await _people(c, side)
+    for tid, uid in people:
         await notify(tid, [uid], kind, {"label": f"{c['number']} {c['terms']['service_name']}", "contract_type": c["contract_type"]}, c.get("client_id"), link, actor)
+    if kind in KINDS:
+        ctx = await _ctx(c)
+        for _, uid in people:
+            task = asyncio.create_task(send_sign_request(uid, c, kind, ctx["issuer_name"]))
+            _BG.add(task)
+            task.add_done_callback(_BG.discard)
 
 
 async def create_contract(user, body: ECIn, request, actor_id=None, parent=None):
@@ -329,7 +340,8 @@ async def get_contract(cid: str, user=Depends(current)):
     chain = await db.econtracts.find({"root_id": c["root_id"]}, {"_id": 0, "id": 1, "version": 1, "status": 1, "activated_at": 1, "ended_at": 1}).sort("version", 1).to_list(50)
     acts = [clean(a) for a in await db.econtract_acts.find({"contract_id": cid}, {"signature_png": 0}).sort("at", 1).to_list(500)]
     hist = [clean(a) for a in await db.audit_logs.find({"entity": "econtracts", "entity_id": cid}).sort("_id", 1).to_list(500)]
-    out = await _row(c) | {"documents": docs, "versions": chain, "acts": acts, "history": hist,
+    msgs = [clean(m) for m in await db.message_log.find({"contract_id": cid}).sort("at", 1).to_list(200)] if is_issuer(user, c) else []
+    out = await _row(c) | {"documents": docs, "versions": chain, "acts": acts, "history": hist, "messages": msgs,
                            "can_issue": is_issuer(user, c), "can_receive": is_recipient(user, c)}
     if c["status"] == "DRAFT" and is_issuer(user, c):
         out["preview"] = await preview(c)

@@ -4,6 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Request, Response, HTTPException, Depends
 from pydantic import BaseModel, Field
 
+import re
 import pyotp
 
 from core import (forbid_demo, db, now, now_iso, new_id, clean, hash_password, verify_password, make_token, decode_token,
@@ -33,6 +34,8 @@ class UserIn(BaseModel):
     client_id: Optional[str] = None
     active: Optional[bool] = None
     lang: Optional[str] = None
+    whatsapp_phone: Optional[str] = None
+    whatsapp_opt_in: Optional[bool] = None
 
 
 def set_cookies(resp, access, refresh=None):
@@ -190,6 +193,11 @@ async def change_password(body: PasswordIn, request: Request, user=Depends(curre
 async def prefs(body: UserIn, user=Depends(current)):
     if body.lang in ("ja", "en", "pt"):
         await db.users.update_one({"id": user["id"]}, {"$set": {"lang": body.lang}})
+    if body.whatsapp_phone is not None:
+        p = re.sub(r"[\s\-()]", "", body.whatsapp_phone)
+        if p and not re.fullmatch(r"\+?[1-9]\d{7,14}", p):
+            raise HTTPException(422, "WhatsApp number must include the country code, e.g. +81 90 1234 5678")
+        await db.users.update_one({"id": user["id"]}, {"$set": {"whatsapp_phone": p.lstrip("+"), "whatsapp_opt_in": bool(body.whatsapp_opt_in) and bool(p)}})
     return {"ok": True}
 
 

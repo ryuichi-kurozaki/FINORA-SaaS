@@ -1,0 +1,74 @@
+"""E-contract review/sign requests via email (Emergent managed) and the server's shared WhatsApp service."""
+import logging
+import os
+from datetime import datetime, timezone
+from html import escape
+
+import httpx
+
+from core import db, new_id
+from email_service import APP_URL, EMAIL_FROM_NAME, send_email
+
+logger = logging.getLogger(__name__)
+WA_URL = os.environ["WHATSAPP_SERVICE_URL"].rstrip("/")
+KINDS = ("econtract_important_sent", "econtract_agreement_sent", "econtract_recipient_signed")
+
+TXT = {
+    "ja": {"econtract_important_sent": ("【FINORA】重要事項説明書のご確認のお願い（{number}）", "{issuer}から「{service}」の重要事項説明書が届きました。内容をご確認のうえ、確認・同意をお願いいたします。"),
+           "econtract_agreement_sent": ("【FINORA】契約書へのご署名のお願い（{number}）", "{issuer}から「{service}」の契約書が届きました。内容をご確認のうえ、電子署名をお願いいたします。"),
+           "econtract_recipient_signed": ("【FINORA】相手方が署名しました（{number}）", "「{service}」の契約書に相手方が電子署名しました。内容をご確認のうえ、電子署名して契約を成立させてください。"),
+           "hello": "{name} 様", "cta": "FINORAで確認・署名する", "login": "リンクを開いた後、FINORAにログインしてください。",
+           "footer": "このメールは {brand} から自動送信されています。FINORAがメールやWhatsAppでパスワードをお尋ねすることはありません。"},
+    "en": {"econtract_important_sent": ("[FINORA] Please review the important information statement ({number})", "{issuer} has sent you the important information statement for \"{service}\". Please review it and confirm."),
+           "econtract_agreement_sent": ("[FINORA] Please sign the agreement ({number})", "{issuer} has sent you the agreement for \"{service}\". Please review it and sign electronically."),
+           "econtract_recipient_signed": ("[FINORA] The other party has signed ({number})", "The other party has signed the agreement for \"{service}\". Please review and sign to execute the contract."),
+           "hello": "Dear {name},", "cta": "Review and sign in FINORA", "login": "After opening the link, please log in to FINORA.",
+           "footer": "This message was sent automatically by {brand}. FINORA never asks for your password by email or WhatsApp."},
+    "pt": {"econtract_important_sent": ("[FINORA] Revise a declaração de informações importantes ({number})", "{issuer} enviou a declaração de informações importantes de \"{service}\". Revise e confirme, por favor."),
+           "econtract_agreement_sent": ("[FINORA] Assine o contrato ({number})", "{issuer} enviou o contrato de \"{service}\". Revise e assine eletronicamente, por favor."),
+           "econtract_recipient_signed": ("[FINORA] A outra parte assinou ({number})", "A outra parte assinou o contrato de \"{service}\". Revise e assine para concluir o contrato."),
+           "hello": "Olá, {name}", "cta": "Revisar e assinar no FINORA", "login": "Depois de abrir o link, faça login no FINORA.",
+           "footer": "Mensagem enviada automaticamente por {brand}. A FINORA nunca pede sua senha por e-mail ou WhatsApp."},
+}
+
+
+def _html(x, name, msg, link):
+    return ('<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:24px 0"><tr><td align="center">'
+            '<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;font-family:Arial,Helvetica,sans-serif">'
+            '<tr><td style="background:#071A2B;padding:20px 28px;border-radius:12px 12px 0 0;color:#ffffff;font-size:20px;font-weight:bold;letter-spacing:2px">FIN<span style="color:#00A878">ORA</span></td></tr>'
+            f'<tr><td style="padding:28px"><p style="margin:0 0 12px;color:#071A2B;font-size:15px">{escape(x["hello"].format(name=name))}</p>'
+            f'<p style="margin:0 0 20px;color:#334155;font-size:14px;line-height:1.7">{escape(msg)}</p>'
+            f'<a href="{escape(link)}" style="display:inline-block;background:#00A878;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:14px;font-weight:bold">{escape(x["cta"])}</a>'
+            f'<p style="margin:16px 0 0;color:#64748b;font-size:12px">{escape(x["login"])}</p>'
+            f'<p style="margin:28px 0 0;color:#94a3b8;font-size:11px;line-height:1.6">{escape(x["footer"].format(brand=EMAIL_FROM_NAME))}</p>'
+            '</td></tr></table></td></tr></table>')
+
+
+async def _log(c, u, channel, to, kind, status, detail=""):
+    await db.message_log.insert_one({"id": new_id(), "tenant_id": c["tenant_id"], "contract_id": c["id"], "user_id": u["id"], "channel": channel,
+                                     "to": to, "kind": kind, "status": status, "detail": str(detail)[:300], "at": datetime.now(timezone.utc).isoformat()})
+
+
+async def send_sign_request(user_id, c, kind, issuer_name):
+    u = await db.users.find_one({"id": user_id})
+    if not u or kind not in KINDS:
+        return
+    x = TXT.get(u.get("lang")) or TXT.get(c.get("lang")) or TXT["ja"]
+    subject, body = (s.format(number=c["number"], issuer=issuer_name, service=c["terms"]["service_name"]) for s in x[kind])
+    link = f"{APP_URL}/econtracts/{c['id']}"
+    try:
+        await send_email(to=u["email"], subject=subject, html=_html(x, u.get("name") or u["email"], body, link))
+        await _log(c, u, "EMAIL", u["email"], kind, "SENT")
+    except Exception as e:
+        logger.error("sign request email failed %s: %s", c["number"], e)
+        await _log(c, u, "EMAIL", u["email"], kind, "FAILED", e)
+    phone = u.get("whatsapp_phone")
+    if not (WA_URL and phone and u.get("whatsapp_opt_in")):
+        return
+    try:
+        async with httpx.AsyncClient(timeout=20) as h:
+            r = await h.post(f"{WA_URL}/send", json={"phone": phone, "message": f"{subject}\n\n{body}\n\n{x['cta']}: {link}\n{x['login']}"})
+        await _log(c, u, "WHATSAPP", phone, kind, "SENT" if r.status_code == 200 else "FAILED", "" if r.status_code == 200 else r.text)
+    except Exception as e:
+        logger.error("sign request whatsapp failed %s: %s", c["number"], e)
+        await _log(c, u, "WHATSAPP", phone, kind, "FAILED", e)
