@@ -124,3 +124,10 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - Clients entity: whatsapp field (encrypted); sign_notify falls back to clients.whatsapp for client users without own WhatsApp number
 - Accounts entity: account_number removed from UI/API; startup migration unsets existing values
 - iteration_15: backend 26/26; UI bug (save button hidden in gate) fixed & verified. Deployed to prod
+
+## 2026-09 Client invitation delivery (email + WhatsApp)
+- 顧客一覧 invite dialog now really sends the invite link by email (Emergent email) + WhatsApp (local service) — previously link-only (MOCKED note removed)
+- WhatsApp number prefilled from clients.whatsapp; stored encrypted on invitation (+ whatsapp_masked); delivery status per channel saved on invitation.delivery
+- POST /api/invitations/{id}/resend (PENDING/EXPIRED): new token, +7 days, resend both channels
+- sign_notify.wa_digits normalizes numbers (JP leading 0 → 81)
+- iteration_16: backend 6/6, frontend pass. Deployed to prod

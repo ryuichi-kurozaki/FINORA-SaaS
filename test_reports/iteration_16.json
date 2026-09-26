@@ -1,0 +1,27 @@
+{
+  "summary": "Iter16 client-invite email+WhatsApp verified end-to-end. Backend (pytest 6/6 pass in /app/backend/tests/test_invitations_multi.py): (1) wa_digits: '090-1234-5678'→'819012345678', '+55 11 91234-5678'→'5511912345678', ''→None (both local reimpl and real module import). (2) POST /api/invitations returns delivery={email:SENT|FAILED, whatsapp:SKIPPED (WHATSAPP_SERVICE_URL empty in preview), at:iso}; token+path returned; response NEVER contains 'token_hash' or 'whatsapp' ciphertext; whatsapp_masked='***5678' when 090-1234-5678 provided. (3) GET /api/invitations list omits token_hash & whatsapp ciphertext; includes whatsapp_masked + delivery. (4) POST /api/invitations/{id}/resend on PENDING succeeds: old /api/public/invitations/{oldtoken} returns 404, new path returns 200, resend_count $inc'd, expires_at extended, delivery returned; CANCELLED invitation → 409. (5) Cross-tenant scope: consultant B tries to resend tenant A's invite → 404. Frontend (browser test on /clients as admin): client-invite-{id} button opens invite-dialog; invite-email prefilled from client record ('info@sakura-re.example.jp'); invite-whatsapp field renders (empty when client has no whatsapp — expected); invite-send produces invite-link-box with delivery-email='メールアドレス 送信済' (SENT), delivery-whatsapp='WhatsApp なし' (SKIPPED — expected), invite-link contains '/invite/{token}', invite-copy visible; invitation-table shows '***5678' masked and 送信先 column with per-channel badges; invitation-resend-{id} click triggers toast '招待を再送しました'; invitation-cancel-{id} works. Regression: /invite/{token} path (returned by API) resolves — public GET /api/public/invitations/{token} returns 200 and accept endpoint intact (code path unchanged from iter15).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_invitations_multi.py",
+    "/app/test_reports/pytest/invitations.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "tenancy._deliver stores delivery.at as an ISO string via now_iso(); response also carries d['at']. Fine — but note that if send_invite ever raises (it currently catches internally), the surrounding await update_one would still run because d is a dict. Defensive.",
+    "invite_notify.send_invite: when WA_URL is empty the function silently returns without recording anything visible to the tenant admin about whatsapp attempt. Current design writes 'SKIPPED' into the invitation.delivery.whatsapp which is correct for invitations; but no message_log row is written for invitations (unlike sign_notify._deliver which writes per-channel message_log rows for e-contracts). Consistency-only — not blocking.",
+    "sign_notify.wa_digits treats leading '00' correctly (international prefix) by NOT prepending 81, and lstrip('0') is applied only when NOT starting with '0'. Verified with '+55 11 91234-5678'→'5511912345678' (leading + becomes '', then 55… correct). ",
+    "resend_invitation regenerates the token but keeps the invitation id — this is correct so audit/history stays linked. Note that if resend is called on an EXPIRED invitation, status is set back to PENDING (per line 125) which is the intended UX. Consider setting a max resend_count (e.g. 5) to prevent abuse — non-blocking.",
+    "create_invitation: 409 is raised when email already exists in db.users, but there is no explicit 409 test for the pre-existing user path. Not tested here since it would require creating and cleaning a real user; low value.",
+    "ClientOverviewTable InvitationsList: cancel button is wired but only rendered for PENDING (status === 'PENDING'). Correct. Resend rendered for PENDING+EXPIRED — matches backend rule.",
+    "Delivery badges use bg-slate-100 text-slate-400 for SKIPPED — very low contrast in the invitations list. Consider text-slate-500 for a11y (WCAG AA on light background)."
+  ],
+  "updated_files": ["/app/backend/tests/test_invitations_multi.py"],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100% (all invite flows: open→prefill→send→delivery badges→link+copy→list with masked/送信先→resend toast→cancel)"},
+  "test_credentials": "ryuichi.kurozaki@gmail.com / Finora2026! (admin, has payout bank so no gate); consultantb@finora.co.jp / Finora2026! (tenant B, used for scope-404).",
+  "seed_data_creation": "Module-scoped fixture creates one TEST_INV_<hex> client (with whatsapp='090-1234-5678') via /api/data/clients; teardown cancels any PENDING invitations and deletes the client. Test invite emails use TEST_ui_<hex>@example.com so mail delivery returns FAILED (or SENT depending on Emergent SMTP behaviour) without spamming real inboxes. All invitations created during the run are cancelled at teardown. Zero rows should remain post-run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_invitations_multi.py needs REACT_APP_BACKEND_URL exported before pytest (frontend/.env). wa_digits real-module test loads backend/.env stripping quotes because MONGO_URL is quoted. WHATSAPP_SERVICE_URL is empty in preview → whatsapp delivery is always SKIPPED (asserted). Login returns {access_token, user} not {token} — helper handles both. Only 3 real invitation POSTs are made per run (well under the 6-cap noted by the task). All test data uses TEST_ prefix and gets cleaned in teardown.",
+  "rca of the issue": "N/A — no defects found in this iteration."
+}
