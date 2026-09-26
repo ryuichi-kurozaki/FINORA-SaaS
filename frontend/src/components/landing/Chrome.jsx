@@ -9,10 +9,10 @@ import { useSite } from "@/lib/useSite";
 const LINKS = [["nav_home", "/"], ["nav_company", "/company"], ["nav_services", "/services"], ["nav_pricing", "/#pricing"], ["nav_news", "/news"], ["nav_faq", "/faq"], ["nav_contact", "/contact"]];
 const SOCIAL = [["social_x", "X"], ["social_facebook", "Facebook"], ["social_linkedin", "LinkedIn"], ["social_instagram", "Instagram"], ["social_youtube", "YouTube"]];
 
-function NavLink({ k, h, className, onClick }) {
+function NavLink({ k, h, className, onClick, tid = "landing-link" }) {
   const { t } = useApp();
-  return h.includes("#") ? <a href={h} onClick={onClick} className={className} data-testid={`landing-link-${k}`}>{t(k)}</a>
-    : <Link to={h} onClick={onClick} className={className} data-testid={`landing-link-${k}`}>{t(k)}</Link>;
+  return h.includes("#") ? <a href={h} onClick={onClick} className={className} data-testid={`${tid}-${k}`}>{t(k)}</a>
+    : <Link to={h} onClick={onClick} className={className} data-testid={`${tid}-${k}`}>{t(k)}</Link>;
 }
 
 export function LangSwitch({ dark }) {
@@ -46,7 +46,7 @@ export function LandingNav() {
       </div>
       {open && (
         <div className="space-y-3 border-t border-white/5 px-5 py-4 lg:hidden">
-          {LINKS.map(([k, h]) => <NavLink key={k} k={k} h={h} onClick={() => setOpen(false)} className="block text-sm text-slate-200" />)}
+          {LINKS.map(([k, h]) => <NavLink key={k} k={k} h={h} onClick={() => setOpen(false)} className="block text-sm text-slate-200" tid="landing-mlink" />)}
           <LangSwitch dark />
         </div>
       )}
@@ -64,7 +64,7 @@ export function LandingFooter() {
           {st.company_name && <div className="mt-5 space-y-1 text-xs" data-testid="footer-company"><div className="font-semibold text-slate-300">{st.company_name}</div><div>{st.address}</div><div>{st.phone}{st.email && ` · ${st.email}`}</div></div>}
           <div className="mt-4 flex flex-wrap gap-3 text-xs">{SOCIAL.filter(([k]) => st[k]).map(([k, l]) => <a key={k} href={st[k]} target="_blank" rel="noreferrer" className="rounded-full border border-white/10 px-3 py-1 hover:text-white" data-testid={`footer-${k}`}>{l}</a>)}</div></div>
         <div className="space-y-2.5 text-sm">
-          {LINKS.map(([k, h]) => <NavLink key={k} k={k} h={h} className="block hover:text-white" />)}
+          {LINKS.map(([k, h]) => <NavLink key={k} k={k} h={h} className="block hover:text-white" tid="footer-link" />)}
         </div>
         <div className="space-y-2.5 text-sm">
           <Link to="/legal" className="block hover:text-white" data-testid="footer-terms">{t("terms")}</Link>

@@ -1,0 +1,35 @@
+{
+  "summary": "Iter20: end-to-end testing of new FINORA corporate CMS (public pages + platform site_admin + inquiry). Backend pytest 14/14 pass in /app/backend/tests/test_site_cms.py: public /api/public/site (ja/en/pt), news list + category filter, news detail + 404 for unknown/unpublished, /platform/site 403 for non-platform user (consultant), 200 for ryuichi, no _id leak, upload rejects non-image (422) & >5MB (413), PNG upload → serves under /api/public/site/files/{name}, admin CRUD (create news → visible in public, ja-title-required 422, invalid news category 422, unpublish → hidden + detail 404, delete), settings PUT reflects in public /api/public/site, and POST /api/public/inquiries returns 200 (email undeliverable expected). Frontend: landing (/) shows landing-nav, all 7 landing-link-nav_* items, landing-news + landing-company-card + landing-news-more, footer + footer-company; /company (message/overview/history/access/map-link) OK; /services renders 3 service-card-N; /news lists 2 news-row items with 5 news-filter-* and news-detail-title/back after click; /news/does-not-exist → news-not-found; /faq expands; /contact form present; JA→EN→PT switch changes company-message text end-to-end; mobile 390px hamburger opens menu with all 7 links (screenshot confirmed, Portuguese labels rendered); document.scrollWidth == 390 (no horizontal overflow). Admin path /platform → platform-tab-site_admin → all 5 sub-tabs (sa-tab-settings/service/news/faq/history) render, localized inputs sa-company_name-{ja,en,pt}, sa-representative-ja, plain sa-phone/sa-email/sa-map_url/sa-social_x, sa-settings-save, sa-add-news opens sa-item-dialog with sa-item-title-ja + sa-item-save — all present.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "LandingNav (Chrome.jsx)", "issue": "Duplicate data-testid values: both desktop (hidden lg:flex) and mobile drawer render Links with identical data-testid='landing-link-nav_*'. page.query_selector picks the hidden desktop instance in mobile viewport, complicating automated visibility assertions. Functionally correct (screenshot shows drawer opens with all 7 links) but violates testid uniqueness.", "selector": "[data-testid='landing-link-nav_home']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Platform → site_admin (also Layout header-client-select)", "issues": ["Pre-existing React hydration warning: <span data-ve-dynamic> nested inside <option> (Layout.jsx:95 header-client-select). Noise; cosmetic instrumentation wrapper, non-blocking."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_site_cms.py",
+    "/app/test_reports/pytest/site_cms.xml"
+  ],
+  "action_items": [
+    "LOW (optional): Give the mobile drawer copies of the LINKS a distinct suffix (e.g. landing-link-nav_home-mobile) to keep data-testid unique per rendered element — this will make Playwright mobile tests deterministic."
+  ],
+  "critical_code_review_comments": [
+    "backend/site_cms.py: clean and compact. loc() has proper JA fallback for missing lang. _items() sorts news by date desc, others by (order, date) asc — matches UX. Upload validates content-type against a whitelist and enforces 5MB cap AFTER reading (streaming would be safer for hostile clients, but 5MB is tolerable). uuid.uuid4().hex filenames + Path(name).name on serve prevent path traversal. Good.",
+    "backend/site_cms.py: /platform/site GET already excludes _id via clean(); verified in test (no _id leaked).",
+    "backend/public_routes.py inquiry: rate-limit 5/hr per IP is enforced with count_documents on ip+created_at. try/except around send_email means preview's SITE_INQUIRY_EMAIL=info@finora.co.jp (no MX) still returns {ok:true}. Correct per requirements.",
+    "frontend/src/components/landing/Chrome.jsx: duplicate testids across responsive markup — flagged above.",
+    "seed_site() is idempotent (early-return if settings doc exists) — safe on redeploy."
+  ],
+  "updated_files": ["/app/backend/tests/test_site_cms.py"],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "~98% — all requested testids and flows verified; only cosmetic hydration warning + duplicate testid remains"},
+  "test_credentials": "ryuichi.kurozaki@gmail.com / Finora2026! ; consultant@finora.co.jp / Finora2026!",
+  "seed_data_creation": "None persisted. Test suite creates a TEST_iter20 news item + a TEST phone setting, and cleans both up in the same test (delete item, restore original phone).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Site CMS test suite lives at /app/backend/tests/test_site_cms.py — reuse for regression. Rate limit on /api/public/inquiries is 5/hr per IP; if that test starts 429-ing in bulk runs, throttle or run last. LandingNav renders duplicate testids for mobile vs desktop; when validating mobile menu, use .all() and check any is visible, or bump the viewport into the drawer state after clicking landing-menu-btn.",
+  "rca of the issue": "N/A — no functional bugs found."
+}

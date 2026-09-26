@@ -166,3 +166,11 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - backend/quote.py: GET /api/quote?ticker= (yfinance / Yahoo Finance, no key, 10-min cache) → name, price, currency, country (.T→JP, .SA→BR, none→US), price_date. Errors localized (i18n_errors). yfinance==1.7.0 installed in prod venv via uv
 - EntityManager TickerLookup (entities assets ticker lookup:true) fills name (if empty), current_price, currency, price_date, country
 - iteration_19: backend 8/8, frontend pass. Deployed to prod
+
+## 2026-09 Corporate public website + CMS
+- Public pages (no login): / (landing + LatestNews + company card), /company (CEO message, overview, history, access), /services, /news (+category filter), /news/:id, /faq, /contact. Shared nav (Chrome.jsx NavLink; testids landing-link-*, landing-mlink-*, footer-link-*) + footer with CMS company info & social links
+- backend/site_cms.py: db.site_settings {id:'main', data:{field: {ja,en,pt} | plain}}, db.site_items {kind service|news|faq|history, title/body {ja,en,pt}, date, category (news: notice|press|media|event), image, order, published}. Public GET /api/public/site, /site/news, /site/news/{id}, /site/files/{name}; admin (platform_admin) GET /api/platform/site, PUT settings, CRUD items, POST upload (png/jpg/webp/gif ≤5MB → SITE_UPLOAD_DIR). seed_site() placeholder content once
+- Admin UI: Platform → 公開サイト tab (components/SiteAdmin.jsx)
+- Inquiry email to SITE_INQUIRY_EMAIL=info@finora.co.jp — currently UNDELIVERABLE (finora.co.jp has no MX record); inquiries still saved (Settings → inquiries)
+- Env: SITE_UPLOAD_DIR (preview /app/backend/site_uploads, prod /data/finora-saas/site-uploads), SITE_INQUIRY_EMAIL. Deploy rsync must --exclude site_uploads
+- iteration_20: backend 14/14, frontend pass; dup testids fixed. Deployed to prod
