@@ -1,0 +1,29 @@
+{
+  "summary": "Verified FINORA e-contract sign-notify feature (email + WhatsApp) in preview. Backend: 5/5 pytest cases pass (PUT /api/auth/preferences with valid E.164 number normalises to '819012345678' and reflects in /auth/me; invalid 'abc' → 422; empty phone forces whatsapp_opt_in=false; full CONSULTING flow with client2 email swapped to delivered@resend.dev then restored → send-important writes EMAIL SENT to delivered@resend.dev with no WHATSAPP row, /api/econtracts/{id} messages[] visible only to issuer (empty for client role), send-agreement writes second EMAIL SENT row, client sign writes EMAIL FAILED row for consultant@finora.co.jp - kind econtract_recipient_signed - because @finora.co.jp addresses are not deliverable by the Emergent email service (row created as expected), admin final sign brings contract to ACTIVE; regression: send-agreement before confirm → 409, and send-agreement in status DRAFT → 409). Frontend: settings-tab-notify_prefs correctly shows notify-prefs card with whatsapp-phone-input, whatsapp-optin-check and notify-prefs-save; save triggers '保存しました' toast. Admin ec-evidence timeline for CC-00008 shows 'EMAIL SENT · econtract_important_sent', 'EMAIL SENT · econtract_agreement_sent' and 'EMAIL FAILED · econtract_recipient_signed' entries as expected. WHATSAPP is correctly skipped because WHATSAPP_SERVICE_URL is empty in preview.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_sign_notify.py",
+    "/app/test_reports/pytest/sign_notify.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "sign_notify.WA_URL uses os.environ['WHATSAPP_SERVICE_URL'].rstrip('/') at module import - this WILL crash the backend at startup if the env var is unset (KeyError). Currently preview has WHATSAPP_SERVICE_URL='' so it works, but a safer pattern is os.environ.get('WHATSAPP_SERVICE_URL','').rstrip('/'). Non-blocking today.",
+    "sign_notify.send_sign_request logs FAILED rows on email failure but the WhatsApp branch swallows the phone value into the log; consider truncating for privacy. Also the current 'FAILED' row keeps the raw httpx error which may leak PII/URLs (str(e)[:300]) - fine for preview but review before prod.",
+    "econtract._tell fires background asyncio tasks and adds them to a module-level _BG set with add_done_callback discard - good pattern to prevent GC, but there is no per-request retry/backoff. Since Emergent email API returns 422 for demo @finora.co.jp domains, expected recipient_signed messages to the real issuer will silently be logged as FAILED (verified during test).",
+    "auth_routes.prefs correctly forces whatsapp_opt_in=false when phone is empty (line 200: bool(body.whatsapp_opt_in) and bool(p)); verified via test_put_empty_phone_forces_optin_false.",
+    "econtract.get_contract only includes messages[] when is_issuer(user, c) is True (line 343) - verified: client role sees an empty array; issuer role sees full log.",
+    "NotifyPrefs.jsx renders '+' prefix on load if user.whatsapp_phone stored (e.g. '819012345678' → '+819012345678') so round-trip is clean. Good.",
+    "Regression check: order enforcement of the state machine still holds (send-agreement in DRAFT → 409; send-agreement before CONFIRM → 409)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_sign_notify.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "See /app/memory/test_credentials.md. Test uses admin (ryuichi.kurozaki@gmail.com) and client2 (client2@finora.co.jp). During test, client2 user email is temporarily swapped to delivered@resend.dev and restored on teardown fixture.",
+  "seed_data_creation": "Created 2 CONSULTING e-contracts on Ana Paula Ferreira (client2's client): TEST_SignNotify (CC-00008, now ACTIVE) and TEST_OrderCheck (CC-00009, IMPORTANT_INFO_SENT - stopped before confirm). Both are TEST_-prefixed. message_log has 3 entries for CC-00008.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_sign_notify.py uses -o addopts=\"\" to bypass the xdist -n auto default in /app/backend/pytest.ini (xdist parallel breaks client2 email mutation isolation). If you need to re-run, use: pytest backend/tests/test_sign_notify.py -o addopts=\"\". WHATSAPP_SERVICE_URL is empty in preview so WhatsApp sends are skipped - to test WA integration, populate it. Two new ACTIVE contracts (CC-00008 TEST_SignNotify and CC-00009 TEST_OrderCheck stuck at IMPORTANT_INFO_SENT) exist on Ana Paula; may affect list ordering in ec_consultant_contracts.",
+  "rca of the issue": "N/A - feature verification pass. Only minor test hardening (polling instead of fixed sleeps for background email tasks; serial xdist marker to prevent parallel isolation issues)."
+}
