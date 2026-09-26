@@ -53,6 +53,7 @@ function SettingsForm({ initial, onSaved }) {
     <Card>
       <div className="space-y-3">
         {LOC_FIELDS.map(([k, multi]) => <LocInput key={k} label={t(`co_${k}`)} value={d[k]} multi={multi} onChange={(v) => setD({ ...d, [k]: v })} testid={`sa-${k}`} />)}
+        <label className="block text-xs font-semibold text-slate-600">{t("co_corporate_number")}<input value={d.corporate_number || ""} onChange={(e) => setD({ ...d, corporate_number: e.target.value })} className={inp} data-testid="sa-corporate_number" /></label>
         <div className="rounded-xl border border-slate-100 p-3"><div className="mb-2 text-xs font-semibold text-slate-600">{t("sa_message_image")}</div><ImageField value={d.message_image} onChange={(v) => setD({ ...d, message_image: v })} testid="sa-message_image" /></div>
         <div className="grid gap-3 rounded-xl border border-slate-100 p-3 md:grid-cols-2">{PLAIN_FIELDS.map((k) => (
           <label key={k} className="text-xs font-semibold text-slate-600">{t(`sa_${k}`)}<input value={d[k] || ""} onChange={(e) => setD({ ...d, [k]: e.target.value })} placeholder="https://" className={inp} data-testid={`sa-${k}`} /></label>))}</div>

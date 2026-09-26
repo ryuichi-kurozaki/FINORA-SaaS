@@ -66,6 +66,7 @@ function IssuerTools({ d, act, t }) {
       <div className="flex flex-wrap gap-2">
         {d.status === "DRAFT" && <Button className="btn-emerald" onClick={() => act("send-important")} data-testid="ec-send-important">{t("ec_send_important")}</Button>}
         {d.status === "IMPORTANT_INFO_CONFIRMED" && <Button className="btn-emerald" onClick={() => act("send-agreement")} data-testid="ec-send-agreement">{t("ec_send_agreement")}</Button>}
+        {["IMPORTANT_INFO_SENT", "CONTRACT_SENT"].includes(d.status) && <Button variant="outline" onClick={() => window.confirm(t("ec_reissue_confirm")) && act("reissue")} data-testid="ec-reissue">{t("ec_reissue")}</Button>}
         {["ACTIVE", "PAUSED"].includes(d.status) && <>
           <Button variant="outline" onClick={() => act("amend")} data-testid="ec-amend">{t("ec_amend")}</Button>
           <Button variant="outline" onClick={() => act("pause")} data-testid="ec-pause">{t(d.status === "PAUSED" ? "ec_resume" : "ec_pause")}</Button>
@@ -88,7 +89,7 @@ export default function EContractDetail() {
   const { data: d, reload } = useApi(`/econtracts/${id}?view_lang=${lang}`, [id, lang]);
   const [ok, setOk] = useState(false);
   if (!d) return <div className="p-8 text-sm text-slate-400">…</div>;
-  const docs = Object.fromEntries((d.documents || []).map((x) => [x.document_type.includes("AGREEMENT") ? "agreement" : "important", x]));
+  const docs = Object.fromEntries((d.documents || []).filter((x) => !x.superseded_by).map((x) => [x.document_type.includes("AGREEMENT") ? "agreement" : "important", x]));
   const act = async (path, { method = "post", body } = {}) => {
     try {
       const { data } = await api[method](`/econtracts/${id}${path ? `/${path}` : ""}`, body);

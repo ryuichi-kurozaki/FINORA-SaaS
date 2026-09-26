@@ -106,6 +106,29 @@ async def _seq(owner, prefix):
     return f"{prefix}-{r['seq']:05d}"
 
 
+REP = ("代表取締役 {n}", "Representative Director {n}", "Diretor Representante {n}")
+CORP = ("法人番号：{n}", "Corporate No.: {n}", "Nº corporativo: {n}")
+
+
+def _loc(v, lang):
+    return (v.get(lang) or v.get("ja") or "") if isinstance(v, dict) else (v or "")
+
+
+async def _site_issuer(lang, i):
+    """FINORA operator info from the public-site 会社概要 (single source of truth) → (name, block, contact) or None."""
+    s = ((await db.site_settings.find_one({"id": "main"})) or {}).get("data") or {}
+    name = _loc(s.get("company_name"), lang)
+    if not name:
+        return None
+    rep = _loc(s.get("representative"), lang)
+    if rep and not any(w in rep for w in ("代表", "Director", "CEO", "Diretor")):
+        rep = REP[i].format(n=rep)
+    corp = _loc(s.get("corporate_number"), lang)
+    block = (name, rep, _loc(s.get("address"), lang), CORP[i].format(n=corp) if corp else "")
+    contact = " / ".join(x for x in (_loc(s.get("phone"), lang), _loc(s.get("email"), lang)) if x) or "-"
+    return name, "\n".join(x for x in block if x), contact
+
+
 async def _ctx(c):
     tm, i = c["terms"], LANGS[c["lang"]]
     tenant = await db.tenants.find_one({"id": c["tenant_id"]}) or {}
@@ -126,9 +149,11 @@ async def _ctx(c):
         tax = {"exclusive": ("税別", "excl. tax", "sem impostos"), "inclusive": ("税込", "incl. tax", "com impostos"), "exempt": ("非課税", "tax exempt", "isento")}[tm["tax_mode"]][i]
         fee, plan_name = f"¥{tm['fee']:,.0f}（{CYCLE[tm['fee_type']][i]}・{tax}）", None
     issuer = bp.get("company_name") or "FINORA"
+    block, contact = "\n".join(x for x in (issuer, bp.get("representative"), bp.get("address")) if x), " / ".join(x for x in (bp.get("phone"), bp.get("email")) if x) or "-"
+    if c["contract_type"] == "FINORA_SAAS" and (site := await _site_issuer(c["lang"], i)):
+        issuer, block, contact = site
     open_end = ("期間の定めなし", "no fixed end", "sem prazo final")[i]
-    return {"issuer_name": issuer, "issuer_block": "\n".join(x for x in (issuer, bp.get("representative"), bp.get("address")) if x),
-            "issuer_contact": " / ".join(x for x in (bp.get("phone"), bp.get("email")) if x) or "-", "recipient_name": recipient,
+    return {"issuer_name": issuer, "issuer_block": block, "issuer_contact": contact, "recipient_name": recipient,
             "consultant_name": consultant, "service": tm["service_name"], "description": tm.get("description") or "", "plan": plan_name,
             "fee_text": fee, "cycle": tm["fee_type"], "start_date": tm["start_date"], "term_text": f"{tm['start_date']} 〜 {tm.get('end_date') or open_end}",
             "renewal": (("期間満了時に同一条件で自動更新します。", "Renews automatically on the same terms.", "Renova-se automaticamente nas mesmas condições.")
@@ -417,6 +442,26 @@ async def send_important(cid: str, request: Request, user=Depends(current)):
     c = await _move(c, ["DRAFT"], "IMPORTANT_INFO_SENT", user, request, "send_important", doc=doc)
     await _tell(c, "RECIPIENT", "econtract_important_sent", user)
     return {"status": c["status"]}
+
+
+REISSUE = {"IMPORTANT_INFO_SENT": "important", "CONTRACT_SENT": "agreement"}
+
+
+@router.post("/{cid}/reissue")
+async def reissue(cid: str, request: Request, user=Depends(current)):
+    """Re-issue the sent-but-not-yet-confirmed/signed document with current data; the old one is kept as superseded."""
+    c = await load(user, cid)
+    _need(is_issuer(user, c))
+    which = REISSUE.get(c["status"])
+    if not which:
+        raise HTTPException(409, f"This step is not allowed in status {c['status']}")
+    old = await _doc(c, which)
+    doc = await _issue(c, which, user["id"])
+    await db.econtract_docs.update_one({"id": old["id"]}, {"$set": {"superseded_by": doc["id"], "superseded_at": now_iso()}})
+    await audit(user, "reissue", "econtracts", cid, before={"document_id": old["id"], "number": old["number"], "hash": old["hash"]},
+                after={"document_id": doc["id"], "number": doc["number"], "document_type": doc["document_type"], "hash": doc["hash"]},
+                request=request, client_id=c.get("client_id"), label=f"{c['number']} v{c['version']} {c['contract_type']}")
+    return {"status": c["status"], "document_id": doc["id"], "number": doc["number"]}
 
 
 @router.post("/{cid}/view/{doc_id}")
