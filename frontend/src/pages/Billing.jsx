@@ -82,7 +82,7 @@ function PaymentDialog({ inv, onClose, onDone }) {
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>{t("record_payment")} · {inv?.number}</DialogTitle></DialogHeader>
         <div className="grid gap-3 text-xs text-slate-600">
-          <div className="rounded-lg bg-slate-50 p-2 text-sm">{t("balance")}: <b className="font-num">{yen(inv?.balance)}</b></div>
+          <div className="rounded-lg bg-slate-50 p-2 text-sm">{t("inv_balance")}: <b className="font-num">{yen(inv?.balance)}</b></div>
           <label>{t("payment_date")}<input type="date" className={inp} value={f.date} onChange={set("date")} data-testid="pay-date" /></label>
           <label>{t("amount")}<input type="number" className={inp} placeholder={String(inv?.balance || "")} value={f.amount} onChange={set("amount")} data-testid="pay-amount" /></label>
           <label>{t("method")}<select className={inp} value={f.method} onChange={set("method")} data-testid="pay-method">{["BANK_TRANSFER", "CREDIT_CARD", "CASH", "OTHER"].map((m) => <option key={m} value={m}>{t(m)}</option>)}</select></label>
@@ -136,7 +136,7 @@ export function InvoiceList({ clientId }) {
       {loading ? <Spinner /> : !data?.length ? <Empty text={t("no_data")} /> : (
         <div className="overflow-x-auto">
           <table className="data-table w-full min-w-[820px] text-sm" data-testid="invoice-table">
-            <thead><tr>{["invoice_no", "client", "issue_date", "due_date_inv", "total_amount", "paid_amount", "balance", "status", "actions"].map((h) => <th key={h}>{t(h)}</th>)}</tr></thead>
+            <thead><tr>{["invoice_no", "client", "issue_date", "due_date_inv", "total_amount", "paid_amount", "inv_balance", "status", "actions"].map((h) => <th key={h}>{t(h)}</th>)}</tr></thead>
             <tbody>
               {data.map((i) => (
                 <tr key={i.id} data-testid={`invoice-row-${i.id}`}>
@@ -145,7 +145,7 @@ export function InvoiceList({ clientId }) {
                   <td><span className={`rounded-md px-2 py-0.5 text-xs font-medium ${ST[i.status]}`} data-testid={`invoice-status-${i.id}`}>{t(i.status)}</span></td>
                   <td className="whitespace-nowrap">
                     <button className="icon-btn" onClick={() => setView(i.id)} data-testid={`invoice-view-${i.id}`}><Eye className="h-4 w-4" /></button>
-                    {owner && i.status === "DRAFT" && <button className="icon-btn text-sky-600" onClick={() => act(`/invoices/${i.id}/issue`)} title={t("issue")} data-testid={`invoice-issue-${i.id}`}><Send className="h-4 w-4" /></button>}
+                    {owner && i.status === "DRAFT" && <button className="icon-btn text-sky-600" onClick={() => act(`/invoices/${i.id}/issue`)} title={t("inv_issue")} data-testid={`invoice-issue-${i.id}`}><Send className="h-4 w-4" /></button>}
                     {owner && ["ISSUED", "PARTIALLY_PAID", "OVERDUE"].includes(i.status) && <button className="icon-btn text-[#00A878]" onClick={() => setPay(i)} title={t("record_payment")} data-testid={`invoice-pay-${i.id}`}><Wallet className="h-4 w-4" /></button>}
                     {isClient && i.card_enabled && ["ISSUED", "PARTIALLY_PAID", "OVERDUE"].includes(i.status) && i.balance > 0 && <button className="ml-1 inline-flex items-center gap-1 rounded-lg bg-[#071A2B] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#00A878]" onClick={() => payCard(i)} data-testid={`invoice-card-pay-${i.id}`}><CreditCard className="h-3.5 w-3.5" />{t("pay_by_card")}</button>}
                     {owner && i.card_refundable && <button className="icon-btn text-amber-600 hover:text-red-600" onClick={() => setRefund(i)} title={t("refund")} aria-label={t("refund")} data-testid={`invoice-refund-${i.id}`}><RotateCcw className="h-4 w-4" /></button>}

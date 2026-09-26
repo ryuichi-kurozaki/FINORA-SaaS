@@ -22,7 +22,7 @@ export function DocumentsPanel({ clientId }) {
   const upload = async () => {
     const f = fileRef.current.files[0];
     const target = clientId || cid;
-    if (!f || !target) return toast.error(`${t("client")} / ${t("file")}: required`);
+    if (!f || !target) return toast.error(`${t("client")} / ${t("file")}${t("required_suffix")}`);
     const fd = new FormData();
     fd.append("file", f); fd.append("client_id", target); fd.append("category", cat);
     Object.entries(meta).forEach(([k, v]) => fd.append(k, v));

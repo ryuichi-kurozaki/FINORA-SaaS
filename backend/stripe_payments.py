@@ -62,7 +62,7 @@ async def checkout_invoice(body: CheckoutIn, user=Depends(current)):
     if inv["status"] not in PAYABLE or inv["balance"] <= 0:
         raise HTTPException(409, "This invoice is not payable")
     if inv["client_id"] not in await card_clients(user["tenant_id"]):
-        raise HTTPException(409, "カード決済は現在ご利用いただけません (Card payment is not available for this invoice)")
+        raise HTTPException(409, "Card payment is not available for this invoice")
     s = _session(f"Invoice {inv['number']}", inv["balance"], body.origin_url,
                  {"kind": "invoice", "invoice_id": inv["id"], "tenant_id": user["tenant_id"]})
     await _record(s, "invoice", user, inv["balance"], {"invoice_id": inv["id"], "client_id": inv["client_id"], "invoice_number": inv["number"]})
@@ -75,7 +75,7 @@ async def checkout_subscription(body: CheckoutIn, user=Depends(admin_only)):
     sub = await db.saas_subscriptions.find_one({"tenant_id": user["tenant_id"]})
     fee = await customer_fee(user["tenant_id"])
     if not sub or fee["amount"] <= 0:
-        raise HTTPException(409, "現在のプランでは料金は発生しません (No FINORA fee is due on the current plan)")
+        raise HTTPException(409, "No FINORA fee is due on the current plan")
     s = _session(f"FINORA {sub.get('plan_code')} {fee['month']} ({fee['peak_customers']} customers)", fee["amount"], body.origin_url,
                  {"kind": "subscription", "tenant_id": user["tenant_id"]}, tax_code="txcd_10103001", tax_mode="full")
     await _record(s, "subscription", user, fee["amount"], {"subscription_id": sub["id"], "peak_customers": fee["peak_customers"]})

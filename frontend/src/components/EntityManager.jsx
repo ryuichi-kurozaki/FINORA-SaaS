@@ -98,7 +98,7 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
 
   const save = async () => {
     const miss = fields.filter((f) => f.req && !f.computed && (form[f.k] === undefined || form[f.k] === ""));
-    if (miss.length) return toast.error(`${t(miss[0].label || miss[0].k)}: required`);
+    if (miss.length) return toast.error(`${t(miss[0].label || miss[0].k)}${t("required_suffix")}`);
     const body = Object.fromEntries(fields.filter((f) => !f.computed && form[f.k] !== undefined).map((f) => [f.k, form[f.k]]));
     try {
       if (form.id) await api.put(`/data/${entity}/${form.id}`, body);
@@ -122,7 +122,7 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
     if (cid && entity !== "clients") fd.append("client_id", cid);
     try {
       const r = await api.post(`/io/import/${entity}`, fd);
-      toast.success(`${r.data.created} ${t("import_done")}${r.data.errors.length ? ` / errors: ${r.data.errors.length}` : ""}`);
+      toast.success(`${r.data.created} ${t("import_done")}${r.data.errors.length ? ` / ${t("import_errors")}: ${r.data.errors.length}` : ""}`);
       after();
     } catch (err) { toast.error(errMsg(err)); }
     e.target.value = "";

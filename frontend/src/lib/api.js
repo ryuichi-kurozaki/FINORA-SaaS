@@ -7,6 +7,7 @@ export const api = axios.create({ baseURL: API, withCredentials: true });
 api.interceptors.request.use((cfg) => {
   const tk = localStorage.getItem("finora_token");
   if (tk) cfg.headers.Authorization = `Bearer ${tk}`;
+  cfg.headers["X-Lang"] = localStorage.getItem("finora_lang") || "ja";
   return cfg;
 });
 

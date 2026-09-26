@@ -10,7 +10,7 @@ const D = {
   risk: ["リスク管理", "Risk", "Risco"], ai_insight: ["AIインサイト", "AI Insight", "Insight IA"], consulting: ["コンサルティング", "Consulting", "Consultoria"],
   reports: ["レポート", "Reports", "Relatórios"], documents: ["書類管理", "Documents", "Documentos"], tasks: ["タスク・予定", "Tasks", "Tarefas"], settings: ["設定", "Settings", "Configurações"],
   tagline: ["金融情報を知性に変え、資産の現在と未来を可視化する。", "Turning financial data into intelligence — visualizing the present and future of wealth.", "Transformando dados financeiros em inteligência — visualizando o presente e o futuro do patrimônio."],
-  platform: ["投資管理コンサルティング・プラットフォーム", "Investment Management & Consulting Platform", "Plataforma de Gestão e Consultoria de Investimentos"],
+ 
   login: ["ログイン", "Sign in", "Entrar"], logout: ["ログアウト", "Log out", "Sair"], email: ["メールアドレス", "Email", "E-mail"], password: ["パスワード", "Password", "Senha"], show_password: ["パスワードを表示", "Show password", "Mostrar senha"], hide_password: ["パスワードを隠す", "Hide password", "Ocultar senha"],
   welcome_back: ["おかえりなさい", "Welcome back", "Bem-vindo de volta"], login_sub: ["安全な接続でFINORAにサインインします", "Sign in to FINORA over a secure connection", "Entre no FINORA com conexão segura"],
   secure_note: ["通信暗号化・保存データ暗号化・監査ログで保護されています", "Protected by TLS, encryption at rest and audit logging", "Protegido por TLS, criptografia e trilha de auditoria"],

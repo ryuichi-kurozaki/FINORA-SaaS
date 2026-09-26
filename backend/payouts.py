@@ -126,11 +126,11 @@ async def mark_sent(uid: str, body: PayoutIn, request: Request, user=Depends(pla
     u = await db.users.find_one({"id": uid})
     bank = bank_of(u)
     if not bank:
-        raise HTTPException(409, "受取口座が未登録です (No payout bank account registered)")
+        raise HTTPException(409, "No payout bank account registered")
     p = _sum((await pending_by_payee()).get(uid, []))
     amount = p["total"] - body.transfer_fee
     if amount <= 0:
-        raise HTTPException(409, "送金できる金額がありません (Nothing to transfer)")
+        raise HTTPException(409, "Nothing to transfer")
     t = await db.tenants.find_one({"id": u.get("tenant_id")}, {"name": 1}) or {}
     doc = {"id": new_id(), "payee_id": uid, "payee_name": u.get("name"), "tenant_id": u.get("tenant_id"), "tenant_name": t.get("name"), "items": p["items"],
            "total": p["total"], "transfer_fee": body.transfer_fee, "amount": amount, "transfer_date": body.transfer_date, "note": body.note,

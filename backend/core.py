@@ -112,13 +112,13 @@ def require_roles(*roles):
 
 def forbid_demo(user):
     if user.get("demo"):
-        raise HTTPException(403, "デモアカウントではこの操作はできません (Not available in the demo account)")
+        raise HTTPException(403, "Not available in the demo account")
 
 
 async def require_service(user):
     t = await db.tenants.find_one({"id": user["tenant_id"]}, {"finora_contract_required": 1, "finora_contract": 1})
     if t and t.get("finora_contract_required") and t.get("finora_contract") != "ACTIVE":
-        raise HTTPException(403, "FINORA利用契約の成立後に利用できます (Available after the FINORA service agreement is executed)")
+        raise HTTPException(403, "Available after the FINORA service agreement is executed")
 
 
 current = require_roles("admin", "consultant", "client")

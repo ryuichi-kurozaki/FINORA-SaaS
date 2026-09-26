@@ -18,7 +18,7 @@ export default function GoalsPanel({ goals, title }) {
                 <Target className="mt-0.5 h-4 w-4 shrink-0 text-[#C9A227]" />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-semibold text-[#071A2B]">{g.name}</div>
-                  <div className="text-[11px] text-slate-500">{t(`g_${g.category}`)} · {g.target_date || "—"}{g.months_left != null && ` · ${g.months_left}${lang === "ja" ? "ヶ月" : "m"}`}</div>
+                  <div className="text-[11px] text-slate-500">{t(`g_${g.category}`)} · {g.target_date || "—"}{g.months_left != null && ` · ${g.months_left}${t("months_unit")}`}</div>
                 </div>
                 <span className="font-num text-lg font-bold text-[#00A878]" data-testid={`goal-progress-${g.id}`}>{g.progress_pct.toFixed(0)}%</span>
               </div>
@@ -30,7 +30,7 @@ export default function GoalsPanel({ goals, title }) {
               </div>
               {g.simulation && (
                 <div className="mt-3 rounded-lg bg-amber-50/60 p-2.5">
-                  <div className="mb-1 flex items-center gap-2"><AIBadge type="simulation" /><span className="text-[10px] text-slate-500">{g.simulation.year}{lang === "ja" ? "年後" : "y"}</span></div>
+                  <div className="mb-1 flex items-center gap-2"><AIBadge type="simulation" /><span className="text-[10px] text-slate-500">{g.simulation.year}{t("years_later")}</span></div>
                   <div className="grid grid-cols-3 gap-1 text-[11px]">
                     {["bull", "base", "bear"].map((s) => (
                       <div key={s}><span className="text-slate-500">{t(s)}</span> <span className={g.simulation[s].reached ? "font-semibold text-[#00A878]" : "text-slate-500"}>{t(g.simulation[s].reached ? "reached" : "not_reached")}</span></div>

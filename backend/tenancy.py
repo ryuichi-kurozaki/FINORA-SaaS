@@ -138,7 +138,7 @@ async def create_invitation(body: InviteIn, request: Request, user=Depends(staff
     await scope(user, body.client_id)
     email, wa = body.email.strip().lower(), body.whatsapp.strip()
     if body.channel == "whatsapp" and not wa_digits(wa):
-        raise HTTPException(422, "WhatsApp番号を入力してください (WhatsApp number is required)")
+        raise HTTPException(422, "WhatsApp number is required")
     if body.channel == "email" and not _valid_email(email):
         raise HTTPException(422, "Invalid email")
     if email and not _valid_email(email):
@@ -220,7 +220,7 @@ async def accept_invitation(token: str, body: AcceptIn, request: Request):
         raise HTTPException(410, "Invitation is no longer valid")
     email = i.get("email") or body.email.strip().lower()
     if not _valid_email(email):
-        raise HTTPException(422, "メールアドレスを入力してください (Please enter a valid email)")
+        raise HTTPException(422, "Please enter a valid email")
     if await db.users.find_one({"email": email}):
         raise HTTPException(409, "This email already has a FINORA account")
     user = {"id": new_id(), "tenant_id": i["tenant_id"], "email": email, "name": body.name, "role": "client", "client_id": i["client_id"],

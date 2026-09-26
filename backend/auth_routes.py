@@ -69,7 +69,7 @@ async def login(body: LoginIn, request: Request, response: Response):
         raise HTTPException(403, "This FINORA account is suspended. Please contact support.")
     pol = (tenant or {}).get("end_policy") or {}
     if (tenant or {}).get("finora_contract") == "ENDED" and pol.get("client_access" if user["role"] == "client" else "consultant_login") == "blocked":
-        raise HTTPException(403, "FINORA利用契約が終了しています (The FINORA service agreement has ended)")
+        raise HTTPException(403, "The FINORA service agreement has ended")
     if user.get("totp_enabled"):
         return {"requires_2fa": True, "challenge_token": make_token(user["id"], None, "2fa")}
     return await complete_login(user, request, response)

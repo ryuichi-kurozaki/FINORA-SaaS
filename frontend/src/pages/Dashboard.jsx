@@ -26,7 +26,7 @@ export default function Dashboard() {
   ];
   return (
     <div data-testid="dashboard-page">
-      <PageHeader eyebrow={`${t("dashboard")} · ${scope}`} title={`${lang === "ja" ? "" : "Welcome, "}${user.name}${lang === "ja" ? " 様" : ""}`} sub={t("tagline")} />
+      <PageHeader eyebrow={`${t("dashboard")} · ${scope}`} title={`${t("welcome_prefix")}${user.name}${t("welcome_suffix")}`} sub={t("tagline")} />
       {isClient && <div className="mb-6"><ActionCenter health={data.health} /></div>}
       {!isClient && !scopeClient && <BusinessOverview />}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">

@@ -45,7 +45,7 @@ export default function InvoiceDoc({ inv, t }) {
         <div className="flex justify-between"><span>{t("tax_amount")} ({inv.tax_rate}% · {t(inv.tax_mode)})</span><span className="font-num">{yen(inv.tax)}</span></div>
         <div className="flex justify-between border-t-2 border-[#071A2B] pt-1 text-base font-bold"><span>{t("total_amount")}</span><span className="font-num">{yen(inv.total)}</span></div>
         {inv.paid > 0 && <div className="flex justify-between text-[#00A878]"><span>{t("paid_amount")}</span><span className="font-num">{yen(inv.paid)}</span></div>}
-        {inv.paid > 0 && <div className="flex justify-between font-semibold"><span>{t("balance")}</span><span className="font-num">{yen(inv.balance)}</span></div>}
+        {inv.paid > 0 && <div className="flex justify-between font-semibold"><span>{t("inv_balance")}</span><span className="font-num">{yen(inv.balance)}</span></div>}
       </div>
       {iss.bank_info && <div className="mt-6 rounded-lg border border-slate-200 p-3 text-xs"><b>{t("bank_info")}</b><div className="mt-1 whitespace-pre-wrap">{iss.bank_info}</div></div>}
       {(inv.notes || iss.invoice_note) && <div className="mt-3 whitespace-pre-wrap text-xs text-slate-500">{inv.notes || iss.invoice_note}</div>}

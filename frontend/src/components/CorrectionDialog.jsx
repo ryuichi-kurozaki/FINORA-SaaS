@@ -12,7 +12,7 @@ export default function CorrectionDialog({ open, onOpenChange, clientId, entity,
   const [f, setF] = useState({ reason: "", requested_change: "", comment: "", due_date: "" });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const submit = async () => {
-    if (!f.reason || !f.requested_change) return toast.error(`${t("reason")} / ${t("requested_change")}: required`);
+    if (!f.reason || !f.requested_change) return toast.error(`${t("reason")} / ${t("requested_change")}${t("required_suffix")}`);
     try {
       await api.post("/corrections", { client_id: clientId, target_entity: entity, target_id: targetId, target_label: targetLabel, ...f, due_date: f.due_date || null });
       toast.success(t("saved")); setF({ reason: "", requested_change: "", comment: "", due_date: "" }); onOpenChange(false); onDone && onDone();

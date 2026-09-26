@@ -46,7 +46,7 @@ function SideNav({ onNavigate }) {
       </nav>
       <div className="mx-4 mb-5 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-[11px] text-slate-400">
         <div className="flex items-center gap-2 text-slate-300"><Gauge className="h-3.5 w-3.5 text-[#00A878]" />{user.tenant?.name}</div>
-        <div className="mt-1 text-[#C9A227]">Premium Plan</div>
+        <div className="mt-1 text-[#C9A227]">{t("premium_plan")}</div>
       </div>
     </div>
   );

@@ -6,7 +6,11 @@ load_dotenv(Path(__file__).parent / ".env")
 import os  # noqa: E402
 import logging  # noqa: E402
 from fastapi import FastAPI, Request  # noqa: E402
+from fastapi.exceptions import RequestValidationError  # noqa: E402
+from fastapi.responses import JSONResponse  # noqa: E402
+from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: E402
 from starlette.middleware.cors import CORSMiddleware  # noqa: E402
+from i18n_errors import VALIDATION, lang_of, tr_error  # noqa: E402
 
 from core import mongo, db  # noqa: E402
 import auth_routes  # noqa: E402
@@ -27,6 +31,17 @@ from seed import seed  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 app = FastAPI(title="FINORA API", version="1.0.0")
+
+
+@app.exception_handler(StarletteHTTPException)
+async def _http_error(request: Request, exc: StarletteHTTPException):
+    return JSONResponse({"detail": tr_error(exc.detail, lang_of(request))}, status_code=exc.status_code, headers=getattr(exc, "headers", None))
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error(request: Request, exc: RequestValidationError):
+    fields = ", ".join(sorted({str(e["loc"][-1]) for e in exc.errors() if e.get("loc")}))
+    return JSONResponse({"detail": VALIDATION[lang_of(request)].format(fields)}, status_code=422)
 
 
 @app.get("/api/")

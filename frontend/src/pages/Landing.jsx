@@ -98,7 +98,7 @@ function AIShowcase() {
   const { t } = useApp();
   const rows = [["fact", "ai_s1"], ["calc", "ai_s2"], ["estimate", "ai_s3"], ["ai", "ai_s4"]];
   return (
-    <Section eyebrow="AI Intelligence" title={t("ai_title")} sub={t("ai_sub")}>
+    <Section eyebrow="AI Intelligence" title={t("landing_ai_title")} sub={t("ai_sub")}>
       <div className="grid items-center gap-10 lg:grid-cols-2">
         <div className="space-y-3">
           {rows.map(([type, k], i) => (
