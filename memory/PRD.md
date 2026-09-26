@@ -188,4 +188,4 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - UI: Platform → メール送信ログ tab (EmailLogPanel.jsx): search to/subject, kind select, status chips with counts, pagination, sync button. Platform TabsList now wraps on mobile
 - Env: MAIL_LOG_PATH (preview /tmp/finora_mail.log fake file; prod should be /var/log/mail.log — backend runs as root)
 - iteration_21: backend 10/10, frontend pass (mobile tab wrap fixed & verified)
-- NOT YET DEPLOYED to prod (awaiting user approval): needs prod .env MAIL_LOG_PATH=/var/log/mail.log + backend rsync (exclude venv) + frontend build
+- DEPLOYED to prod 2026-09-26: prod .env MAIL_LOG_PATH=/var/log/mail.log (backup .env.bak-<ts>), backend rsync (venv kept) + restart, frontend build rsync. Verified: test mail to finora@ → log status delivered (dsn=2.0.0), Platform tab renders on www.finora.co.jp
