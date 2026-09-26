@@ -106,3 +106,4 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - P1: 2FA enforcement for logins, automated monthly invoice generation job
 - P2: Staff management UI, configurable reminder days per tenant
 - P3: bank/brokerage/market price API integrations
+- 2026-09 Settings「データ連携」(CSV/Excel import/export) tab now admin-only (hidden for consultants; UI only, API unchanged per user choice). Deployed to prod (frontend)

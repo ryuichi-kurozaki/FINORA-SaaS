@@ -226,7 +226,7 @@ function Inquiries() {
 
 export default function SettingsPage() {
   const { t, user } = useApp();
-  const tabs = [["security", Security], ["notify_prefs", NotifyPrefs], ["fx_rates", Fx], ...(user.role !== "client" ? [["data_io", DataIO]] : []), ...(user.role === "admin" ? [["billing_profile", TenantSettings], ["ec_finora_contract", FinoraContract], ["users", Users], ["audit_logs", Audit], ["inquiries", Inquiries]] : []), ["system", System]];
+  const tabs = [["security", Security], ["notify_prefs", NotifyPrefs], ["fx_rates", Fx], ...(user.role === "admin" ? [["data_io", DataIO], ["billing_profile", TenantSettings], ["ec_finora_contract", FinoraContract], ["users", Users], ["audit_logs", Audit], ["inquiries", Inquiries]] : []), ["system", System]];
   return (
     <div data-testid="settings-page">
       <PageHeader eyebrow="Settings" title={t("settings")} />
