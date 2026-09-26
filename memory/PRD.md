@@ -160,3 +160,9 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - GET /api/econtracts/{cid}?view_lang=ja|en|pt → when different from the contract's document language, returns `view` {lang, original_lang, important/agreement: {title, sections}} built from templates (econtract._translated; doc_date from issued doc). Consultant free-text fields stay as written
 - Signed original (hash, PDF) unchanged and authoritative; UI shows "参考訳（正本は○○語版）" note + toggle 正本を表示/参考訳を表示 (EContractDetail DocView)
 - Self-tested (curl + screenshots EN/PT/JA). Deployed to prod
+
+## 2026-09 Client self-service portfolio entry + ticker lookup
+- Portfolio page: client users see EntityManager(assets) section 'portfolio-holdings-entry' (add/edit/delete own holdings; refreshes KPIs/charts/holdings table). Staff unchanged (read-only on client-owned data by design)
+- backend/quote.py: GET /api/quote?ticker= (yfinance / Yahoo Finance, no key, 10-min cache) → name, price, currency, country (.T→JP, .SA→BR, none→US), price_date. Errors localized (i18n_errors). yfinance==1.7.0 installed in prod venv via uv
+- EntityManager TickerLookup (entities assets ticker lookup:true) fills name (if empty), current_price, currency, price_date, country
+- iteration_19: backend 8/8, frontend pass. Deployed to prod

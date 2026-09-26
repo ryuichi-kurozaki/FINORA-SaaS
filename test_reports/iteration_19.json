@@ -1,0 +1,44 @@
+{
+  "summary": "Iter19: tested new /api/quote (yfinance) endpoint and client self-service portfolio holdings entry. Backend pytest 8/8 pass: quote unauth 401, invalid ticker 422 JA-localized, unknown ticker 404 JA-localized, real quotes for AAPL/7203.T/PETR4.SA return {ticker,name,price,currency,country,price_date}; client can add/edit/delete own asset via /data/assets; consultant receives client_data_updated notification; staff PUT on client-owned asset is blocked (403). UI: client@finora sees portfolio-holdings-entry on /portfolio; ticker-lookup-btn on AAPL prefilled name=Apple Inc. price=341.07 price_date=2026-09-26; row saved, KPI/holdings-table refresh w/o reload; edit+delete OK. Consultant and admin do NOT see portfolio-holdings-entry (correct). i18n_audit.mjs: DUP KEYS 0, MISSING KEYS 0.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Assets page (/assets) for staff", "issue": "Staff (consultant/admin) cannot access the assets-add-btn on /assets because canEdit('assets') returns false for non-clients (assets is in OWNED list in AppContext.js:55). This means staff never see the ticker-lookup button on the Assets page — the review requested 'Assets page (/assets) form for staff also shows the ticker lookup button'. If staff are meant to remain read-only on client-owned assets but still able to create new (staff-owned) assets, the read-only check should be per-record, not per-entity.", "selector": "[data-testid='assets-add-btn']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "EntityManager form dialog (option with span)", "issues": ["Pre-existing React hydration warning: <span data-ve-dynamic> nested inside <option> in field-account_id select (EntityManager.jsx:71). Cosmetic (instrumentation wrapper) but noisy in console."]},
+      {"screen": "Portfolio charts", "issues": ["Persistent Recharts width(-1)/height(-1) warnings during initial paint. Non-blocking."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_quote_and_portfolio.py",
+    "/app/test_reports/pytest/quote_portfolio.xml"
+  ],
+  "action_items": [
+    "MEDIUM: If staff must see the ticker lookup on /assets, decouple 'assets read-only for staff' from 'staff cannot add/edit any asset'. Currently canEdit('assets') = isClient (AppContext.js), which hides the add button and blocks the form entirely for staff. Either remove 'assets' from OWNED (making the read-only enforcement backend-only and per-record) or gate canEdit by row ownership (row.source/client-owned flag).",
+    "LOW: (pre-existing) Clean up <span> inside <option> in select options across EntityManager (institution/account/user rows) — hydration warning."
+  ],
+  "critical_code_review_comments": [
+    "backend/quote.py is compact and correct: yfinance fast_info for price + info fallback for name; 10-minute in-memory TTL cache keyed by upper-case ticker; regex whitelist [A-Z0-9.^=-]{1,20} prevents injection; SUFFIX_COUNTRY handles JP(.T)/BR(.SA); missing suffix → US, other suffix → 'other'. asyncio.to_thread with 20s timeout avoids blocking event loop. Good.",
+    "backend/i18n_errors.py: 'Invalid ticker' and 'Quote not found for this ticker' are properly added to M with JA+PT translations. Verified end-to-end via test_quote_invalid_ticker_422_ja / test_quote_unknown_ticker_404_ja.",
+    "frontend/src/components/EntityManager.jsx: TickerLookup only fills empty name and empty country (correct; doesn't overwrite user input); overwrites ticker/current_price/price_date every time (fine); validates currency against CURRENCIES list before setting. Good UX.",
+    "frontend/src/pages/Portfolio.jsx: portfolio-holdings-entry gated on `isClient && user.client_id` — correct. onChange callback calls reload() (KPI/breakdowns from dashboard) AND reloadAssets() (holdings table) — verified no full page reload needed.",
+    "backend/crud.py:136 correctly triggers notify_other_side with 'client_data_updated' when client user modifies their own owned data; consultant receives notification (verified in test).",
+    "MINOR: quote.py caches even failed lookups implicitly? No — only sets _CACHE[t] when q is truthy. Good.",
+    "Staff read-only enforcement on /data/assets confirmed by test_staff_read_only_on_client_owned_asset (403 on PUT for client-created asset)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_quote_and_portfolio.py"
+  ],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "83% — client-side self-service asset entry works end-to-end (KPI refresh, holdings-table refresh, edit, delete); consultant & admin correctly do not see portfolio-holdings-entry. The 'ticker-lookup-btn visible on /assets for staff' check could not be verified because staff cannot open the assets form at all (canEdit('assets')=false) — see action_items."},
+  "test_credentials": "client@finora.co.jp / Finora2026! ; consultant@finora.co.jp / Finora2026! ; ryuichi.kurozaki@gmail.com / Finora2026!",
+  "seed_data_creation": "None persisted. Cleaned up TEST_QA_Apple2 leftover from the first (failed) pytest run of test_client_owned_asset_crud_and_notification before I fixed the notifications response shape (returns {items,unread}, not a list).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "For future auth switching in Playwright, cookies-only reset isn't enough because auth state also lives in localStorage / in-memory; use `page.context.clear_cookies()` + goto `/login?_=n` + `localStorage.clear()` + reload before switching accounts. Consultant login triggers a 'payout-bank gate' modal that blocks page clicks; either fill+save a fake bank or use `page.keyboard.press('Escape')` (may or may not close it). /api/notifications returns {items:[], unread:int}, not a bare list.",
+  "rca of the issue": "Only design gap: staff cannot reach the ticker-lookup button on /assets because canEdit('assets') = isClient (AppContext.js:55 — 'assets' is in the OWNED list). Repro: log in as consultant → /assets → no 'assets-add-btn' rendered. Mitigation: (a) remove 'assets' from OWNED and enforce client-ownership read-only server-side per record (backend already blocks staff PUT with 403 — confirmed in test_staff_read_only_on_client_owned_asset), or (b) split canEdit so canWrite=true for staff on OWNED entities but per-row edit remains gated by row ownership."
+}
