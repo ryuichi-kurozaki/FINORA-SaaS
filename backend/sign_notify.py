@@ -57,11 +57,25 @@ def _html(x, name, msg, link, cta=None):
             '<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;font-family:Arial,Helvetica,sans-serif">'
             '<tr><td style="background:#071A2B;padding:20px 28px;border-radius:12px 12px 0 0;color:#ffffff;font-size:20px;font-weight:bold;letter-spacing:2px">FIN<span style="color:#00A878">ORA</span></td></tr>'
             f'<tr><td style="padding:28px"><p style="margin:0 0 12px;color:#071A2B;font-size:15px">{escape(x["hello"].format(name=name))}</p>'
-            f'<p style="margin:0 0 20px;color:#334155;font-size:14px;line-height:1.7">{escape(msg)}</p>'
+            f'<p style="margin:0 0 20px;color:#334155;font-size:14px;line-height:1.7;white-space:pre-line">{escape(msg)}</p>'
             f'<a href="{escape(link)}" style="display:inline-block;background:#00A878;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:14px;font-weight:bold">{escape(cta or x["cta"])}</a>'
             f'<p style="margin:16px 0 0;color:#64748b;font-size:12px">{escape(x["login"])}</p>'
             f'<p style="margin:28px 0 0;color:#94a3b8;font-size:11px;line-height:1.6">{escape(x["footer"].format(brand=EMAIL_FROM_NAME))}</p>'
             '</td></tr></table></td></tr></table>')
+
+
+async def wa_send(phone, text):
+    """SENT / FAILED / SKIPPED (no number or service not configured)."""
+    phone = wa_digits(phone)
+    if not (phone and WA_URL):
+        return "SKIPPED"
+    try:
+        async with httpx.AsyncClient(timeout=20) as h:
+            r = await h.post(f"{WA_URL}/send", json={"to": phone, "message": text})
+        return "SENT" if r.status_code == 200 else "FAILED"
+    except Exception as e:  # noqa: BLE001
+        logger.error("whatsapp send failed %s: %s", phone, e)
+        return "FAILED"
 
 
 async def _log(c, u, channel, to, kind, status, detail=""):

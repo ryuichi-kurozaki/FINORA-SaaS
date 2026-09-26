@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from pymongo import ReturnDocument
 
 from payouts import card_clients
+from invoice_notify import send_invoice_issued
 from core import (forbid_demo, db, new_id, now_iso, clean, current, staff, admin_only, scope, audit, accessible_ids,
                   notify, client_user_ids, consultant_ids)
 
@@ -172,6 +173,8 @@ async def issue_invoice(iid: str, request: Request, user=Depends(admin_only)):
     await audit(user, "issue", "invoices", iid, before={"status": "DRAFT"}, after={"status": "ISSUED"}, request=request, client_id=inv["client_id"], label=inv["number"])
     await notify(user["tenant_id"], await client_user_ids(user["tenant_id"], inv["client_id"]), "invoice_issued",
                  {"label": inv["number"], "amount": inv["total"], "due": inv["due_date"]}, inv["client_id"], "/billing", user)
+    d = await send_invoice_issued(inv, user["tenant_id"]) | {"at": now_iso()}
+    await db.invoices.update_one({"id": iid}, {"$set": {"issue_delivery": d}})
     return clean(await recompute(iid))
 
 

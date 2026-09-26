@@ -76,7 +76,8 @@ export function InvitationsList({ clientId, k }) {
         <tbody>{data.map((i) => (
           <tr key={i.id}><td>{i.email || "—"}</td><td className="font-num text-xs">{i.whatsapp_masked || "—"}</td><td><DeliveryBadges d={i.delivery} t={t} /></td>
             <td>{i.invited_by_name}</td><td className="font-num">{fmtDate(i.created_at)}</td><td className="font-num">{fmtDate(i.expires_at)}</td>
-            <td><span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs">{t(i.status)}</span></td>
+            <td><span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs">{t(i.status)}</span>
+              {i.reminders_sent > 0 && <div className="mt-1 text-[10px] text-slate-500" data-testid={`invitation-reminded-${i.id}`}>{t("invite_reminded")} {i.reminders_sent}{t("invite_times")}</div>}</td>
             <td className="whitespace-nowrap">{["PENDING", "EXPIRED"].includes(i.status) && <button className="mr-3 text-xs text-[#00A878]" onClick={() => resend(i.id)} data-testid={`invitation-resend-${i.id}`}>{t("invite_resend")}</button>}
               {i.status === "PENDING" && <button className="text-xs text-red-600" onClick={() => cancel(i.id)} data-testid={`invitation-cancel-${i.id}`}>{t("CANCELLED")}</button>}</td></tr>
         ))}</tbody>

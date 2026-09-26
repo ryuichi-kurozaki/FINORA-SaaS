@@ -10,6 +10,7 @@ from pymongo.errors import DuplicateKeyError
 from core import db, new_id, now_iso, current, notify
 from econtract import renew_on, _people
 from sign_notify import send_renewal_notice
+from tenancy import remind_scan
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/econtracts/renewals")
@@ -54,6 +55,12 @@ async def loop():
                 logger.info("renewal notices sent: %s", len(sent))
         except Exception:
             logger.exception("renewal scan failed")
+        try:
+            rem = await remind_scan()
+            if rem:
+                logger.info("invitation reminders sent: %s", len(rem))
+        except Exception:
+            logger.exception("invitation reminder scan failed")
         await asyncio.sleep(3600)
 
 

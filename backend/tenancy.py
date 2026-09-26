@@ -84,6 +84,35 @@ class InviteIn(BaseModel):
     channel: str = Field("email", pattern="^(email|whatsapp)$")
 
 
+REMIND_EVERY_DAYS, MAX_REMINDERS = 3, 2
+
+
+async def remind_scan(at=None):
+    """Auto-resend PENDING invitations 3 and 6 days after creation (new link, +7 days)."""
+    t, sent = at or now(), []
+    async for i in db.invitations.find({"status": "PENDING", "reminders_sent": {"$not": {"$gte": MAX_REMINDERS}}}):
+        n = i.get("reminders_sent", 0)
+        if i.get("expires_at", "") < t.isoformat() or t < datetime.fromisoformat(i["created_at"]) + timedelta(days=REMIND_EVERY_DAYS * (n + 1)):
+            continue
+        inviter = await db.users.find_one({"id": i["invited_by"]})
+        if not inviter:
+            continue
+        token = secrets.token_urlsafe(24)
+        r = await db.invitations.update_one({"id": i["id"], "status": "PENDING", "reminders_sent": {"$in": [n, None] if n == 0 else [n]}},
+                                            {"$set": {"token_hash": _hash(token), "expires_at": (t + timedelta(days=7)).isoformat(), "last_reminded_at": t.isoformat()},
+                                             "$inc": {"reminders_sent": 1}})
+        if not r.modified_count:
+            continue
+        d = await _deliver(inviter, i, token, decrypt(i["whatsapp"]) if i.get("whatsapp") else "")
+        sent.append({"id": i["id"], "reminder": n + 1, "delivery": d})
+    return sent
+
+
+@router.post("/invitations/reminders/run")
+async def run_reminders(at: Optional[str] = None, user=Depends(platform_admin)):
+    return {"sent": await remind_scan(datetime.fromisoformat(at) if at else None)}
+
+
 async def _deliver(user, doc, token, whatsapp):
     t = await db.tenants.find_one({"id": user["tenant_id"]}, {"name": 1}) or {}
     c = await db.clients.find_one({"id": doc["client_id"]}, {"name": 1}) or {}
