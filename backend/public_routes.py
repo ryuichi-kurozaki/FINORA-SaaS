@@ -52,7 +52,7 @@ async def create_inquiry(body: InquiryIn, request: Request):
         rows = "".join(f"<tr><td style='padding:4px 12px 4px 0;color:#64748b'>{escape(k)}</td><td>{escape(str(v or '—'))}</td></tr>"
                        for k, v in (("Name", body.name), ("Company", body.company), ("Email", doc["email"]), ("Phone", body.phone), ("Type", body.inquiry_type), ("Lang", body.lang)))
         await send_email(to=os.environ["SITE_INQUIRY_EMAIL"], subject=f"【FINORA】お問い合わせ: {body.name}",
-                         html=f"<table>{rows}</table><p style='white-space:pre-line'>{escape(body.message)}</p>")
+                         html=f"<table>{rows}</table><p style='white-space:pre-line'>{escape(body.message)}</p>", kind="inquiry")
     except Exception as e:  # noqa: BLE001
         logging.getLogger(__name__).error("inquiry mail failed: %s", e)
     return {"ok": True}

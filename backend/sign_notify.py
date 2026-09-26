@@ -105,7 +105,8 @@ async def send_renewal_notice(user_id, c, renew_date, days):
 async def _deliver(c, u, kind, x, subject, body, cta):
     link = f"{APP_URL}/econtracts/{c['id']}"
     try:
-        await send_email(to=u["email"], subject=subject, html=_html(x, u.get("name") or u["email"], body, link, cta))
+        await send_email(to=u["email"], subject=subject, html=_html(x, u.get("name") or u["email"], body, link, cta),
+                         kind="renewal" if kind == "econtract_renewal_notice" else "econtract")
         await _log(c, u, "EMAIL", u["email"], kind, "SENT")
     except Exception as e:
         logger.error("sign request email failed %s: %s", c["number"], e)

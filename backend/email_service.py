@@ -14,7 +14,7 @@ from html.parser import HTMLParser
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
-from core import db
+from core import db, new_id, now_iso
 
 logger = logging.getLogger(__name__)
 EMAIL_TRANSPORT = os.environ["EMAIL_TRANSPORT"]
@@ -98,7 +98,13 @@ def _assert_safe_email(subject: str, html: str) -> None:
                 raise ValueError(f"Anchor text {m.group(1)!r} ≠ real link host {real!r} (G3)")
 
 
-async def send_email(*, to: str, subject: str, html: str, reply_to: str | None = None) -> str | None:
+async def _record(to, subject, kind, message_id, status, detail=""):
+    at = now_iso()
+    await db.email_log.insert_one({"id": new_id(), "to": to, "subject": subject, "kind": kind, "message_id": message_id.strip("<>"),
+                                   "queue_id": None, "status": status, "detail": str(detail)[:300], "at": at, "updated_at": at})
+
+
+async def send_email(*, to: str, subject: str, html: str, reply_to: str | None = None, kind: str = "other") -> str | None:
     _assert_safe_email(subject, html)
     msg = EmailMessage()
     msg["From"] = formataddr((str(Header(EMAIL_FROM_NAME, "utf-8")), EMAIL_FROM))
@@ -111,13 +117,18 @@ async def send_email(*, to: str, subject: str, html: str, reply_to: str | None =
     msg.add_alternative(html, subtype="html")
     if EMAIL_TRANSPORT == "log":
         logger.info("email (log transport, not sent) to=%s subject=%s", to, subject)
-        await db.email_log.insert_one({"to": to, "subject": subject, "message_id": msg["Message-ID"], "at": datetime.now().isoformat()})
+        await _record(to, subject, kind, msg["Message-ID"], "logged")
         return msg["Message-ID"]
 
     def _send():
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as s:
             s.send_message(msg)
-    await asyncio.to_thread(_send)
+    try:
+        await asyncio.to_thread(_send)
+    except Exception as e:
+        await _record(to, subject, kind, msg["Message-ID"], "failed", e)
+        raise
+    await _record(to, subject, kind, msg["Message-ID"], "queued")
     return msg["Message-ID"]
 
 
@@ -175,7 +186,7 @@ async def send_refund_receipt(tenant_id, inv, amount):
         users = await db.users.find({"tenant_id": tenant_id, "client_id": inv["client_id"], "role": "client", "active": True}).to_list(20)
         for u in users:
             subject, html = refund_html(u.get("lang") or "ja", u.get("name") or u["email"], company, inv["number"], amount, day)
-            eid = await send_email(to=u["email"], subject=subject, html=html, reply_to=bp.get("email") or None)
+            eid = await send_email(to=u["email"], subject=subject, html=html, reply_to=bp.get("email") or None, kind="refund")
             logger.info("refund receipt sent to %s (%s) id=%s", u["email"], inv["number"], eid)
     except Exception as e:
         logger.error("refund receipt email failed for %s: %s", inv.get("number"), e)

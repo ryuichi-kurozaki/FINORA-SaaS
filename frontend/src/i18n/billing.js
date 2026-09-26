@@ -152,4 +152,12 @@ export const B = {
   refund_confirm: ["返金する", "Refund", "Reembolsar"], cancel_action: ["キャンセル", "Cancel", "Cancelar"], payment_processing: ["決済を確認しています…", "Confirming your payment…", "Confirmando o pagamento…"],
   payment_success: ["お支払いが完了しました", "Payment completed", "Pagamento concluído"], payment_failed: ["決済を確認できませんでした", "Payment could not be confirmed", "Não foi possível confirmar o pagamento"],
   payment_cancelled: ["決済はキャンセルされました", "Payment cancelled", "Pagamento cancelado"], back_to_billing: ["契約・請求へ戻る", "Back to billing", "Voltar ao faturamento"],
+  email_log: ["メール送信ログ", "Email log", "Log de e-mails"], el_note: ["FINORAが送信したメールと、メールサーバーでの最終配信結果（約2分ごとに更新）", "Emails sent by FINORA and their final delivery result on the mail server (updated about every 2 minutes)", "E-mails enviados pela FINORA e o resultado final de entrega no servidor (atualizado a cada ~2 minutos)"],
+  el_sync: ["配信状況を更新", "Refresh delivery status", "Atualizar status"], el_synced: ["配信状況を更新しました（{n}件）", "Delivery status refreshed ({n})", "Status atualizado ({n})"], el_synced_at: ["最終更新", "Last sync", "Última atualização"],
+  el_search: ["宛先・件名で検索", "Search recipient or subject", "Buscar destinatário ou assunto"], el_search_btn: ["検索", "Search", "Buscar"], el_all_kinds: ["すべての種類", "All types", "Todos os tipos"], el_all: ["すべて", "All", "Todos"],
+  el_at: ["送信日時", "Sent at", "Enviado em"], el_to: ["宛先", "Recipient", "Destinatário"], el_subject: ["件名", "Subject", "Assunto"], el_kind: ["種類", "Type", "Tipo"], el_status: ["配信状況", "Status", "Status"],
+  el_empty: ["該当するメールはありません", "No emails found", "Nenhum e-mail encontrado"], el_total: ["{n} 件", "{n} emails", "{n} e-mails"], el_prev: ["前へ", "Previous", "Anterior"], el_next: ["次へ", "Next", "Próximo"],
+  el_st_delivered: ["配信済み", "Delivered", "Entregue"], el_st_queued: ["送信中", "Queued", "Na fila"], el_st_deferred: ["遅延中", "Deferred", "Adiado"], el_st_bounced: ["バウンス", "Bounced", "Devolvido"], el_st_failed: ["送信失敗", "Failed", "Falhou"], el_st_logged: ["記録のみ（未送信）", "Logged only (not sent)", "Apenas registrado"],
+  el_kind_invite: ["招待", "Invitation", "Convite"], el_kind_econtract: ["電子契約", "E-contract", "Contrato eletrônico"], el_kind_renewal: ["更新期限", "Renewal notice", "Aviso de renovação"], el_kind_invoice: ["請求書", "Invoice", "Fatura"],
+  el_kind_refund: ["返金", "Refund", "Reembolso"], el_kind_inquiry: ["お問い合わせ", "Inquiry", "Contato"], el_kind_system: ["システム通知", "System alert", "Alerta do sistema"], el_kind_other: ["その他", "Other", "Outros"],
 };

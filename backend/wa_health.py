@@ -33,7 +33,7 @@ async def _mail(ok, detail):
     subject, body = MAIL[ok]
     async for u in db.users.find({"platform_admin": True, "active": {"$ne": False}}, {"email": 1, "name": 1}):
         try:
-            await send_email(to=u["email"], subject=subject, html=_html({**TXT["ja"], "login": ""}, u.get("name") or u["email"], body.format(detail=detail), f"{APP_URL}/platform", "FINORAを開く"))
+            await send_email(to=u["email"], subject=subject, html=_html({**TXT["ja"], "login": ""}, u.get("name") or u["email"], body.format(detail=detail), f"{APP_URL}/platform", "FINORAを開く"), kind="system")
         except Exception as e:  # noqa: BLE001
             logger.error("wa health mail failed: %s", e)
 

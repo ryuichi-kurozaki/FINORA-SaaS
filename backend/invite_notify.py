@@ -25,7 +25,7 @@ async def send_invite(inv, token, lang, tenant_name, client_name, whatsapp, chan
     out = {"email": "SKIPPED", "whatsapp": "SKIPPED"}
     if channel == "email" and inv.get("email"):
         try:
-            await send_email(to=inv["email"], subject=subject, html=_html(x, client_name or inv["email"], body, link, cta))
+            await send_email(to=inv["email"], subject=subject, html=_html(x, client_name or inv["email"], body, link, cta), kind="invite")
             out["email"] = "SENT"
         except Exception as e:  # noqa: BLE001
             logger.error("invite email failed %s: %s", inv["email"], e)

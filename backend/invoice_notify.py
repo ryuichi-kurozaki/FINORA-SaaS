@@ -35,7 +35,7 @@ async def send_invoice_issued(inv, tenant_id):
         link = f"{APP_URL}/billing"
         if email:
             try:
-                await send_email(to=email, subject=subject, html=_html({**TXT[lang], "hello": hello, "login": ""}, name or email, msg, link, cta))
+                await send_email(to=email, subject=subject, html=_html({**TXT[lang], "hello": hello, "login": ""}, name or email, msg, link, cta), kind="invoice")
                 out["email"] = _merge(out["email"], "SENT")
             except Exception:  # noqa: BLE001
                 out["email"] = _merge(out["email"], "FAILED")
