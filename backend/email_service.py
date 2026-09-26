@@ -1,21 +1,27 @@
-"""Transactional email via Emergent managed email proxy (refund receipts)."""
+"""Transactional email via the server's own SMTP (Postfix + DKIM, no per-message cost). EMAIL_TRANSPORT=log only records (preview)."""
+import asyncio
 import ipaddress
 import logging
 import os
 import re
+import smtplib
 from datetime import datetime
+from email.header import Header
+from email.message import EmailMessage
+from email.utils import formataddr, formatdate, make_msgid
 from html import escape
 from html.parser import HTMLParser
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
-import httpx
-
 from core import db
 
 logger = logging.getLogger(__name__)
-EMAIL_BASE_URL = "https://integrations.emergentagent.com"
-EMAIL_KEY = os.environ["EMERGENT_EMAIL_KEY"]
+EMAIL_TRANSPORT = os.environ["EMAIL_TRANSPORT"]
+EMAIL_FROM = os.environ["EMAIL_FROM"]
+EMAIL_REPLY_TO = os.environ["EMAIL_REPLY_TO"]
+SMTP_HOST = os.environ["SMTP_HOST"]
+SMTP_PORT = int(os.environ["SMTP_PORT"])
 EMAIL_FROM_NAME = os.environ["EMAIL_FROM_NAME"]
 APP_URL = os.environ["PUBLIC_APP_URL"].rstrip("/")
 
@@ -94,13 +100,25 @@ def _assert_safe_email(subject: str, html: str) -> None:
 
 async def send_email(*, to: str, subject: str, html: str, reply_to: str | None = None) -> str | None:
     _assert_safe_email(subject, html)
-    payload = {"to": [to], "subject": subject, "html": html, "from_name": EMAIL_FROM_NAME}
-    if reply_to:
-        payload["contact_email"] = reply_to
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(f"{EMAIL_BASE_URL}/api/v1/email/send", headers={"X-Email-Key": EMAIL_KEY}, json=payload)
-    resp.raise_for_status()
-    return resp.json().get("id")
+    msg = EmailMessage()
+    msg["From"] = formataddr((str(Header(EMAIL_FROM_NAME, "utf-8")), EMAIL_FROM))
+    msg["To"] = to
+    msg["Subject"] = subject
+    msg["Reply-To"] = reply_to or EMAIL_REPLY_TO
+    msg["Date"] = formatdate(localtime=True)
+    msg["Message-ID"] = make_msgid(domain=EMAIL_FROM.split("@")[-1])
+    msg.set_content(re.sub(r"<[^>]+>", " ", html))
+    msg.add_alternative(html, subtype="html")
+    if EMAIL_TRANSPORT == "log":
+        logger.info("email (log transport, not sent) to=%s subject=%s", to, subject)
+        await db.email_log.insert_one({"to": to, "subject": subject, "message_id": msg["Message-ID"], "at": datetime.now().isoformat()})
+        return msg["Message-ID"]
+
+    def _send():
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as s:
+            s.send_message(msg)
+    await asyncio.to_thread(_send)
+    return msg["Message-ID"]
 
 
 TEXT = {

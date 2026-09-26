@@ -175,3 +175,8 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - Env: SITE_UPLOAD_DIR (preview /app/backend/site_uploads, prod /data/finora-saas/site-uploads), SITE_INQUIRY_EMAIL. Deploy rsync must --exclude site_uploads
 - iteration_20: backend 14/14, frontend pass; dup testids fixed. Deployed to prod
 - 2026-09 Operator info set (preview + prod DB via /root/tools/prc_company.py): PRC Remit株式会社, 代表 黒崎 龍一, 〒514-0011 三重県津市高洲町23番25号, 設立 2026-05-22, 資本金100万円, TEL 059-212-0393, 事業内容 from prcremit.co.jp/company; history 2026-05 設立. CEO message body & email still placeholder/empty (not published on their site). Corporate number 7190001033156
+
+## 2026-09 Email switched to own SMTP (no per-message cost)
+- email_service.send_email now uses the VPS Postfix (127.0.0.1:25, OpenDKIM signs *@prcremit.co.jp, SPF mx, DMARC p=none). From "FINORA <finora@prcremit.co.jp>", Reply-To info@prcremit.co.jp (finora@ has NO mailbox yet). Emergent managed email no longer used
+- Env: EMAIL_TRANSPORT (prod smtp, preview log → db.email_log only, nothing sent), EMAIL_FROM, EMAIL_REPLY_TO, SMTP_HOST, SMTP_PORT; SITE_INQUIRY_EMAIL=info@prcremit.co.jp (prod & preview)
+- Verified on prod: test mail to Gmail accepted (250 OK) and to info@prcremit.co.jp delivered to maildir
