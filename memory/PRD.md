@@ -107,3 +107,12 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - P2: Staff management UI, configurable reminder days per tenant
 - P3: bank/brokerage/market price API integrations
 - 2026-09 Settings「データ連携」(CSV/Excel import/export) tab now admin-only (hidden for consultants; UI only, API unchanged per user choice). Deployed to prod (frontend)
+
+## 2026-09 Consultant card payouts (manual transfer model)
+- User choice: card payments for consultant invoices settle to FINORA Stripe account; FINORA manually transfers net to consultant bank. No FINORA commission; Stripe fee + bank transfer fee borne by consultant. Card-pay button hidden until tenant registers bank (default)
+- backend/payouts.py: GET/PUT /api/payouts/bank (tenant admin; Fernet-encrypted tenants.payout_bank.enc; audit masked), GET /api/payouts (tenant pending + history), GET /api/platform/payouts, POST /api/platform/payouts/{tid} {transfer_fee, transfer_date, note} → db.payouts + payments.payout_settled, notify payout_sent
+- Pending per payment = amount − refunded_amount − stripe_fee − payout_settled (refund after payout → negative carry-over). stripe_fee recorded at fulfillment from balance_transaction (fallback 3.6% estimate, flagged)
+- checkout_invoice 409 without bank; invoice list card_enabled
+- UI: Settings 請求者情報 tab → PayoutSettings (bank form + payout status); Platform → 送金管理 tab (PayoutsPanel)
+- iteration_14: backend 22/22, frontend pass. Deployed to prod
+- Note: FINORA holding client funds temporarily — user advised to confirm 収納代行 legal treatment
