@@ -12,28 +12,44 @@ import { ST } from "@/pages/Billing";
 
 const HC = { ok: "bg-emerald-50 text-emerald-700", review: "bg-amber-50 text-amber-700", attention: "bg-red-50 text-red-700" };
 
+function DeliveryBadges({ d, t }) {
+  if (!d) return <span className="text-xs text-slate-400">—</span>;
+  const cls = { SENT: "bg-emerald-50 text-emerald-700", FAILED: "bg-red-50 text-red-700", SKIPPED: "bg-slate-100 text-slate-400" };
+  return <span className="flex flex-wrap gap-1">{[["email", "email"], ["whatsapp", "WhatsApp"]].map(([k, l]) => <span key={k} className={`rounded-md px-1.5 py-0.5 text-[10px] ${cls[d[k]]}`} data-testid={`delivery-${k}`}>{k === "email" ? t("email") : l} {t(`dlv_${d[k]}`)}</span>)}</span>;
+}
+
 function InviteDialog({ client, onClose, onDone }) {
   const { t } = useApp();
-  const [email, setEmail] = useState("");
-  const [link, setLink] = useState("");
+  const { data: rec } = useApi(`/data/clients/${client.id}`, [client.id]);
+  const [f, setF] = useState(null);
+  const [res, setRes] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const v = f || { email: rec?.email || "", whatsapp: rec?.whatsapp || "" };
   const send = async () => {
-    try { const { data } = await api.post("/invitations", { client_id: client.id, email }); setLink(`${window.location.origin}${data.path}`); onDone(); } catch (e) { toast.error(errMsg(e)); }
+    setBusy(true);
+    try { const { data } = await api.post("/invitations", { client_id: client.id, ...v }); setRes({ link: `${window.location.origin}${data.path}`, d: data.delivery }); onDone(); } catch (e) { toast.error(errMsg(e)); }
+    setBusy(false);
   };
+  const inp = "mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm";
   return (
-    <Dialog open={!!client} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>{t("invite_client")} · {client?.name}</DialogTitle></DialogHeader>
-        {!link ? (
-          <label className="text-xs text-slate-600">{t("email")}<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm" data-testid="invite-email" /></label>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md" data-testid="invite-dialog">
+        <DialogHeader><DialogTitle>{t("invite_client")} · {client.name}</DialogTitle></DialogHeader>
+        {!res ? (
+          <div className="grid gap-3">
+            <label className="text-xs text-slate-600">{t("email")}<input type="email" value={v.email} onChange={(e) => setF({ ...v, email: e.target.value })} className={inp} data-testid="invite-email" /></label>
+            <label className="text-xs text-slate-600">{t("client_whatsapp")}<input value={v.whatsapp} onChange={(e) => setF({ ...v, whatsapp: e.target.value })} placeholder="090-1234-5678 / +55 11 91234-5678" className={inp} data-testid="invite-whatsapp" /></label>
+            <p className="text-[11px] text-slate-500">{t("invite_send_note")}</p>
+          </div>
         ) : (
-          <div className="space-y-2" data-testid="invite-link-box">
+          <div className="space-y-3" data-testid="invite-link-box">
+            <DeliveryBadges d={res.d} t={t} />
             <div className="text-xs text-slate-500">{t("invite_link")}</div>
-            <div className="flex gap-2"><input readOnly value={link} className="h-10 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 font-num text-xs" data-testid="invite-link" />
-              <Button variant="outline" onClick={() => { navigator.clipboard?.writeText(link); toast.success(t("copied")); }} data-testid="invite-copy"><Copy className="h-4 w-4" /></Button></div>
-            <p className="text-[11px] text-[#8a6d12]">{t("invite_mock_note")}</p>
+            <div className="flex gap-2"><input readOnly value={res.link} className="h-10 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 font-num text-xs" data-testid="invite-link" />
+              <Button variant="outline" onClick={() => { navigator.clipboard?.writeText(res.link); toast.success(t("copied")); }} data-testid="invite-copy"><Copy className="h-4 w-4" /></Button></div>
           </div>
         )}
-        {!link && <DialogFooter><Button className="btn-emerald" onClick={send} disabled={!email.includes("@")} data-testid="invite-send">{t("invite")}</Button></DialogFooter>}
+        {!res && <DialogFooter><Button className="btn-emerald" onClick={send} disabled={busy || !v.email.includes("@")} data-testid="invite-send">{t("invite")}</Button></DialogFooter>}
       </DialogContent>
     </Dialog>
   );
@@ -43,15 +59,18 @@ export function InvitationsList({ clientId, k }) {
   const { t } = useApp();
   const { data, reload } = useApi(`/invitations${clientId ? `?client_id=${clientId}` : ""}`, [clientId, k]);
   const cancel = async (id) => { try { await api.post(`/invitations/${id}/cancel`); reload(); } catch (e) { toast.error(errMsg(e)); } };
+  const resend = async (id) => { try { await api.post(`/invitations/${id}/resend`); toast.success(t("invite_resent")); reload(); } catch (e) { toast.error(errMsg(e)); } };
   if (!data?.length) return null;
   return (
     <Card><CardTitle>{t("invitations")}</CardTitle>
-      <div className="overflow-x-auto"><table className="data-table w-full min-w-[600px] text-sm" data-testid="invitation-table">
-        <thead><tr>{["email", "invited_by", "date", "expiry_date", "status", ""].map((h) => <th key={h}>{h && t(h)}</th>)}</tr></thead>
+      <div className="overflow-x-auto"><table className="data-table w-full min-w-[760px] text-sm" data-testid="invitation-table">
+        <thead><tr>{["email", "client_whatsapp", "invite_delivery", "invited_by", "date", "expiry_date", "status", ""].map((h) => <th key={h}>{h && t(h)}</th>)}</tr></thead>
         <tbody>{data.map((i) => (
-          <tr key={i.id}><td>{i.email}</td><td>{i.invited_by_name}</td><td className="font-num">{fmtDate(i.created_at)}</td><td className="font-num">{fmtDate(i.expires_at)}</td>
+          <tr key={i.id}><td>{i.email}</td><td className="font-num text-xs">{i.whatsapp_masked || "—"}</td><td><DeliveryBadges d={i.delivery} t={t} /></td>
+            <td>{i.invited_by_name}</td><td className="font-num">{fmtDate(i.created_at)}</td><td className="font-num">{fmtDate(i.expires_at)}</td>
             <td><span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs">{t(i.status)}</span></td>
-            <td>{i.status === "PENDING" && <button className="text-xs text-red-600" onClick={() => cancel(i.id)} data-testid={`invitation-cancel-${i.id}`}>{t("CANCELLED")}</button>}</td></tr>
+            <td className="whitespace-nowrap">{["PENDING", "EXPIRED"].includes(i.status) && <button className="mr-3 text-xs text-[#00A878]" onClick={() => resend(i.id)} data-testid={`invitation-resend-${i.id}`}>{t("invite_resend")}</button>}
+              {i.status === "PENDING" && <button className="text-xs text-red-600" onClick={() => cancel(i.id)} data-testid={`invitation-cancel-${i.id}`}>{t("CANCELLED")}</button>}</td></tr>
         ))}</tbody>
       </table></div>
     </Card>
@@ -98,7 +117,7 @@ export default function ClientOverviewTable() {
         )}
       </Card>
       <InvitationsList k={k} />
-      <InviteDialog key={inv?.id} client={inv} onClose={() => setInv(null)} onDone={() => setK(k + 1)} />
+      {inv && <InviteDialog key={inv.id} client={inv} onClose={() => setInv(null)} onDone={() => setK(k + 1)} />}
     </div>
   );
 }

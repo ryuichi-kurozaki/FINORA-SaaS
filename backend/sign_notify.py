@@ -14,6 +14,12 @@ logger = logging.getLogger(__name__)
 WA_URL = os.environ["WHATSAPP_SERVICE_URL"].rstrip("/")
 KINDS = ("econtract_important_sent", "econtract_agreement_sent", "econtract_recipient_signed")
 
+
+def wa_digits(p):
+    """Digits-only WhatsApp number; a domestic JP number (leading single 0) gets country code 81."""
+    d = re.sub(r"\D", "", p or "")
+    return "81" + d[1:] if d.startswith("0") and not d.startswith("00") else d.lstrip("0") or None
+
 TXT = {
     "ja": {"econtract_important_sent": ("【FINORA】重要事項説明書のご確認のお願い（{number}）", "{issuer}から「{service}」の重要事項説明書が届きました。内容をご確認のうえ、確認・同意をお願いいたします。"),
            "econtract_agreement_sent": ("【FINORA】契約書へのご署名のお願い（{number}）", "{issuer}から「{service}」の契約書が届きました。内容をご確認のうえ、電子署名をお願いいたします。"),
@@ -93,7 +99,7 @@ async def _deliver(c, u, kind, x, subject, body, cta):
     phone, opted = u.get("whatsapp_phone"), u.get("whatsapp_opt_in")
     if not phone and u.get("role") == "client" and u.get("client_id"):
         cl = await db.clients.find_one({"id": u["client_id"]}, {"whatsapp": 1}) or {}
-        phone = re.sub(r"\D", "", decrypt(cl["whatsapp"])) if cl.get("whatsapp") else None
+        phone = wa_digits(decrypt(cl["whatsapp"])) if cl.get("whatsapp") else None
         opted = bool(phone)
     if not (WA_URL and phone and opted):
         return
