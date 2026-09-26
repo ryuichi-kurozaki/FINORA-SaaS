@@ -2,6 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import EContractPanel from "@/components/econtract/EContractPanel";
+import PayoutsPanel from "@/components/PayoutsPanel";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/context/AppContext";
@@ -108,9 +109,10 @@ export default function Platform() {
     <div data-testid="platform-page">
       <PageHeader eyebrow="FINORA Platform" title={t("platform")} sub={t("platform_note")} />
       <Tabs defaultValue="tenants">
-        <TabsList className="bg-white/70">{["tenants", "ec_consultant_contracts", "plans", "audit_logs"].map((k) => <TabsTrigger key={k} value={k} data-testid={`platform-tab-${k}`} className="data-[state=active]:bg-[#071A2B] data-[state=active]:text-white">{t(k)}</TabsTrigger>)}</TabsList>
+        <TabsList className="bg-white/70">{["tenants", "ec_consultant_contracts", "payouts", "plans", "audit_logs"].map((k) => <TabsTrigger key={k} value={k} data-testid={`platform-tab-${k}`} className="data-[state=active]:bg-[#071A2B] data-[state=active]:text-white">{t(k)}</TabsTrigger>)}</TabsList>
         <TabsContent value="tenants" className="mt-5"><Tenants /></TabsContent>
         <TabsContent value="ec_consultant_contracts" className="mt-5"><EContractPanel type="FINORA_SAAS" allowCreate title={t("ec_consultant_contracts")} /></TabsContent>
+        <TabsContent value="payouts" className="mt-5"><PayoutsPanel /></TabsContent>
         <TabsContent value="plans" className="mt-5"><Plans /></TabsContent>
         <TabsContent value="audit_logs" className="mt-5"><PlatformAudit /></TabsContent>
       </Tabs>

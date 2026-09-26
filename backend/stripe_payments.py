@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from core import forbid_demo, db, new_id, now_iso, current, admin_only, audit, notify, consultant_ids, client_user_ids
 from billing import get_invoice, recompute
 from email_service import send_refund_receipt
+from payouts import record_fee
 from tenancy import customer_fee
 
 router = APIRouter(prefix="/api")
@@ -60,6 +61,8 @@ async def checkout_invoice(body: CheckoutIn, user=Depends(current)):
     inv = await get_invoice(user, body.invoice_id or "")
     if inv["status"] not in PAYABLE or inv["balance"] <= 0:
         raise HTTPException(409, "This invoice is not payable")
+    if not (await db.tenants.find_one({"id": user["tenant_id"]}, {"payout_bank": 1}) or {}).get("payout_bank"):
+        raise HTTPException(409, "カード決済は現在ご利用いただけません (Card payment is not available for this invoice)")
     s = _session(f"Invoice {inv['number']}", inv["balance"], body.origin_url,
                  {"kind": "invoice", "invoice_id": inv["id"], "tenant_id": user["tenant_id"]})
     await _record(s, "invoice", user, inv["balance"], {"invoice_id": inv["id"], "client_id": inv["client_id"], "invoice_number": inv["number"]})
@@ -93,6 +96,7 @@ async def _fulfill(session_id, pi=None):
                "date": date.today().isoformat(), "amount": tx["amount"], "method": "CREDIT_CARD", "reference": pi or session_id,
                "notes": "Stripe", "source": "STRIPE", "created_by": actor["id"], "created_by_name": actor["name"], "created_at": now_iso()}
         await db.payments.insert_one(doc)
+        await record_fee(doc["id"], pi, tx["amount"])
         await recompute(inv["id"])
         doc.pop("_id", None)
         await audit(actor, "create", "payments", doc["id"], after=dict(doc), client_id=inv["client_id"], label=f"{inv['number']} ¥{tx['amount']:,.0f} (card)")

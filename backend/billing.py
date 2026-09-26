@@ -123,7 +123,8 @@ async def list_invoices(client_id: Optional[str] = None, status: Optional[str] =
     nm = await names(user["tenant_id"])
     refundable = set(await db.payments.distinct("invoice_id", {"tenant_id": user["tenant_id"], "source": "STRIPE", "refunded": {"$ne": True}})) \
         if user["role"] == "admin" else set()
-    out = [clean(i) | {"client_name": nm.get(i["client_id"]), "card_refundable": i["id"] in refundable} for i in invs]
+    card = bool((await db.tenants.find_one({"id": user["tenant_id"]}, {"payout_bank": 1}) or {}).get("payout_bank"))
+    out = [clean(i) | {"client_name": nm.get(i["client_id"]), "card_refundable": i["id"] in refundable, "card_enabled": card} for i in invs]
     return [i for i in out if not status or i["status"] == status]
 
 

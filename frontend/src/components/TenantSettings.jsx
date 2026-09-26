@@ -6,6 +6,7 @@ import { useApp } from "@/context/AppContext";
 import { api, errMsg, useApi } from "@/lib/api";
 import { yen } from "@/lib/format";
 import { Card, CardTitle, Spinner } from "@/components/common";
+import PayoutSettings from "@/components/PayoutSettings";
 
 const FIELDS = ["company_name", "representative", "address", "phone", "email", "registration_no", "bank_info", "invoice_note"];
 
@@ -67,5 +68,5 @@ function Subscription() {
 }
 
 export default function TenantSettings() {
-  return <div className="grid gap-6 xl:grid-cols-2"><BillingProfile /><Subscription /></div>;
+  return <div className="grid gap-6 xl:grid-cols-2"><BillingProfile /><Subscription /><PayoutSettings /></div>;
 }
