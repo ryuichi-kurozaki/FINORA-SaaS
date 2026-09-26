@@ -174,3 +174,4 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - Inquiry email to SITE_INQUIRY_EMAIL=info@finora.co.jp — currently UNDELIVERABLE (finora.co.jp has no MX record); inquiries still saved (Settings → inquiries)
 - Env: SITE_UPLOAD_DIR (preview /app/backend/site_uploads, prod /data/finora-saas/site-uploads), SITE_INQUIRY_EMAIL. Deploy rsync must --exclude site_uploads
 - iteration_20: backend 14/14, frontend pass; dup testids fixed. Deployed to prod
+- 2026-09 Operator info set (preview + prod DB via /root/tools/prc_company.py): PRC Remit株式会社, 代表 黒崎 龍一, 〒514-0011 三重県津市高洲町23番25号, 設立 2026-05-22, 資本金100万円, TEL 059-212-0393, 事業内容 from prcremit.co.jp/company; history 2026-05 設立. CEO message body & email still placeholder/empty (not published on their site). Corporate number 7190001033156
