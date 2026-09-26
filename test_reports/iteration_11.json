@@ -1,0 +1,40 @@
+{
+  "summary": "End-to-end verification of FINORA two-tier e-contract feature (Tier B CONSULTING + Tier A FINORA_SAAS). 27/27 pytest cases pass, covering: state machine (statement→confirm→agreement→recipient sign→issuer sign→ACTIVE with 409/403 on out-of-order or wrong-role calls), doc integrity (SHA-256), evidence trail (ip/user_agent/party/CONFIRM/SIGN acts), PDF generation (%PDF, Portuguese), auto-DRAFT invoice on B ACTIVE, billing_contract creation, client 'contract' document, amendment (v1→ENDED AMENDED, v2 ACTIVE), /end with billing_contract ENDED, tenant isolation (client_a, consultantb → 404), legacy /api/data/contracts POST 403, signup auto-sends FINORA statement, gated endpoints (clients/invitations 403 before A ACTIVE), A end with consultant_login=blocked → login 403. UI verified on preview: sidebar-nav-my_contracts, /my-contracts ec-group-* grouped list, ec-stepper, ec-confirm-check + ec-confirm-btn (client), ec-sign-name + ec-signature-pad (canvas mouse drag) + ec-sign-agree + ec-sign-submit → FIRST_PARTY_SIGNED, ec-issuer-sign-card (admin) → ACTIVE, ec-pdf-important/ec-pdf-agreement visible, ClientDetail 契約 tab → ec-panel-CONSULTING + ec-new-btn opens econtract-form with ec-service/ec-fee/ec-save, /platform platform-tab-ec_consultant_contracts lists FINORA contracts. Mobile 390px /econtracts/:id has 0px horizontal overflow.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SignaturePad.jsx", "issue": "data-testid was 'signature-pad'/'signature-clear' but spec requires 'ec-signature-pad'/'ec-signature-clear'. Fixed by testing agent.", "selector": "[data-testid='ec-signature-pad']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Header <select> JA/EN/PT", "issues": ["Hydration warning: <span> inside <option> (React DevTools instrumentation, harmless — pre-existing from iteration_9/10)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_econtracts_flow.py",
+    "/app/test_reports/pytest/econtracts_flow.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "econtract.py state machine is well-guarded: _move() uses find_one_and_update with $in status filter — atomic and race-free. Good.",
+    "load() correctly hides DRAFT from client role and returns 404 for cross-tenant/cross-client access (verified).",
+    "is_issuer/is_recipient split cleanly by contract_type; FINORA_SAAS confirm auto-issues agreement inside /confirm — good UX shortcut.",
+    "_activate() writes PDF to GridFS, links pdf_file_id on econtract_docs, and mirrors into documents collection with category='contract' — correct.",
+    "Amendment: parent superseded_by + status ENDED with end_reason=AMENDED works; billing_contract ENDED cascade OK.",
+    "Signup gate: tenants.finora_contract_required=True + finora_contract!='ACTIVE' blocks require_service; verified via /api/data/clients POST and /api/invitations POST both 403 before A ACTIVE, both allowed after.",
+    "auth_routes.end_policy check returns 403 for a consultant with tenant.finora_contract='ENDED' and end_policy.consultant_login='blocked' — verified.",
+    "Consistency: FS-* counter uses tenant='platform' so no collision across tenants; CC-* per-tenant. Good.",
+    "SignaturePad component still uses onPointerDown/Move/Up — works in Playwright by dispatching mouse events (page.mouse.down/move); confirmed."
+  ],
+  "updated_files": [
+    "/app/frontend/src/components/econtract/SignaturePad.jsx",
+    "/app/backend/tests/test_econtracts_flow.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "See /app/memory/test_credentials.md. Ephemeral signup tenant created per pytest run (Signup TEST LLC), auto-ended by A-flow test.",
+  "seed_data_creation": "TestBFlow created CONSULTING contract on client2 (Ana Paula) → amended → ended (retention 30d). TestAmendment created v2 → ended. UI test created CC-00003 v1 ACTIVE on client@finora.co.jp (佐藤 健一). TestAFlow signup created FS-00005 for Signup TEST LLC (now ENDED, consultant login blocked). All test data is TEST_-prefixed or explicitly ended.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "SignaturePad data-testid renamed from signature-pad/signature-clear → ec-signature-pad/ec-signature-clear. If any other test file (e.g. UI regression) uses the old selector, update it. On preview: CC-00003 is now ACTIVE for 佐藤 (client@finora.co.jp) alongside existing CC-00001; peak customer count may bump billing. Signup rate-limit is 5/IP/hour — reused signup in this iteration counts against the pod's IP.",
+  "rca of the issue": "N/A — feature verification pass. Only fix applied: aligned SignaturePad data-testid names with spec (spec used ec-* prefix, implementation used bare names)."
+}

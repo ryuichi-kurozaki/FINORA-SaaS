@@ -19,8 +19,8 @@ export default function SignaturePad({ onChange, t }) {
   return (
     <div>
       <canvas ref={ref} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={up}
-        className="h-36 w-full touch-none rounded-xl border-2 border-dashed border-slate-300 bg-white" data-testid="signature-pad" />
-      <button type="button" onClick={clear} className="mt-1 text-xs text-slate-500 underline" data-testid="signature-clear">{t("ec_clear_sign")}</button>
+        className="h-36 w-full touch-none rounded-xl border-2 border-dashed border-slate-300 bg-white" data-testid="ec-signature-pad" />
+      <button type="button" onClick={clear} className="mt-1 text-xs text-slate-500 underline" data-testid="ec-signature-clear">{t("ec_clear_sign")}</button>
     </div>
   );
 }
