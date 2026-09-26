@@ -1,7 +1,7 @@
 """Tenancy: consultant signup (own tenant), customer invitations, FINORA SaaS plans/subscriptions (separate ledger), platform admin."""
 import hashlib
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -87,12 +87,17 @@ class InviteIn(BaseModel):
 REMIND_EVERY_DAYS, MAX_REMINDERS = 3, 2
 
 
+def _utc(s):
+    d = datetime.fromisoformat(s)
+    return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+
+
 async def remind_scan(at=None):
     """Auto-resend PENDING invitations 3 and 6 days after creation (new link, +7 days)."""
-    t, sent = at or now(), []
+    t, sent = (_utc(at.isoformat()) if at else now()), []
     async for i in db.invitations.find({"status": "PENDING", "reminders_sent": {"$not": {"$gte": MAX_REMINDERS}}}):
         n = i.get("reminders_sent", 0)
-        if i.get("expires_at", "") < t.isoformat() or t < datetime.fromisoformat(i["created_at"]) + timedelta(days=REMIND_EVERY_DAYS * (n + 1)):
+        if not i.get("expires_at") or _utc(i["expires_at"]) < t or t < _utc(i["created_at"]) + timedelta(days=REMIND_EVERY_DAYS * (n + 1)):
             continue
         inviter = await db.users.find_one({"id": i["invited_by"]})
         if not inviter:

@@ -1,0 +1,44 @@
+{
+  "summary": "Iter17: WA-health banner + email transitions, invoice-issue delivery, invitation auto-reminder (3d/6d, max 2). Backend pytest 8/8 pass in /app/backend/tests/test_iter17_features.py. Frontend browser test verifies banner visibility for platform admin (ryuichi) and tenant admin (consultantb), and its absence for consultant/client. Found and reported ONE HIGH-priority robustness bug in tenancy.remind_scan (tz-naive vs tz-aware crash).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/invitations/reminders/run (tenancy.remind_scan)", "issue": "HTTP 500 (TypeError: can't compare offset-naive and offset-aware datetimes) if ANY PENDING invitation in DB has a tz-naive created_at/expires_at. remind_scan compares core.now() (tz-aware UTC) with datetime.fromisoformat(created_at) which is naive when the stored ISO string lacks a tz offset. One such legacy row existed in preview DB (id=7e4a281b-…, created_at='2026-09-22T18:48:40.731320' with no +00:00). Also, the hourly renewal.loop wraps this in try/except so the outer loop survives, but NO reminders get sent for the rest of the invitations in that pass. And POST /api/invitations/reminders/run always 500s while such a row exists. Fix: coerce created_at/expires_at parsing to be tz-aware (if tzinfo is None → attach timezone.utc) both in remind_scan and in the `datetime.fromisoformat(at)` path in run_reminders. Consider also `datetime.fromisoformat(i['expires_at']).astimezone(timezone.utc)` to normalize.", "priority": "HIGH"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Header (Layout.jsx:95)", "issues": ["React hydration warning: <span> inside <option> (header-client-selector). Emitted by an instrumentation wrapper (data-ve-dynamic span) but still surfaces a real hydration error in console. Not blocking but should be cleaned to keep console clean for real errors."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter17_features.py",
+    "/app/test_reports/pytest/iter17.xml"
+  ],
+  "action_items": [
+    "HIGH: Fix tz-naive/aware comparison in backend/tenancy.py remind_scan (line 95) and run_reminders (line 113). Suggested minimal patch: `def _aw(s): d = datetime.fromisoformat(s); return d if d.tzinfo else d.replace(tzinfo=timezone.utc)` and use it for created_at + expires_at. Same for `at` query param.",
+    "LOW: Clean up the header-client-selector <option> to avoid nested <span> hydration warnings (Layout.jsx:95).",
+    "Regression retest: after fix, re-run /app/backend/tests/test_iter17_features.py::TestReminderScan to confirm 500 is gone even with legacy naive rows (or add a data-migration to normalize existing invitations)."
+  ],
+  "critical_code_review_comments": [
+    "wa_health.check() correctly requires 2 consecutive failures before flipping ok=false, never mails on first-ever check when prev is empty (guarded by `prev.get('ok') != ok` AND `not ok or prev.get('ok') is False`), and does not spam while still down. Verified end-to-end via monkeypatched probe.",
+    "wa_health.GET /api/system/wa-health suppresses `detail` for non-platform_admin admins (verified — consultantb sees banner without unreachable string).",
+    "invoice_notify.send_invoice_issued: correctly prefers active client users' whatsapp_phone (when opt-in) else falls back to clients.whatsapp; card_clients() gates card vs bank wording. issue_delivery is persisted on the invoice after issue.",
+    "tenancy.remind_scan uses a $in guard on reminders_sent in the update filter to prevent duplicate concurrent increments — nice.",
+    "tenancy.remind_scan tz-bug (HIGH, described above).",
+    "renewal.loop wraps both scan and remind_scan in try/except and continues — but the log message is generic. Consider adding the invitation id that failed to help diagnostics.",
+    "server.py include_router order: wa_health.router included; startup task app.state.wa_health_task = asyncio.create_task(wa_health.loop()) launched — confirmed no startup errors in backend.out.log."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter17_features.py"
+  ],
+  "success_rate": {"backend": "100% (8/8 after data cleanup)", "frontend": "100% (banner visibility across 4 roles verified)"},
+  "test_credentials": "ryuichi.kurozaki@gmail.com / Finora2026! (platform admin + tenant admin); consultantb@finora.co.jp / Finora2026! (tenant B admin — hits payout gate but banner still renders above modal); consultant@finora.co.jp / Finora2026!; client@finora.co.jp / Finora2026!.",
+  "seed_data_creation": "Test inserts ONE PENDING invitation with created_at 3.5d ago, mutates to 6.5d ago mid-test, then CANCELs it. Test creates ONE DRAFT invoice for total ¥1100 (TEST_iter17 delivery item), issues it, then CANCELs it (invoice remains as CANCELLED status). WA-health state was flipped down→up→down during monkeypatched test; restored to {ok:false, fails:9, detail:'unreachable (ConnectError)'} at end so the banner stays visible for further manual QA.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "After main agent applies the tz fix in tenancy.remind_scan, rerun /app/backend/tests/test_iter17_features.py -o addopts= (pytest.ini adds -n loadscope which reorders and can hide the bug via worker isolation). Also delete or normalize any legacy naive `created_at` invitations in prod. WHATSAPP_SERVICE_URL is intentionally 127.0.0.1:3999 in preview — WhatsApp deliveries should always be FAILED (when number present) or SKIPPED (when absent). wa_health system_state is seeded down so banner is visible for UI tests. Test credentials in /app/memory/test_credentials.md. Note: initial preview DB had one naive-tz PENDING invitation (id=7e4a281b-7f8b-4456-9986-89a98b778603) which I normalized (appended +00:00 to created_at/expires_at) so remind_scan could proceed. This means the underlying code bug is now hidden unless another naive row is created — recommend adding a regression test that inserts a naive-tz invitation and verifies remind_scan does NOT 500.",
+  "rca of the issue": "tenancy.remind_scan uses core.now() (tz-aware UTC) and compares it to `datetime.fromisoformat(i['created_at']) + timedelta(...)`. If the stored ISO string omits a tz offset (e.g. legacy `2026-09-22T18:48:40.731320`), fromisoformat returns a naive datetime; Python then raises TypeError on `t < naive_dt`. Trigger: any single PENDING invitation with naive created_at causes the entire scan (and endpoint) to 500. Repro: insert `{status:'PENDING', created_at:'2026-09-22T18:48:40.731320', expires_at:'2026-09-29T18:48:40.731320', reminders_sent:0, ...}` and POST /api/invitations/reminders/run → 500. Mitigation: normalize on read (`d.replace(tzinfo=timezone.utc) if d.tzinfo is None else d`) or a one-shot migration to append +00:00 to all naive iso strings in invitations."
+}

@@ -139,3 +139,12 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - PRC Time WhatsApp service (8010) no longer used by FINORA (user choice). Do not modify JWSEA/PRC services
 - Test message sent 2026-09-26 to +81 90-3938-7570 OK
 - Open security risk (not fixed, awaiting user approval): https://prc-time.jp/whatsapp/ (nginx proxy to 8010) is public without auth → /send, /send-bulk, /disconnect, /qr callable by anyone. Fix must not break PRC Time frontend
+
+## 2026-09 WhatsApp health alert + invoice issue notifications + invite auto-reminders
+- backend/wa_health.py: 5-min probe of {WHATSAPP_SERVICE_URL}/status; down after 2 consecutive failures; emails platform admins on down / recovery; GET /api/system/wa-health (role admin; detail only for platform admin). db.system_state {id:'wa_health'}
+- Frontend WaHealthBanner (red) for non-demo role=admin (platform admin + tenant admins)
+- backend/invoice_notify.py: on POST /invoices/{id}/issue → email + WhatsApp to client users (or client record contact); card wording if client in card_clients else bank-transfer; stored invoices.issue_delivery
+- tenancy.remind_scan: PENDING invites auto-resent at +3d and +6d after created_at (max 2), new token, +7d expiry, reminders_sent/last_reminded_at; runs in hourly renewal.loop; POST /api/invitations/reminders/run?at= (platform admin). tz-naive dates handled (_utc)
+- sign_notify.wa_send helper; email body white-space:pre-line
+- Preview .env WHATSAPP_SERVICE_URL=http://127.0.0.1:3999 (intentionally unreachable; system_state seeded down to avoid alert emails)
+- iteration_17: backend 8/8, frontend pass; tz bug fixed & verified. Deployed to prod (prod wa_health ok)
