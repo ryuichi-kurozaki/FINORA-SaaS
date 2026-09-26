@@ -13,7 +13,7 @@ export default function EContractForm({ type, clientId, onClose, onDone }) {
   const saas = type === "FINORA_SAAS";
   const { data: tenants } = useApi(saas ? "/platform/tenants" : null);
   const { data: plans } = useApi(saas ? "/platform/plans" : null);
-  const [f, setF] = useState({ tenant_id: "", lang: lang || "ja", service_name: saas ? "FINORA" : "", description: "", fee_type: "MONTHLY", fee: 0, tax_mode: "exclusive",
+  const [f, setF] = useState({ tenant_id: "", lang: lang || "ja", service_name: saas ? "FINORA SaaS" : "", description: "", fee_type: "MONTHLY", fee: 0, tax_mode: "exclusive",
     tax_rate: 10, start_date: today(), end_date: "", billing_day: 1, payment_terms_days: 30, auto_renew: true, plan_code: "STANDARD" });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value });
   const save = async () => {

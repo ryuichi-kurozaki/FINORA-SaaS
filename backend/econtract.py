@@ -263,7 +263,7 @@ async def start_finora_contract(tenant_id, owner, request):
     sub = await db.saas_subscriptions.find_one({"tenant_id": tenant_id}) or {}
     plan = sub.get("plan_code") if sub.get("plan_code") not in (None, "TRIAL", "FREE") else "STANDARD"
     body = ECIn(contract_type="FINORA_SAAS", tenant_id=tenant_id, lang=owner.get("lang") or "ja",
-                terms=TermsIn(service_name="FINORA", description="", start_date=date.today().isoformat(), plan_code=plan))
+                terms=TermsIn(service_name="FINORA SaaS", description="", start_date=date.today().isoformat(), plan_code=plan))
     c = await create_contract(owner, body, request, actor_id="system")
     doc = await _issue(c, "important", "system")
     c = await _move(c, ["DRAFT"], "IMPORTANT_INFO_SENT", owner, request, "send_important", doc=doc)
