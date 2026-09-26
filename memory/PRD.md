@@ -4,6 +4,7 @@
 FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人・法人の資産／投資／負債／キャッシュフロー／金融口座を一元管理し、AI分析・リスク管理・将来シミュレーション・コンサルティング支援を行う。デザイン「Premium FinTech × Near Future」、ブランドカラー Midnight Navy #071A2B / Emerald #00A878 / Gold #C9A227。ロール：管理者・コンサルタント・顧客。Phase 1〜8 の順で開発。
 
 ## User Choices
+- 【重要】ユーザーとのやり取りは必ず日本語で行うこと（ユーザー指定・全エージェント共通）
 - 全Phaseを最後まで実装
 - AIは課金なし → 決定論的ルールエンジン（finora-rule-engine-v1、将来LLMに差し替え可能）
 - JWT（メール＋パスワード）、2FAは後のPhase
