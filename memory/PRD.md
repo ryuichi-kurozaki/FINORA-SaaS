@@ -132,3 +132,7 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - sign_notify.wa_digits normalizes numbers (JP leading 0 → 81)
 - iteration_16: backend 6/6, frontend pass. Deployed to prod
 - 2026-09 WhatsApp invite icon: 顧客一覧 actions have green WhatsApp icon → WhatsApp-only invite (channel=whatsapp, email optional; client enters own email on /invite accept). Delivery shown as mail/WhatsApp icon badges. Self-tested (curl + screenshots). Deployed to prod
+
+## WhatsApp decision (user, 2026-09)
+- FINORA intentionally SHARES PRC Time's WhatsApp service (/data/prc-time/whatsapp-service, PM2 'prc-whatsapp', port 8010, sender +81 90-3938-7570). Do NOT create a separate FINORA WhatsApp service/number unless user asks
+- Open security risk (not fixed, awaiting user approval): https://prc-time.jp/whatsapp/ (nginx proxy to 8010) is public without auth → /send, /send-bulk, /disconnect, /qr callable by anyone. Fix must not break PRC Time frontend
