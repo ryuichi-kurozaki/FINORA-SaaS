@@ -25,6 +25,8 @@ import Timeline from "@/pages/Timeline";
 import Notifications from "@/pages/Notifications";
 import Billing from "@/pages/Billing";
 import Platform from "@/pages/Platform";
+import EContractDetail from "@/pages/EContractDetail";
+import EContractPanel from "@/components/econtract/EContractPanel";
 import { Signup, InviteAccept } from "@/pages/Signup";
 import { PaymentSuccess, PaymentCancel } from "@/pages/PaymentResult";
 import Legal from "@/pages/Legal";
@@ -70,6 +72,8 @@ function App() {
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/billing" element={<Billing />} />
               <Route path="/platform" element={<Platform />} />
+              <Route path="/econtracts/:id" element={<EContractDetail />} />
+              <Route path="/my-contracts" element={<div className="space-y-6"><EContractPanel grouped /></div>} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/documents" element={<Documents />} />
               <Route path="/tasks" element={<EntityPage entity="tasks" />} />

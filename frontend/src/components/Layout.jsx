@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { ArrowLeftRight, Bell, BellRing, Brain, Briefcase, Building2, CalendarClock, ChartLine, ChartPie, FileBarChart, FolderLock, Gauge, HeartPulse, History, Landmark, LayoutDashboard, LogOut, Menu, Receipt, Settings, ShieldAlert, Target, Telescope, Users, Wallet, Scale, Waves } from "lucide-react";
+import { ArrowLeftRight, Bell, BellRing, Brain, Briefcase, Building2, CalendarClock, ChartLine, ChartPie, FileBarChart, FolderLock, Gauge, HeartPulse, History, Landmark, LayoutDashboard, LogOut, Menu, PenLine, Receipt, Settings, ShieldAlert, Target, Telescope, Users, Wallet, Scale, Waves } from "lucide-react";
 import { NotificationBell } from "@/pages/Notifications";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -15,7 +15,7 @@ export const NAV = [
   ["assets", "Assets", "/assets", Wallet], ["transactions", "Transactions", "/transactions", ArrowLeftRight], ["portfolio", "Portfolio", "/portfolio", ChartPie],
   ["liabilities", "Liabilities", "/liabilities", Scale], ["cashflow", "Cash Flow", "/cashflow", Waves], ["goals", "Goals", "/goals", Target],
   ["analytics", "Analytics", "/analytics", ChartLine], ["simulation", "Simulation", "/simulation", Telescope], ["risk", "Risk", "/risk", ShieldAlert],
-  ["data_health", "Data Health", "/data-health", HeartPulse], ["ai_insight", "AI Insight", "/ai", Brain], ["consulting", "Consulting", "/consulting", Briefcase], ["billing", "Billing", "/billing", Receipt],
+  ["data_health", "Data Health", "/data-health", HeartPulse], ["ai_insight", "AI Insight", "/ai", Brain], ["consulting", "Consulting", "/consulting", Briefcase], ["billing", "Billing", "/billing", Receipt], ["my_contracts", "Contracts", "/my-contracts", PenLine],
   ["documents", "Documents", "/documents", FolderLock], ["timeline", "Timeline", "/timeline", History], ["tasks", "Tasks", "/tasks", CalendarClock],
   ["notifications", "Notifications", "/notifications", BellRing], ["reports", "Reports", "/reports", FileBarChart], ["settings", "Settings", "/settings", Settings], ["platform", "Platform", "/platform", Building2],
 ];
@@ -25,7 +25,7 @@ const ADMIN_HIDDEN = new Set(["accounts", "assets", "transactions", "portfolio",
 function SideNav({ onNavigate }) {
   const { t, lang, user } = useApp();
   const items = NAV.filter(([k]) => !(k === "clients" && user.role === "client") && !(k === "platform" && !user.platform_admin)
-    && !(user.role === "admin" && !user.is_consultant && ADMIN_HIDDEN.has(k)));
+    && !(user.role === "admin" && !user.is_consultant && ADMIN_HIDDEN.has(k)) && !(k === "my_contracts" && user.role !== "client"));
   return (
     <div className="flex h-full flex-col">
       <div className="px-6 pb-6 pt-7"><Logo light tagline /></div>
@@ -120,6 +120,7 @@ function Header({ onMenu }) {
 
 export default function Layout() {
   const [open, setOpen] = useState(false);
+  const { t, user } = useApp();
   return (
     <div className="min-h-screen bg-[#F7F9FC]">
       <aside className="sidebar fixed inset-y-0 left-0 z-40 hidden w-[260px] lg:block" data-testid="sidebar"><SideNav /></aside>
@@ -128,7 +129,10 @@ export default function Layout() {
       </Sheet>
       <div className="lg:pl-[260px]">
         <Header onMenu={() => setOpen(true)} />
-        <main className="mx-auto max-w-[1500px] px-4 py-8 sm:px-8"><Outlet /></main>
+        <main className="mx-auto max-w-[1500px] px-4 py-8 sm:px-8">
+          {user.tenant?.finora_contract_required && user.tenant?.finora_contract !== "ACTIVE" && user.role !== "client" && (
+            <a href="/settings" className="mb-6 block rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800" data-testid="finora-contract-banner">{t("ec_banner")}</a>)}
+          <Outlet /></main>
         <ConsentGate />
       </div>
     </div>

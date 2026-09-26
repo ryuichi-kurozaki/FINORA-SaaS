@@ -9,6 +9,7 @@ import { compact, pct, yen } from "@/lib/format";
 import { Card, CardTitle, KpiCard, PageHeader, Spinner } from "@/components/common";
 import { Donut, TrendChart } from "@/components/charts";
 import EntityManager from "@/components/EntityManager";
+import EContractPanel from "@/components/econtract/EContractPanel";
 import InsightPanel from "@/components/InsightPanel";
 import AIAssistant from "@/components/AIAssistant";
 import { DocumentsPanel } from "@/pages/Documents";
@@ -95,7 +96,7 @@ export default function ClientDetail() {
         <TabsContent value="timeline" className="mt-5"><Card><TimelineList clientId={id} /></Card></TabsContent>
         <TabsContent value="reports" className="mt-5"><Card><Link to="/reports" onClick={() => setScopeClient(id)} className="btn-emerald inline-flex rounded-xl px-4 py-2.5 text-sm font-semibold" data-testid="client-reports-link">{t("reports")} →</Link></Card></TabsContent>
         <TabsContent value="documents" className="mt-5"><DocumentsPanel clientId={id} /></TabsContent>
-        <TabsContent value="contracts" className="mt-5"><EntityManager entity="contracts" clientId={id} title={t("contracts")} /></TabsContent>
+        <TabsContent value="contracts" className="mt-5"><EContractPanel clientId={id} allowCreate /></TabsContent>
         <TabsContent value="billing" className="mt-5 space-y-6"><InvoiceList clientId={id} /><PaymentsList clientId={id} /><InvitationsList clientId={id} /></TabsContent>
       </Tabs>
       <CorrectionDialog open={corr} onOpenChange={setCorr} clientId={id} entity="portfolio" targetLabel={c.corporate_name || c.name} />

@@ -61,9 +61,12 @@ async def login(body: LoginIn, request: Request, response: Response):
                                            "reason": "repeated_failure" if count >= 3 else "bad_credentials", "at": now_iso()})
         raise HTTPException(401, "Invalid email or password")
     await db.login_attempts.delete_one({"identifier": ident})
-    tenant = await db.tenants.find_one({"id": user["tenant_id"]}, {"status": 1})
+    tenant = await db.tenants.find_one({"id": user["tenant_id"]}, {"status": 1, "end_policy": 1, "finora_contract": 1})
     if tenant and tenant.get("status") in ("SUSPENDED", "CANCELLED") and not user.get("platform_admin"):
         raise HTTPException(403, "This FINORA account is suspended. Please contact support.")
+    pol = (tenant or {}).get("end_policy") or {}
+    if (tenant or {}).get("finora_contract") == "ENDED" and pol.get("client_access" if user["role"] == "client" else "consultant_login") == "blocked":
+        raise HTTPException(403, "FINORA利用契約が終了しています (The FINORA service agreement has ended)")
     if user.get("totp_enabled"):
         return {"requires_2fa": True, "challenge_token": make_token(user["id"], None, "2fa")}
     return await complete_login(user, request, response)

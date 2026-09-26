@@ -7,7 +7,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from core import (track_peak, sees_all, forbid_demo, db, new_id, now, now_iso, clean, staff, admin_only, platform_admin, scope, audit, notify, hash_password,
+from core import (require_service, track_peak, sees_all, forbid_demo, db, new_id, now, now_iso, clean, staff, admin_only, platform_admin, scope, audit, notify, hash_password,
                   encrypt, ip_of)
 
 router = APIRouter(prefix="/api")
@@ -69,6 +69,9 @@ async def signup(body: SignupIn, request: Request):
                                             "amount": plan.get("price_monthly"), "status": status, "payment_status": "none", "created_at": now_iso()})
     await db.settings.insert_one({"tenant_id": tid, "fx": {}, "base_currency": "JPY"})
     await audit(user, "signup", "tenants", tid, after={"name": body.company_name or body.name, "plan": plan["code"], "status": status}, request=request)
+    await db.tenants.update_one({"id": tid}, {"$set": {"finora_contract_required": True, "finora_contract": "PENDING"}})
+    from econtract import start_finora_contract
+    await start_finora_contract(tid, user, request)
     return {"ok": True, "tenant_id": tid}
 
 
@@ -80,6 +83,7 @@ class InviteIn(BaseModel):
 @router.post("/invitations")
 async def create_invitation(body: InviteIn, request: Request, user=Depends(staff)):
     forbid_demo(user)
+    await require_service(user)
     await scope(user, body.client_id)
     email = body.email.strip().lower()
     if await db.users.find_one({"email": email}):

@@ -2,7 +2,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Request, HTTPException, Depends
 
-from core import (track_peak, sees_all, db, now_iso, new_id, clean, encrypt, decrypt, current, admin_only, accessible_ids, scope, audit,
+from core import (require_service, track_peak, sees_all, db, now_iso, new_id, clean, encrypt, decrypt, current, admin_only, accessible_ids, scope, audit,
                   notify_other_side, _label)
 
 router = APIRouter(prefix="/api/data")
@@ -107,6 +107,8 @@ async def check_write(user, entity, doc, existing=None):
             raise HTTPException(403, "No access to this client")
         return
     if entity in STAFF_ENTITIES:
+        if entity == "contracts":
+            raise HTTPException(403, "Contracts are created and changed only through the e-contract flow")
         if user["role"] == "client" or (entity == "contracts" and user["role"] != "admin"):
             raise HTTPException(403, "Forbidden")
         if entity == "clients":
@@ -178,6 +180,8 @@ async def create_entity(entity: str, body: dict, request: Request, user=Depends(
         data["consultant_id"] = data["consultant_id"] or user["id"]
     if entity == "tasks":
         data.update(owner_id=user["id"], owner_role=user["role"], visibility=data.get("visibility") or "internal")
+    if entity == "clients":
+        await require_service(user)
     await check_write(user, entity, data)
     doc = {"id": new_id(), "tenant_id": user["tenant_id"], **data, "created_at": now_iso(), "updated_at": now_iso(),
            "created_by": user["id"], "updated_by": user["id"], "updated_by_role": user["role"],

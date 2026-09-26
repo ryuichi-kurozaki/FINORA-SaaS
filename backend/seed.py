@@ -199,6 +199,15 @@ async def seed():
     await ensure_indexes()
     signup_tids = await db.tenants.distinct("id", {"signup_ip": {"$exists": True}})
     await db.users.update_many({"tenant_id": {"$in": signup_tids}, "role": "admin"}, {"$set": {"is_consultant": True}})
+    await db.contracts.update_many({"status": {"$in": ["ACTIVE", "PAUSED"]}, "econtract_id": {"$exists": False}},
+                                   {"$set": {"status": "PAUSED", "needs_econtract": True}})
+    await db.tenants.update_many({"signup_ip": {"$exists": True}, "finora_contract_required": {"$exists": False}},
+                                 {"$set": {"finora_contract_required": True, "finora_contract": "PENDING"}})
+    from econtract import start_finora_contract
+    for t in await db.tenants.find({"finora_contract_required": True, "finora_contract": "PENDING"}).to_list(1000):
+        owner = await db.users.find_one({"id": t.get("owner_user_id")})
+        if owner and not await db.econtracts.find_one({"contract_type": "FINORA_SAAS", "tenant_id": t["id"]}):
+            await start_finora_contract(t["id"], owner, None)
     t = await db.tenants.find_one({"slug": "finora-demo"})
     if not t:
         t = {"id": new_id(), "slug": "finora-demo", "name": "FINORA Wealth Partners", "plan": "premium", "created_at": now_iso()}

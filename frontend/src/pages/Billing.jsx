@@ -10,7 +10,7 @@ import { api, errMsg, useApi } from "@/lib/api";
 import { yen } from "@/lib/format";
 import { Card, CardTitle, Empty, PageHeader, Spinner } from "@/components/common";
 import { useScopeLabel } from "@/lib/useDashboard";
-import EntityManager from "@/components/EntityManager";
+import EContractPanel from "@/components/econtract/EContractPanel";
 import InvoiceDoc from "@/components/InvoiceDoc";
 import { RevenuePanel } from "@/components/BusinessOverview";
 
@@ -199,7 +199,7 @@ export default function Billing() {
       <Tabs defaultValue="invoices" key={k}>
         <TabsList className="bg-white/70">{tabs.map((x) => <TabsTrigger key={x} value={x} data-testid={`billing-tab-${x}`} className="data-[state=active]:bg-[#071A2B] data-[state=active]:text-white">{t(x)}</TabsTrigger>)}</TabsList>
         <TabsContent value="invoices" className="mt-5"><InvoiceList clientId={scopeClient} /></TabsContent>
-        <TabsContent value="contracts" className="mt-5"><EntityManager key={scopeClient} entity="contracts" title={t("contracts")} /></TabsContent>
+        <TabsContent value="contracts" className="mt-5"><EContractPanel key={scopeClient} clientId={scopeClient} grouped={isClient} /></TabsContent>
         <TabsContent value="payments" className="mt-5"><PaymentsList clientId={scopeClient} /></TabsContent>
         {!isClient && <TabsContent value="revenue" className="mt-5"><RevenuePanel /></TabsContent>}
       </Tabs>
