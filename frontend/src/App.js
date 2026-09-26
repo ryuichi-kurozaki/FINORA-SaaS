@@ -30,6 +30,7 @@ import EContractPanel from "@/components/econtract/EContractPanel";
 import { Signup, InviteAccept } from "@/pages/Signup";
 import { PaymentSuccess, PaymentCancel } from "@/pages/PaymentResult";
 import Legal from "@/pages/Legal";
+import { Company, Contact, Faq, NewsDetail, NewsList, Services } from "@/pages/SitePages";
 
 function Protected() {
   const { user } = useApp();
@@ -47,6 +48,12 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/legal" element={<Legal />} />
+            <Route path="/company" element={<Company />} />
+            <Route path="/services" element={<Services />} />
+            <Route path="/news" element={<NewsList />} />
+            <Route path="/news/:id" element={<NewsDetail />} />
+            <Route path="/faq" element={<Faq />} />
+            <Route path="/contact" element={<Contact />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/invite/:token" element={<InviteAccept />} />
             <Route path="/payment/success" element={<PaymentSuccess />} />

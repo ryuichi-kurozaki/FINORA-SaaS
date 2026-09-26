@@ -26,6 +26,7 @@ import econtract  # noqa: E402
 import renewal  # noqa: E402
 import wa_health  # noqa: E402
 import quote  # noqa: E402
+import site_cms  # noqa: E402
 import payouts  # noqa: E402
 import asyncio  # noqa: E402
 from seed import seed  # noqa: E402
@@ -50,7 +51,7 @@ async def root():
     return {"service": "FINORA", "status": "ok"}
 
 
-for r in (auth_routes.router, routes_analytics.router, io_routes.router, public_routes.router, features.router, stripe_payments.router, payouts.router, billing.router, tenancy.router, renewal.router, wa_health.router, quote.router, econtract.router, crud.router):
+for r in (auth_routes.router, routes_analytics.router, io_routes.router, public_routes.router, features.router, stripe_payments.router, payouts.router, billing.router, tenancy.router, renewal.router, wa_health.router, quote.router, site_cms.router, econtract.router, crud.router):
     app.include_router(r)
 
 
@@ -78,6 +79,7 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup():
     await seed()
+    await site_cms.seed_site()
     await db.accounts.update_many({"account_number": {"$exists": True}}, {"$unset": {"account_number": ""}})
     await db.tenants.update_many({"payout_bank": {"$exists": True}}, {"$unset": {"payout_bank": ""}})
     app.state.renewal_task = asyncio.create_task(renewal.loop())

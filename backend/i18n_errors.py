@@ -86,6 +86,10 @@ M = {
     "Current password is incorrect": ("現在のパスワードが正しくありません", "Senha atual incorreta"),
     "Method Not Allowed": ("この操作は許可されていません", "Método não permitido"),
     "Invalid ticker": ("銘柄コードが正しくありません", "Código de ativo inválido"),
+    "Japanese title is required": ("日本語のタイトルは必須です", "O título em japonês é obrigatório"),
+    "Invalid category": ("カテゴリが正しくありません", "Categoria inválida"),
+    "Only PNG, JPEG, WebP or GIF images are allowed": ("画像はPNG・JPEG・WebP・GIFのみアップロードできます", "Apenas imagens PNG, JPEG, WebP ou GIF"),
+    "File is too large (max 5MB)": ("ファイルが大きすぎます（最大5MB）", "Arquivo muito grande (máx. 5MB)"),
     "Quote not found for this ticker": ("この銘柄コードの価格が見つかりませんでした（例：7203.T、AAPL、PETR4.SA）", "Cotação não encontrada para este código (ex.: 7203.T, AAPL, PETR4.SA)"),
 }
 P = [

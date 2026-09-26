@@ -1,11 +1,15 @@
+import logging
+import os
 import re
 from datetime import timedelta
+from html import escape
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from core import db, now, now_iso, new_id, clean, ip_of, admin_only, audit
+from email_service import send_email
 
 router = APIRouter(prefix="/api")
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -44,6 +48,13 @@ async def create_inquiry(body: InquiryIn, request: Request):
     doc = {"id": new_id(), "tenant_id": tenant["id"], **body.model_dump(exclude={"website"}),
            "email": body.email.strip().lower(), "status": "new", "ip": ip, "created_at": now_iso()}
     await db.inquiries.insert_one(doc)
+    try:
+        rows = "".join(f"<tr><td style='padding:4px 12px 4px 0;color:#64748b'>{escape(k)}</td><td>{escape(str(v or '—'))}</td></tr>"
+                       for k, v in (("Name", body.name), ("Company", body.company), ("Email", doc["email"]), ("Phone", body.phone), ("Type", body.inquiry_type), ("Lang", body.lang)))
+        await send_email(to=os.environ["SITE_INQUIRY_EMAIL"], subject=f"【FINORA】お問い合わせ: {body.name}",
+                         html=f"<table>{rows}</table><p style='white-space:pre-line'>{escape(body.message)}</p>")
+    except Exception as e:  # noqa: BLE001
+        logging.getLogger(__name__).error("inquiry mail failed: %s", e)
     return {"ok": True}
 
 

@@ -4,6 +4,9 @@ import { AIBadge } from "@/components/common";
 import HeroPreview from "@/components/landing/HeroPreview";
 import ContactForm from "@/components/landing/ContactForm";
 import { LandingFooter, LandingNav } from "@/components/landing/Chrome";
+import { Link } from "react-router-dom";
+import { useSite } from "@/lib/useSite";
+import { NewsRow } from "@/pages/SitePages";
 
 const LETTERS = [["F", "Finance"], ["I", "Intelligence"], ["N", "Navigation"], ["O", "Optimization"], ["R", "Risk Management"], ["A", "Advisory"]];
 const FLOW = ["clients", "accounts", "assets", "cashflow", "portfolio", "analytics", "risk", "simulation", "ai_insight", "consulting", "reports"];
@@ -172,6 +175,26 @@ function Pricing() {
   );
 }
 
+function LatestNews() {
+  const { t } = useApp();
+  const s = useSite();
+  if (!s) return null;
+  return (
+    <Section id="news" eyebrow="News" title={t("news_latest")} className="bg-white">
+      <div className="grid gap-10 lg:grid-cols-[1.6fr_1fr]">
+        <div data-testid="landing-news">{s.news.map((n) => <NewsRow key={n.id} n={n} t={t} />)}
+          <Link to="/news" className="mt-6 inline-flex items-center gap-1 text-sm font-semibold text-[#0B6E4F]" data-testid="landing-news-more">{t("news_more")}<ArrowRight className="h-4 w-4" /></Link></div>
+        <Link to="/company" className="group relative overflow-hidden rounded-2xl bg-[#071A2B] p-8 text-white" data-testid="landing-company-card">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5FD4B0]">Company</div>
+          <div className="mt-3 font-display text-2xl font-bold">{s.settings.message_title}</div>
+          <div className="mt-2 text-sm text-slate-400">{s.settings.company_name}</div>
+          <div className="mt-8 inline-flex items-center gap-1 text-sm font-semibold text-[#5FD4B0]">{t("nav_company")}<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></div>
+        </Link>
+      </div>
+    </Section>
+  );
+}
+
 export default function Landing() {
   const { t } = useApp();
   return (
@@ -184,6 +207,7 @@ export default function Landing() {
       <Who />
       <Security />
       <Pricing />
+      <LatestNews />
       <Section id="contact" eyebrow="Contact" title={t("contact_title")} sub={t("contact_sub")} className="bg-white">
         <div className="mx-auto max-w-3xl"><ContactForm /></div>
       </Section>
