@@ -51,7 +51,7 @@ def positions(txs, assets):
     for aid, p in pos.items():
         a = amap.get(aid, {})
         p["avg_cost"] = p["cost"] / p["qty"] if p["qty"] else 0
-        p["market_value"] = p["qty"] * (a.get("current_price") or 0)
+        p["market_value"] = p["qty"] * (a.get("current_price") or 0) / (a.get("price_unit") or 1)
         p["unrealized"] = p["market_value"] - p["cost"]
         p.update(asset_name=a.get("name"), currency=a.get("currency"), client_id=a.get("client_id"),
                  registered_qty=a.get("quantity"), qty_mismatch=bool(a) and abs((a.get("quantity") or 0) - p["qty"]) > 1e-6)

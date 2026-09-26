@@ -18,7 +18,8 @@ async def get_fx(tenant_id):
 def enrich(a, fx):
     r = fx.get(a.get("currency") or "JPY", 1)
     qty, ap, cp = a.get("quantity") or 0, a.get("acquisition_price") or 0, a.get("current_price") or 0
-    a["acquisition_total"], a["current_value"] = qty * ap, qty * cp
+    unit = a.get("price_unit") or 1
+    a["acquisition_total"], a["current_value"] = qty * ap / unit, qty * cp / unit
     a["unrealized_pl"] = a["current_value"] - a["acquisition_total"]
     a["unrealized_pct"] = (a["unrealized_pl"] / a["acquisition_total"] * 100) if a["acquisition_total"] else 0
     a["fx_rate"] = r

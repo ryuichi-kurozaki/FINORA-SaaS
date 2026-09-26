@@ -7,6 +7,7 @@ from datetime import date
 import yfinance as yf
 from fastapi import APIRouter, Depends, HTTPException
 
+import fund
 import jpx
 from core import current
 
@@ -76,14 +77,16 @@ async def search(q: str, user=Depends(current)):
     if hit and time.time() - hit[0] < TTL:
         return hit[1]
     local = await jpx.search(q)
+    funds_task = asyncio.create_task(fund.search(q))
     remote = []
-    if re.search(r"[A-Za-z0-9]", q):
+    if re.search(r"[A-Za-z0-9]", q) and not fund.is_fund_code(q.strip().upper()):
         try:
             remote = await asyncio.wait_for(asyncio.to_thread(_ysearch, q), 10)
         except Exception:  # noqa: BLE001
             remote = []
+    funds = await funds_task
     seen = {x["ticker"] for x in local}
-    res = (local + [r for r in remote if r["ticker"] not in seen])[:12]
+    res = (local[:6] + funds[:6] + [r for r in remote if r["ticker"] not in seen][:6])[:15]
     _SCACHE[q.lower()] = (time.time(), res)
     return res
 
@@ -91,6 +94,14 @@ async def search(q: str, user=Depends(current)):
 @router.get("/quote")
 async def quote(ticker: str, user=Depends(current)):
     t = ticker.strip().upper()[:20]
+    if fund.is_fund_code(t):
+        try:
+            f = await asyncio.wait_for(fund.resolve(t), 20)
+        except Exception:  # noqa: BLE001
+            f = None
+        if not f or not f.get("price"):
+            raise HTTPException(404, "Quote not found for this ticker")
+        return f
     if re.fullmatch(r"[0-9][0-9A-Z]{3}", t):
         t += ".T"
     if not re.fullmatch(r"[A-Z0-9.\-^=]{1,20}", t):

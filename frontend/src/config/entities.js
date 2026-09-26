@@ -45,6 +45,7 @@ export const ENTITIES = {
     { k: "currency", type: "select", opts: CURRENCIES, raw: true, table: true },
     { k: "acquired_date", type: "date" },
     { k: "acquisition_price", type: "number" }, { k: "quantity", type: "number", table: true }, { k: "current_price", type: "number", table: true },
+    { k: "price_unit", type: "select", opts: ["1", "10000"], prefix: "price_unit_" },
     { k: "realized_pl", type: "number" }, { k: "dividend_annual", type: "number" }, { k: "interest_annual", type: "number" },
     { k: "price_date", type: "date" }, { k: "balance_date", type: "date" },
     { k: "notes", type: "textarea", wide: true },

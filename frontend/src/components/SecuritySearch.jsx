@@ -45,6 +45,7 @@ export default function SecuritySearch({ form, set }) {
 
   const fill = (x) => {
     ["ticker", "name", "asset_class"].forEach((k) => x[k] && set(k, x[k]));
+    set("price_unit", x.price_unit ? String(x.price_unit) : "");
     if (x.country) set("country", x.country);
     if (x.sector && !form.sector) set("sector", x.sector);
     if (x.currency && CURRENCIES.includes(x.currency)) set("currency", x.currency);
