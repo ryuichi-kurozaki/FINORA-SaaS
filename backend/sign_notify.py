@@ -32,13 +32,26 @@ TXT = {
 }
 
 
-def _html(x, name, msg, link):
+RENEW = {
+    "ja": {True: ("【FINORA】契約更新日のお知らせ（{number}）", "「{service}」の契約は {date} に更新日を迎えます（残り{days}日）。同一条件で自動更新されます。条件の変更や解約をご希望の場合は、更新日までに相手方とご相談ください。"),
+           False: ("【FINORA】契約満了のお知らせ（{number}）", "「{service}」の契約は {date} に期間満了となります（残り{days}日）。自動更新はされません。継続をご希望の場合は、満了日までに再契約をご検討ください。"),
+           "cta": "FINORAで契約を確認する"},
+    "en": {True: ("[FINORA] Contract renewal notice ({number})", "Your \"{service}\" contract reaches its renewal date on {date} ({days} days left). It will renew automatically on the same terms. If you wish to change or cancel it, please contact the other party before the renewal date."),
+           False: ("[FINORA] Contract expiry notice ({number})", "Your \"{service}\" contract expires on {date} ({days} days left). It will not renew automatically. If you wish to continue, please consider a new contract before the expiry date."),
+           "cta": "View the contract in FINORA"},
+    "pt": {True: ("[FINORA] Aviso de renovação do contrato ({number})", "O contrato \"{service}\" chega à data de renovação em {date} (faltam {days} dias). Ele será renovado automaticamente nas mesmas condições. Para alterar ou cancelar, fale com a outra parte antes da data de renovação."),
+           False: ("[FINORA] Aviso de término do contrato ({number})", "O contrato \"{service}\" termina em {date} (faltam {days} dias). Ele não será renovado automaticamente. Para continuar, considere um novo contrato antes do término."),
+           "cta": "Ver o contrato no FINORA"},
+}
+
+
+def _html(x, name, msg, link, cta=None):
     return ('<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:24px 0"><tr><td align="center">'
             '<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;font-family:Arial,Helvetica,sans-serif">'
             '<tr><td style="background:#071A2B;padding:20px 28px;border-radius:12px 12px 0 0;color:#ffffff;font-size:20px;font-weight:bold;letter-spacing:2px">FIN<span style="color:#00A878">ORA</span></td></tr>'
             f'<tr><td style="padding:28px"><p style="margin:0 0 12px;color:#071A2B;font-size:15px">{escape(x["hello"].format(name=name))}</p>'
             f'<p style="margin:0 0 20px;color:#334155;font-size:14px;line-height:1.7">{escape(msg)}</p>'
-            f'<a href="{escape(link)}" style="display:inline-block;background:#00A878;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:14px;font-weight:bold">{escape(x["cta"])}</a>'
+            f'<a href="{escape(link)}" style="display:inline-block;background:#00A878;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:14px;font-weight:bold">{escape(cta or x["cta"])}</a>'
             f'<p style="margin:16px 0 0;color:#64748b;font-size:12px">{escape(x["login"])}</p>'
             f'<p style="margin:28px 0 0;color:#94a3b8;font-size:11px;line-height:1.6">{escape(x["footer"].format(brand=EMAIL_FROM_NAME))}</p>'
             '</td></tr></table></td></tr></table>')
@@ -55,9 +68,23 @@ async def send_sign_request(user_id, c, kind, issuer_name):
         return
     x = TXT.get(u.get("lang")) or TXT.get(c.get("lang")) or TXT["ja"]
     subject, body = (s.format(number=c["number"], issuer=issuer_name, service=c["terms"]["service_name"]) for s in x[kind])
+    await _deliver(c, u, kind, x, subject, body, x["cta"])
+
+
+async def send_renewal_notice(user_id, c, renew_date, days):
+    u = await db.users.find_one({"id": user_id})
+    if not u:
+        return
+    lang = u.get("lang") if u.get("lang") in TXT else c.get("lang") if c.get("lang") in TXT else "ja"
+    auto = bool(c["terms"].get("auto_renew"))
+    subject, body = (s.format(number=c["number"], service=c["terms"]["service_name"], date=renew_date, days=days) for s in RENEW[lang][auto])
+    await _deliver(c, u, "econtract_renewal_notice", TXT[lang], subject, body, RENEW[lang]["cta"])
+
+
+async def _deliver(c, u, kind, x, subject, body, cta):
     link = f"{APP_URL}/econtracts/{c['id']}"
     try:
-        await send_email(to=u["email"], subject=subject, html=_html(x, u.get("name") or u["email"], body, link))
+        await send_email(to=u["email"], subject=subject, html=_html(x, u.get("name") or u["email"], body, link, cta))
         await _log(c, u, "EMAIL", u["email"], kind, "SENT")
     except Exception as e:
         logger.error("sign request email failed %s: %s", c["number"], e)
@@ -67,7 +94,7 @@ async def send_sign_request(user_id, c, kind, issuer_name):
         return
     try:
         async with httpx.AsyncClient(timeout=20) as h:
-            r = await h.post(f"{WA_URL}/send", json={"phone": phone, "message": f"{subject}\n\n{body}\n\n{x['cta']}: {link}\n{x['login']}"})
+            r = await h.post(f"{WA_URL}/send", json={"phone": phone, "message": f"{subject}\n\n{body}\n\n{cta}: {link}\n{x['login']}"})
         await _log(c, u, "WHATSAPP", phone, kind, "SENT" if r.status_code == 200 else "FAILED", "" if r.status_code == 200 else r.text)
     except Exception as e:
         logger.error("sign request whatsapp failed %s: %s", c["number"], e)

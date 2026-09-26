@@ -19,6 +19,8 @@ import billing  # noqa: E402
 import stripe_payments  # noqa: E402
 import tenancy  # noqa: E402
 import econtract  # noqa: E402
+import renewal  # noqa: E402
+import asyncio  # noqa: E402
 from seed import seed  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -30,7 +32,7 @@ async def root():
     return {"service": "FINORA", "status": "ok"}
 
 
-for r in (auth_routes.router, routes_analytics.router, io_routes.router, public_routes.router, features.router, stripe_payments.router, billing.router, tenancy.router, econtract.router, crud.router):
+for r in (auth_routes.router, routes_analytics.router, io_routes.router, public_routes.router, features.router, stripe_payments.router, billing.router, tenancy.router, renewal.router, econtract.router, crud.router):
     app.include_router(r)
 
 
@@ -58,6 +60,7 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup():
     await seed()
+    app.state.renewal_task = asyncio.create_task(renewal.loop())
 
 
 @app.on_event("shutdown")

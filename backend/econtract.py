@@ -296,8 +296,32 @@ def _next_invoice(c):
     return d.isoformat()
 
 
+def _add_years(d, n):
+    try:
+        return d.replace(year=d.year + n)
+    except ValueError:
+        return d.replace(year=d.year + n, day=28)
+
+
+def renew_on(c, today=None):
+    """Next renewal/expiry date of an ACTIVE contract (open-ended auto-renew → yearly anniversary of the start date)."""
+    tm, t = c["terms"], today or date.today()
+    if c["status"] != "ACTIVE" or not (tm.get("end_date") or tm.get("auto_renew")):
+        return None
+    if not tm.get("auto_renew"):
+        d = date.fromisoformat(tm["end_date"])
+        return d if d >= t else None
+    base = date.fromisoformat(tm.get("end_date") or tm["start_date"])
+    n = 0 if tm.get("end_date") else 1
+    while _add_years(base, n) < t:
+        n += 1
+    return _add_years(base, n)
+
+
 async def _row(c):
     r = clean(dict(c))
+    rd = renew_on(c)
+    r["renew_on"], r["renew_days"] = (rd.isoformat(), (rd - date.today()).days) if rd else (None, None)
     acts = await db.econtract_acts.find({"contract_id": c["id"], "act": {"$in": ["CONFIRM", "SIGN"]}}, {"_id": 0, "act": 1, "party": 1, "at": 1}).to_list(10)
     r["confirmed_at"] = next((a["at"] for a in acts if a["act"] == "CONFIRM"), None)
     r["recipient_signed_at"] = next((a["at"] for a in acts if a["act"] == "SIGN" and a["party"] == "RECIPIENT"), None)

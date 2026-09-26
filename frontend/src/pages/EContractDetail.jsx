@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Download } from "lucide-react";
+import { CalendarClock, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, PageHeader } from "@/components/common";
 import { useApp } from "@/context/AppContext";
@@ -98,10 +98,12 @@ export default function EContractDetail() {
     ...(d.history || []).map((h) => ({ at: h.at, who: h.user_email, what: `${h.action} · ${h.after?.status || h.after?.document_type || ""}`, ip: h.ip }))].sort((a, b) => (a.at < b.at ? -1 : 1));
   const info = [["ec_type", t(saas ? "ec_finora_contract" : "ec_client_contract")], [saas ? "tenants" : "client", saas ? d.tenant_name : d.client_name], ["ec_service", d.terms.service_name],
     ["ec_fee", saas ? yen(d.fee_amount) : `${yen(d.terms.fee)} / ${t(`cyc_${d.terms.fee_type}`)}`], ["ec_start", fmtDate(d.terms.start_date)], ["ec_end", fmtDate(d.end_date || d.terms.end_date)],
-    ["ec_next_invoice", fmtDate(d.next_invoice_date)], ["ec_activated", fmtDateTime(d.activated_at)]];
+    ["ec_renew_on", fmtDate(d.renew_on)], ["ec_next_invoice", fmtDate(d.next_invoice_date)], ["ec_activated", fmtDateTime(d.activated_at)]];
+  const renewSoon = d.renew_on && d.renew_days <= 30;
   return (
     <div data-testid="econtract-detail">
-      <PageHeader eyebrow={saas ? "FINORA_SAAS" : "CONSULTING"} title={`${d.number} v${d.version}`} sub={t(saas ? "ec_saas_note" : "ec_consulting_note")}><StatusPill s={d.status} t={t} /></PageHeader>
+      <PageHeader eyebrow={saas ? "FINORA_SAAS" : "CONSULTING"} title={`${d.number} v${d.version}`} sub={t(saas ? "ec_saas_note" : "ec_consulting_note")}><StatusPill s={d.status} t={t} />
+        {renewSoon && <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700 ring-1 ring-amber-200" data-testid="ec-renewal-badge"><CalendarClock className="h-3.5 w-3.5" />{t(d.terms.auto_renew ? "ec_renew_left" : "ec_expire_left")} {d.renew_days}{t("ec_days_unit")}</span>}</PageHeader>
       <Stepper s={d.status} t={t} />
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
