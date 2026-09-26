@@ -133,6 +133,9 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - iteration_16: backend 6/6, frontend pass. Deployed to prod
 - 2026-09 WhatsApp invite icon: 顧客一覧 actions have green WhatsApp icon → WhatsApp-only invite (channel=whatsapp, email optional; client enters own email on /invite accept). Delivery shown as mail/WhatsApp icon badges. Self-tested (curl + screenshots). Deployed to prod
 
-## WhatsApp decision (user, 2026-09)
-- FINORA intentionally SHARES PRC Time's WhatsApp service (/data/prc-time/whatsapp-service, PM2 'prc-whatsapp', port 8010, sender +81 90-3938-7570). Do NOT create a separate FINORA WhatsApp service/number unless user asks
+## WhatsApp decision (user, 2026-09) — UPDATED: now uses JWSEA Foundation's WhatsApp
+- FINORA sends WhatsApp via JWSEA server (160.251.123.166, ssh port 10022, key /root/.ssh/jwsea_vps.pem in preview pod) service jwsea-wa (systemd, /data/jwsea/wa-notify, 127.0.0.1:3100, sender +81 70-9460-8789 'システム配信専用'). API: POST /send {to, message} → 200 {ok:true}; 422 not_registered_on_whatsapp; 503 not_connected; GET /status
+- Bridge: FINORA VPS systemd 'finora-wa-tunnel' (ssh -L 127.0.0.1:3101 → JWSEA 127.0.0.1:3100) with key /root/.ssh/jwsea_wa_tunnel on FINORA VPS; JWSEA authorized_keys entry restricted (restrict,port-forwarding,permitopen=127.0.0.1:3100,command=/bin/false). Prod .env WHATSAPP_SERVICE_URL=http://127.0.0.1:3101
+- PRC Time WhatsApp service (8010) no longer used by FINORA (user choice). Do not modify JWSEA/PRC services
+- Test message sent 2026-09-26 to +81 90-3938-7570 OK
 - Open security risk (not fixed, awaiting user approval): https://prc-time.jp/whatsapp/ (nginx proxy to 8010) is public without auth → /send, /send-bulk, /disconnect, /qr callable by anyone. Fix must not break PRC Time frontend

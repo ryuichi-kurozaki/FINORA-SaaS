@@ -36,7 +36,7 @@ async def send_invite(inv, token, lang, tenant_name, client_name, whatsapp, chan
     if phone and WA_URL:
         try:
             async with httpx.AsyncClient(timeout=20) as h:
-                r = await h.post(f"{WA_URL}/send", json={"phone": phone, "message": f"{subject}\n\n{body}\n\n{cta}: {link}"})
+                r = await h.post(f"{WA_URL}/send", json={"to": phone, "message": f"{subject}\n\n{body}\n\n{cta}: {link}"})
             out["whatsapp"] = "SENT" if r.status_code == 200 else "FAILED"
         except Exception as e:  # noqa: BLE001
             logger.error("invite whatsapp failed %s: %s", phone, e)

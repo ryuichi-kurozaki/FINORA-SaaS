@@ -105,7 +105,7 @@ async def _deliver(c, u, kind, x, subject, body, cta):
         return
     try:
         async with httpx.AsyncClient(timeout=20) as h:
-            r = await h.post(f"{WA_URL}/send", json={"phone": phone, "message": f"{subject}\n\n{body}\n\n{cta}: {link}\n{x['login']}"})
+            r = await h.post(f"{WA_URL}/send", json={"to": phone, "message": f"{subject}\n\n{body}\n\n{cta}: {link}\n{x['login']}"})
         await _log(c, u, "WHATSAPP", phone, kind, "SENT" if r.status_code == 200 else "FAILED", "" if r.status_code == 200 else r.text)
     except Exception as e:
         logger.error("sign request whatsapp failed %s: %s", c["number"], e)
