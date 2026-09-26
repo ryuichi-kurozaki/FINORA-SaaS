@@ -1,0 +1,32 @@
+{
+  "summary": "Iter22 – Backend + Frontend testing of the new Security Search feature (JPX list + Yahoo) and the assets Add/Edit dialog integration. Backend: 20/20 pytest in /app/backend/tests/test_security_search.py — /api/quote/search (unauth 401, empty→[], hiragana とよた and katakana トヨタ both find 7203.T トヨタ自動車 jp_stock, code '7203' ranks first, ASCII goes to Yahoo → apple→AAPL foreign_stock/US, VOO→etf, BTC→BTC-USD crypto, 1540→1540.T gold, 8951→8951.T real_estate J-REIT, インフラ→fund; ≤12 results; both consultant and client users authorized; jpx.loop populated 9984 SoftBank in JPX list). /api/quote enhancements: bare 4-char JP code '7203' auto-suffixes to 7203.T (returns トヨタ, jp_stock, sector=automotive, price_date); AAPL→foreign_stock; GLD→gold; BTC-USD→crypto; '!!!'→422; unknown ticker→404. Frontend: logged in as client@finora.co.jp on /assets, opened Add dialog (assets-form-dialog). Verified: security-search box renders ABOVE field-asset_class (compareDocumentPosition), 'トヨタ' shows dropdown with security-result-7203.T; clicking fills ticker=7203.T, name=トヨタ自動車, asset_class=jp_stock, currency=JPY, country=JP, current_price=2989.5 (>0) and price_date=2026-09-26 and shows toast. Typing 'AAPL' + ArrowDown+Enter fills ticker=AAPL, asset_class=foreign_stock, currency=USD, country=US. Save persists (verified via GET /api/data/assets). Edit dialog for an existing 7203.T asset shows security-search-input prefilled with '7203.T' and no error messages. i18n: JA label '銘柄検索（コード・銘柄名）', EN 'Find security (code or name)' / placeholder 'e.g. 7203 / Toyota / AAPL / Apple / BTC', PT 'Buscar ativo (código ou nome)' / 'ex.: 7203 / Toyota / AAPL / PETR4 / BTC'. Mobile 390px: docW==clientW==390, dialog scroll width overflow=0, dropdown width=225 (fits) – no horizontal overflow.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Header (Layout.jsx:95)", "issues": ["Pre-existing dev-only hydration warning: <span data-ve-dynamic> inside <option> in header-client-select. Non-blocking, unchanged from iter20/21."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_security_search.py",
+    "/app/test_reports/pytest/security_search.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "backend/jpx.py sync(): correctly downloads JPX xlsx, upserts by code, deletes stale batch rows, requires >=1000 rows (guardrail against malformed downloads). classify() handles J-REIT (real_estate) with インフラ→fund split as required; ETF gold/precious_metal keywords are pragmatic and cover 1540. loop() gates on 7-day age via db.system_state id='jpx'.",
+    "backend/quote.py: /quote/search merges JPX-local hits with Yahoo Search (10s timeout, non-fatal on failure), dedupes by ticker, caps at 12, 10-min TTL cache; only calls Yahoo when ASCII/digit present. /quote auto-suffixes bare 4-char JP codes (^[0-9][0-9A-Z]{3}$) to .T and merges JPX name/asset_class/sector over Yahoo values – correct precedence for Japanese names.",
+    "frontend/SecuritySearch.jsx: debounced 300ms search, mouseDown on option prevents blur race, keyboard ArrowUp/ArrowDown/Enter/Escape all handled, currency guarded against unsupported values via CURRENCIES.includes. Skip ref prevents re-firing search after programmatic setQ post-pick. Good.",
+    "frontend/EntityManager.jsx:184: renders <SecuritySearch key={form.id||'new'} .../> only for entity==='assets' before the field grid, guaranteeing prefill on edit and reset on new add. Old TickerLookup removed as required.",
+    "backend/quote.py _fetch(): calls tk.info which is a slow yfinance call – wrapped in 20s asyncio.wait_for; acceptable, but AAPL flow observed to take ~5-8s which the frontend correctly handles with a busy spinner state.",
+    "Minor: /api/quote/search caches by lowercased query for 10 min – acceptable for a shared read-only cache but note it means fresh JPX rows added mid-day won't appear in cached queries until TTL expires (irrelevant since JPX list refreshes weekly)."
+  ],
+  "updated_files": ["/app/backend/tests/test_security_search.py"],
+  "success_rate": {"backend": "100% (20/20)", "frontend": "100% – all required flows (add via トヨタ dropdown, AAPL via keyboard, save+persist, edit prefill, i18n JA/EN/PT, mobile 390px no overflow) pass"},
+  "test_credentials": "client@finora.co.jp / Finora2026! (used for /assets client-owned add flow, bypasses consultant bank-account-required modal); consultant@finora.co.jp / Finora2026! (used for authorized /quote/search)",
+  "seed_data_creation": "Test creates and deletes TEST_QA_UISearch_AAPL and TEST_QA_EditPrefill assets under 佐藤 健一; both cleaned up in the same test run via DELETE /api/data/assets/{id}.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression: pytest /app/backend/tests/test_security_search.py (20 tests, ~12s). Uses live yfinance so allow ~10s per foreign symbol; already handled via 20-30s per-request timeout. Do not run tests during scheduled jpx.loop sync (once per week). If db.jp_securities becomes empty, /quote/search JP queries will return only Yahoo hits (no JP names) – rerun main agent's manual jpx.sync() to repopulate.",
+  "rca of the issue": "N/A – no defects found in this iteration."
+}
