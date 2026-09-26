@@ -18,13 +18,22 @@ function Stepper({ s, t }) {
   return <div className="mb-6 flex flex-wrap gap-1.5" data-testid="ec-stepper">{STEPS.map((x, k) => <span key={x} className={`rounded-full px-2.5 py-1 text-[11px] ${k <= i && i >= 0 ? "bg-[#071A2B] text-white" : "bg-slate-100 text-slate-400"}`}>{k + 1}. {t(`ec_${x}`)}</span>)}</div>;
 }
 
-function DocView({ doc, sections, t, onSeen }) {
+function DocView({ doc, sections, tr, origLang, t, onSeen }) {
   const seen = useRef(false);
+  const [orig, setOrig] = useState(false);
   useEffect(() => { if (doc && onSeen && !seen.current) { seen.current = true; onSeen(doc.id); } }, [doc, onSeen]);
+  const showTr = tr && !orig;
+  const list = showTr ? tr.sections : doc?.sections || sections || [];
   return (
     <div className="max-h-[480px] space-y-3 overflow-y-auto rounded-xl border border-slate-100 bg-slate-50/60 p-5" data-testid={`ec-doc-${doc?.document_type || "preview"}`}>
       {doc && <div className="font-num text-[11px] text-slate-500">{doc.number} · v{doc.version} · SHA-256 {doc.hash.slice(0, 16)}… {doc.integrity_ok ? "✓" : "⚠"}</div>}
-      {(doc?.sections || sections || []).map((s) => <div key={s.key}><div className="text-sm font-semibold text-[#0B6E4F]">{s.title}</div><div className="whitespace-pre-wrap text-sm text-slate-700">{s.body}</div></div>)}
+      {tr && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-800" data-testid="ec-translation-note">
+          <span>{showTr ? `${t("ec_ref_translation")}（${t("ec_original_is")}${t(`lang_${origLang}`)}）` : `${t("ec_showing_original")}（${t(`lang_${origLang}`)}）`}</span>
+          <button className="font-medium text-[#0B6E4F] underline" onClick={() => setOrig(!orig)} data-testid="ec-toggle-original">{t(showTr ? "ec_show_original" : "ec_show_translation")}</button>
+        </div>)}
+      {tr && !showTr && doc?.title && <div className="font-display text-sm font-bold text-[#071A2B]" data-testid="ec-original-title">{doc.title}</div>}
+      {list.map((s) => <div key={s.key}><div className="text-sm font-semibold text-[#0B6E4F]">{s.title}</div><div className="whitespace-pre-wrap text-sm text-slate-700">{s.body}</div></div>)}
     </div>
   );
 }
@@ -75,8 +84,8 @@ function IssuerTools({ d, act, t }) {
 
 export default function EContractDetail() {
   const { id } = useParams();
-  const { t } = useApp();
-  const { data: d, reload } = useApi(`/econtracts/${id}`);
+  const { t, lang } = useApp();
+  const { data: d, reload } = useApi(`/econtracts/${id}?view_lang=${lang}`, [id, lang]);
   const [ok, setOk] = useState(false);
   if (!d) return <div className="p-8 text-sm text-slate-400">…</div>;
   const docs = Object.fromEntries((d.documents || []).map((x) => [x.document_type.includes("AGREEMENT") ? "agreement" : "important", x]));
@@ -107,17 +116,17 @@ export default function EContractDetail() {
       <Stepper s={d.status} t={t} />
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          {d.can_receive && d.status === "IMPORTANT_INFO_SENT" && docs.important && <Card data-testid="ec-confirm-card"><CardTitle>{docs.important.title}</CardTitle>
-            <DocView doc={docs.important} t={t} onSeen={seen} />
+          {d.can_receive && d.status === "IMPORTANT_INFO_SENT" && docs.important && <Card data-testid="ec-confirm-card"><CardTitle>{d.view?.important?.title || docs.important.title}</CardTitle>
+            <DocView doc={docs.important} tr={d.view?.important} origLang={d.lang} t={t} onSeen={seen} />
             <label className="mt-4 flex items-start gap-2 text-sm"><input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} data-testid="ec-confirm-check" />{t("ec_confirm_text")}</label>
             <Button className="btn-emerald mt-3" disabled={!ok} onClick={() => act("confirm")} data-testid="ec-confirm-btn">{t("ec_confirm_next")}</Button></Card>}
-          {d.can_receive && d.status === "CONTRACT_SENT" && docs.agreement && <Card data-testid="ec-recipient-sign-card"><CardTitle>{docs.agreement.title}</CardTitle>
-            <DocView doc={docs.agreement} t={t} onSeen={seen} /><div className="mt-4"><SignForm t={t} onSign={(b) => act("sign", { body: b })} /></div></Card>}
+          {d.can_receive && d.status === "CONTRACT_SENT" && docs.agreement && <Card data-testid="ec-recipient-sign-card"><CardTitle>{d.view?.agreement?.title || docs.agreement.title}</CardTitle>
+            <DocView doc={docs.agreement} tr={d.view?.agreement} origLang={d.lang} t={t} onSeen={seen} /><div className="mt-4"><SignForm t={t} onSign={(b) => act("sign", { body: b })} /></div></Card>}
           {d.can_issue && d.status === "FIRST_PARTY_SIGNED" && <Card data-testid="ec-issuer-sign-card"><CardTitle>{t("ec_issuer_sign_title")}</CardTitle><SignForm t={t} onSign={(b) => act("sign", { body: b })} /></Card>}
           {d.can_issue && <Card><CardTitle>{t("ec_actions")}</CardTitle><IssuerTools d={d} act={act} t={t} /></Card>}
           {["important", "agreement"].map((k) => (docs[k] || d.preview) && <Card key={k}><CardTitle right={docs[k]?.pdf_file_id && <Button variant="outline" onClick={() => pdf(docs[k])} data-testid={`ec-pdf-${k}`}><Download className="mr-1 h-4 w-4" />PDF</Button>}>
-            {docs[k]?.title || t(k === "important" ? "ec_important" : "ec_agreement")} {!docs[k] && <span className="text-xs text-slate-400">({t("ec_preview")})</span>}</CardTitle>
-            <DocView doc={docs[k]} sections={d.preview?.[k]} t={t} /></Card>)}
+            {d.view?.[k]?.title || docs[k]?.title || t(k === "important" ? "ec_important" : "ec_agreement")} {!docs[k] && <span className="text-xs text-slate-400">({t("ec_preview")})</span>}</CardTitle>
+            <DocView doc={docs[k]} sections={d.preview?.[k]} tr={d.view?.[k]} origLang={d.lang} t={t} /></Card>)}
         </div>
         <div className="space-y-6">
           <Card><CardTitle>{t("ec_summary")}</CardTitle><dl className="grid grid-cols-2 gap-2 text-sm" data-testid="ec-summary">{info.flatMap(([k, v]) => [<dt key={`${k}-t`} className="text-slate-500">{t(k)}</dt>, <dd key={`${k}-v`} className="font-num">{v || "—"}</dd>])}</dl></Card>

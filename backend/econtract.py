@@ -356,7 +356,7 @@ async def list_contracts(type: str = "CONSULTING", client_id: Optional[str] = No
 
 
 @router.get("/{cid}")
-async def get_contract(cid: str, user=Depends(current)):
+async def get_contract(cid: str, view_lang: Optional[str] = None, user=Depends(current)):
     c = await load(user, cid)
     docs = [clean(d) for d in await db.econtract_docs.find({"contract_id": cid}).to_list(20)]
     for d in docs:
@@ -369,6 +369,19 @@ async def get_contract(cid: str, user=Depends(current)):
                            "can_issue": is_issuer(user, c), "can_receive": is_recipient(user, c)}
     if c["status"] == "DRAFT" and is_issuer(user, c):
         out["preview"] = await preview(c)
+    if view_lang in LANGS and view_lang != c["lang"]:
+        out["view"] = await _translated(c, docs, view_lang)
+    return out
+
+
+async def _translated(c, docs, lang):
+    """Reference translation in the viewer's language; the signed original (c.lang) stays authoritative. Free-text fields stay as written."""
+    ctx = await _ctx({**c, "lang": lang})
+    out = {"lang": lang, "original_lang": c["lang"]}
+    for k, dtype in zip(("important", "agreement"), DOC_TYPES[c["contract_type"]]):
+        d = next((x for x in docs if x["document_type"] == dtype), None)
+        cx = ctx | ({"doc_date": d["created_at"][:10]} if d else {})
+        out[k] = {"title": doc_title(dtype, lang), "sections": build_sections(dtype, lang, cx, c.get("fields"))}
     return out
 
 

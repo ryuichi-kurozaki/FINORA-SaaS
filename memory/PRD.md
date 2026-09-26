@@ -155,3 +155,8 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - Backend: all HTTPException details English-only in code; backend/i18n_errors.py translates by X-Lang header (frontend api.js sends finora_lang); RequestValidationError → single localized string. Mixed "日本語 (English)" messages removed
 - Audit tool: node /root/tools/i18n_audit.mjs (DUP KEYS / MISSING KEYS / hardcoded text). Keep DUP KEYS = 0 when adding keys
 - iteration_18: backend 17/17, frontend pass. Deployed to prod
+
+## 2026-09 E-contract documents shown in the viewer's language
+- GET /api/econtracts/{cid}?view_lang=ja|en|pt → when different from the contract's document language, returns `view` {lang, original_lang, important/agreement: {title, sections}} built from templates (econtract._translated; doc_date from issued doc). Consultant free-text fields stay as written
+- Signed original (hash, PDF) unchanged and authoritative; UI shows "参考訳（正本は○○語版）" note + toggle 正本を表示/参考訳を表示 (EContractDetail DocView)
+- Self-tested (curl + screenshots EN/PT/JA). Deployed to prod
