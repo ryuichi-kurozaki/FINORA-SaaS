@@ -189,3 +189,4 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - Env: MAIL_LOG_PATH (preview /tmp/finora_mail.log fake file; prod should be /var/log/mail.log — backend runs as root)
 - iteration_21: backend 10/10, frontend pass (mobile tab wrap fixed & verified)
 - DEPLOYED to prod 2026-09-26: prod .env MAIL_LOG_PATH=/var/log/mail.log (backup .env.bak-<ts>), backend rsync (venv kept) + restart, frontend build rsync. Verified: test mail to finora@ → log status delivered (dsn=2.0.0), Platform tab renders on www.finora.co.jp
+- 2026-09-26 BUG FIX: public nav/footer "料金プラン" (/#pricing) from other pages landed at top of home. Cause: plain <a> full reload, browser anchor scroll ran before SPA rendered #pricing. Fix: Chrome.jsx NavLink always router Link; Landing.jsx useHashScroll (polls for hash element, scrolls with 72px nav offset). Verified preview + prod (desktop, mobile menu, footer, direct /#pricing). Deployed prod (frontend)

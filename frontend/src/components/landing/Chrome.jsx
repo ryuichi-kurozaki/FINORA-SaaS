@@ -11,8 +11,7 @@ const SOCIAL = [["social_x", "X"], ["social_facebook", "Facebook"], ["social_lin
 
 function NavLink({ k, h, className, onClick, tid = "landing-link" }) {
   const { t } = useApp();
-  return h.includes("#") ? <a href={h} onClick={onClick} className={className} data-testid={`${tid}-${k}`}>{t(k)}</a>
-    : <Link to={h} onClick={onClick} className={className} data-testid={`${tid}-${k}`}>{t(k)}</Link>;
+  return <Link to={h} onClick={onClick} className={className} data-testid={`${tid}-${k}`}>{t(k)}</Link>;
 }
 
 export function LangSwitch({ dark }) {

@@ -4,7 +4,8 @@ import { AIBadge } from "@/components/common";
 import HeroPreview from "@/components/landing/HeroPreview";
 import ContactForm from "@/components/landing/ContactForm";
 import { LandingFooter, LandingNav } from "@/components/landing/Chrome";
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useSite } from "@/lib/useSite";
 import { NewsRow } from "@/pages/SitePages";
 
@@ -195,8 +196,23 @@ function LatestNews() {
   );
 }
 
+function useHashScroll() {
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (!hash) return undefined;
+    let tries = 0;
+    const id = setInterval(() => {
+      const el = document.getElementById(hash.slice(1));
+      if (el || ++tries > 40) clearInterval(id);
+      if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 72, behavior: "smooth" });
+    }, 50);
+    return () => clearInterval(id);
+  }, [hash]);
+}
+
 export default function Landing() {
   const { t } = useApp();
+  useHashScroll();
   return (
     <div className="min-h-screen bg-[#F7F9FC]" data-testid="landing-page">
       <LandingNav />
