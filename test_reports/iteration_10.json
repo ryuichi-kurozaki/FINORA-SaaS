@@ -1,0 +1,33 @@
+{
+  "summary": "Verified FINORA SaaS pricing (base+peak*per fee), peak tracking (create bumps, delete keeps peak), platform admin fee column, plan editable inputs, handover reassign flow, and production read-only smoke. Backend pytest 11/11 pass. Frontend selectors and integration all verified. No writes on production.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Header <select> option", "issues": ["Hydration warning: devtools instrumentation injects <span> inside <option> (harmless, pre-existing from iteration_9)."]},
+      {"screen": "Dashboard Recharts", "issues": ["Recharts warning 'width(-1) height(-1)' on initial load — container sizing before layout; benign."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_saas_pricing_handover.py",
+    "/app/test_reports/pytest/saas_pricing_handover.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "customer_fee() correctly uses track_peak() so peak is monotonic within the month, and fee formula = (base + per*peak)*months is applied identically in /subscription, /platform/tenants and Stripe checkout — good consistency.",
+    "checkout_subscription() blocks TRIAL/FREE via `fee.amount<=0` → 409 with clear JA/EN message. Verified.",
+    "reassign_clients: is_consultant admin can only hand over from own id (403 otherwise), same from/to → 422, and $pull on secondary_consultant_ids avoids duplicate assignment — solid.",
+    "platform_tenants aggregates fee via customer_fee(); loops over all tenants (O(N) DB roundtrips). Consider batching customer_peaks/plans lookup if tenant count grows.",
+    "TenantSettings.jsx mounts inside `billing_profile` tab (請求者情報). The user story language ('プラン・お支払い card') implies a dedicated tab; consider renaming or splitting for clearer UX (minor).",
+    "HandoverDialog: mine (is_consultant admin) locks `from` to self and shows amber note — correct. For non-consultant admins the `from` select allows any staff, which requires sees_all — enforced server-side."
+  ],
+  "updated_files": ["/app/backend/tests/test_saas_pricing_handover.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "See /app/memory/test_credentials.md. Ephemeral TRIAL signup created per pytest run (cleaned by nature of separate tenant); no prod writes.",
+  "seed_data_creation": "Backend test creates+deletes 1 client under ryuichi tenant, and one TRIAL signup tenant per run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Preview ryuichi tenant peak this month is now 5 due to test (was 4). Amount shown ¥7,500 on preview until month rollover; formula still 5000+500*peak. Prod demo tenant shows peak 4 / ¥7,000. TenantSettings lives under Settings > 請求者情報 (billing_profile) tab, not a separate プラン tab.",
+  "rca of the issue": "N/A — feature verification pass."
+}
