@@ -85,6 +85,8 @@ M = {
     "Invalid signature": ("署名が正しくありません", "Assinatura inválida"),
     "Current password is incorrect": ("現在のパスワードが正しくありません", "Senha atual incorreta"),
     "Method Not Allowed": ("この操作は許可されていません", "Método não permitido"),
+    "Invalid ticker": ("銘柄コードが正しくありません", "Código de ativo inválido"),
+    "Quote not found for this ticker": ("この銘柄コードの価格が見つかりませんでした（例：7203.T、AAPL、PETR4.SA）", "Cotação não encontrada para este código (ex.: 7203.T, AAPL, PETR4.SA)"),
 }
 P = [
     (re.compile(r"^This step is not allowed in status (\w+)$"), "現在のステータス（{0}）ではこの操作はできません", "Esta etapa não é permitida no status {0}"),

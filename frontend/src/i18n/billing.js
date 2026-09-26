@@ -99,6 +99,7 @@ export const B = {
   FAILED: ["失敗", "Failed", "Falhou"], SKIPPED: ["対象外", "Skipped", "Ignorado"],
   welcome_prefix: ["", "Welcome, ", "Bem-vindo(a), "], welcome_suffix: [" 様", "", ""], months_unit: ["ヶ月", " mo", " meses"], years_later: ["年後", " yrs", " anos"],
   premium_plan: ["プレミアムプラン", "Premium Plan", "Plano Premium"], required_suffix: ["：必須項目です", ": required", ": obrigatório"], import_errors: ["エラー", "errors", "erros"],
+  ticker_lookup: ["価格取得", "Look up", "Buscar"], my_holdings_entry: ["保有資産の入力・編集", "Add & edit my holdings", "Cadastrar e editar meus ativos"],
   ntf_econtract_renewal_notice: ["契約の更新期限が近づいています", "Contract renewal date approaching", "Data de renovação do contrato se aproxima"],
   ec_ref_translation: ["表示中の文面は参考訳です", "This is a reference translation", "Esta é uma tradução de referência"], ec_original_is: ["正本は", "the original is in ", "o original está em "],
   ec_showing_original: ["正本を表示中", "Showing the original", "Exibindo o original"], ec_show_original: ["正本を表示", "Show original", "Ver original"],

@@ -1,5 +1,5 @@
 const ASSET_CLASSES = ["cash", "deposit", "jp_stock", "foreign_stock", "etf", "fund", "bond", "fx", "crypto", "real_estate", "insurance", "pension", "gold", "precious_metal", "unlisted", "other"];
-const CURRENCIES = ["JPY", "USD", "EUR", "GBP", "BRL", "CNY", "AUD", "HKD", "SGD", "CHF"];
+export const CURRENCIES = ["JPY", "USD", "EUR", "GBP", "BRL", "CNY", "AUD", "HKD", "SGD", "CHF"];
 const OWNER = ["individual", "corporate"];
 export const INCOME_CATS = ["salary", "executive_comp", "business_income", "dividend", "interest", "real_estate_income", "investment_income", "other_income"];
 export const EXPENSE_CATS = ["living", "business_expense", "tax", "social_insurance", "insurance", "loan_repayment", "investment", "other"];
@@ -38,7 +38,7 @@ export const ENTITIES = {
     { k: "client_id", type: "client", table: true, req: true },
     { k: "asset_class", type: "select", opts: ASSET_CLASSES, table: true, req: true },
     { k: "name", label: "asset_name", table: true, req: true },
-    { k: "ticker" }, { k: "account_id", type: "account" },
+    { k: "ticker", lookup: true }, { k: "account_id", type: "account" },
     { k: "owner_type", type: "select", opts: OWNER },
     { k: "country", type: "select", opts: ["JP", "US", "BR", "GLOBAL", "other"] },
     { k: "sector", type: "select", opts: ["technology", "automotive", "diversified", "government", "digital_asset", "real_estate", "commodity", "energy", "finance", "healthcare", "consumer", "industrial", "other"] },

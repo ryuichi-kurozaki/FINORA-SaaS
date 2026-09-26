@@ -4,11 +4,12 @@ import { useDashboard, useScopeLabel } from "@/lib/useDashboard";
 import { compact, num, pct, plColor, yen } from "@/lib/format";
 import { Card, CardTitle, KpiCard, PageHeader, Spinner } from "@/components/common";
 import { Donut, HBars } from "@/components/charts";
+import EntityManager from "@/components/EntityManager";
 
 export default function Portfolio() {
-  const { t, lang, scopeClient } = useApp();
-  const { data } = useDashboard();
-  const { data: assets } = useApi(`/data/assets${scopeClient ? `?client_id=${scopeClient}` : ""}`, [scopeClient]);
+  const { t, lang, scopeClient, isClient, user } = useApp();
+  const { data, reload } = useDashboard();
+  const { data: assets, reload: reloadAssets } = useApi(`/data/assets${scopeClient ? `?client_id=${scopeClient}` : ""}`, [scopeClient]);
   const scope = useScopeLabel();
   if (!data) return <Spinner />;
   const s = data.summary, b = data.breakdowns, c = (v) => compact(v, lang);
@@ -48,6 +49,8 @@ export default function Portfolio() {
           </table>
         </div>
       </Card>
+      {isClient && user.client_id && <div className="mt-6" data-testid="portfolio-holdings-entry">
+        <EntityManager entity="assets" clientId={user.client_id} title={t("my_holdings_entry")} onChange={() => { reload(); reloadAssets(); }} /></div>}
     </div>
   );
 }
