@@ -116,3 +116,11 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - UI: Settings 請求者情報 tab → PayoutSettings (bank form + payout status); Platform → 送金管理 tab (PayoutsPanel)
 - iteration_14: backend 22/22, frontend pass. Deployed to prod
 - Note: FINORA holding client funds temporarily — user advised to confirm 収納代行 legal treatment
+
+## 2026-09 Per-consultant payout accounts + client WhatsApp + account_number removal
+- Payout bank moved from tenant to users.payout_bank (admin & consultant). Payee of a card payment = invoice client's consultant_id (fixed on payment as payee_id). /platform/payouts groups by payee; POST /platform/payouts/{user_id}
+- Forced registration: PayoutGate modal (non-closable) for non-demo admin/consultant until bank registered (/auth/me payout_bank_registered). Settings tab 'payout_bank' for staff
+- Card pay allowed only when the client's consultant has a bank (card_clients)
+- Clients entity: whatsapp field (encrypted); sign_notify falls back to clients.whatsapp for client users without own WhatsApp number
+- Accounts entity: account_number removed from UI/API; startup migration unsets existing values
+- iteration_15: backend 26/26; UI bug (save button hidden in gate) fixed & verified. Deployed to prod

@@ -20,7 +20,7 @@ export function BankForm({ onSaved, bare }) {
   const save = async () => { try { await api.put("/payouts/bank", f); toast.success(t("saved")); onSaved?.(); } catch (e) { toast.error(errMsg(e)); } };
   if (!data) return <Spinner />;
   const fields = (
-    <>
+    <div>
       <div className="grid gap-3 sm:grid-cols-2">
         {TEXT.map(([k, l]) => <label key={k} className="text-xs text-slate-600">{t(l)}<input value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} className={inp} data-testid={`pb-${k}`} /></label>)}
         <label className="text-xs text-slate-600">{t("pb_account_type")}
@@ -28,7 +28,7 @@ export function BankForm({ onSaved, bare }) {
             {["ORDINARY", "CHECKING", "SAVINGS"].map((k) => <option key={k} value={k}>{t(`pb_${k}`)}</option>)}</select></label>
       </div>
       <Button className="btn-emerald mt-4" onClick={save} data-testid="pb-save">{t("save")}</Button>
-    </>
+    </div>
   );
   if (bare) return fields;
   return (
