@@ -4,12 +4,13 @@ import { Building2, ChevronRight, UserRound } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { PageHeader } from "@/components/common";
 import EntityManager from "@/components/EntityManager";
+import HandoverDialog from "@/components/HandoverDialog";
 
 export default function Clients() {
-  const { t, clients } = useApp();
+  const { t, clients, user } = useApp();
   return (
     <div data-testid="clients-page">
-      <PageHeader eyebrow="CRM" title={t("clients")} sub={t("derived_note")} />
+      <PageHeader eyebrow="CRM" title={t("clients")} sub={t("derived_note")}>{user.role === "admin" && !user.demo && <HandoverDialog />}</PageHeader>
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {clients.map((c, i) => (
           <Link key={c.id} to={`/clients/${c.id}`} data-testid={`client-card-${c.id}`} style={{ animationDelay: `${i * 60}ms` }}

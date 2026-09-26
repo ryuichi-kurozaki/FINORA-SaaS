@@ -2,7 +2,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Request, HTTPException, Depends
 
-from core import (sees_all, db, now_iso, new_id, clean, encrypt, decrypt, current, admin_only, accessible_ids, scope, audit,
+from core import (track_peak, sees_all, db, now_iso, new_id, clean, encrypt, decrypt, current, admin_only, accessible_ids, scope, audit,
                   notify_other_side, _label)
 
 router = APIRouter(prefix="/api/data")
@@ -126,6 +126,8 @@ async def check_write(user, entity, doc, existing=None):
 
 
 async def after_client_change(user, entity, action, doc):
+    if entity == "clients" and action == "create":
+        await track_peak(user["tenant_id"])
     if entity == "contracts" and (action == "create" or doc.get("status") in ("ENDED", "CANCELLED", "PAUSED")):
         kind = "contract_new" if action == "create" else "contract_status"
         await notify_other_side(user, doc.get("client_id"), kind, {"label": doc.get("name"), "status": doc.get("status")}, "/billing")

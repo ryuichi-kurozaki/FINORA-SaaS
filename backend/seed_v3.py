@@ -16,6 +16,8 @@ async def seed_v3(t, pw, demo=True, platform=True, tenant_b=True):
     for code, name, order in PLANS:
         await db.plans.update_one({"code": code}, {"$setOnInsert": {"id": new_id(), "code": code, "name": name, "order": order, "active": True,
                                                                    "price_monthly": None, "price_yearly": None, "max_customers": None, "description": ""}}, upsert=True)
+        paid = code not in ("FREE", "TRIAL")
+        await db.plans.update_one({"code": code, "base_fee": {"$exists": False}}, {"$set": {"base_fee": 5000 if paid else 0, "per_customer_fee": 500 if paid else 0}})
     admin = await db.users.find_one({"tenant_id": tid, "role": "admin"})
     if platform:
         await db.users.update_one({"id": admin["id"]}, {"$set": {"platform_admin": True}})

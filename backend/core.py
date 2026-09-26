@@ -120,6 +120,16 @@ staff = require_roles("admin", "consultant")
 admin_only = require_roles("admin")
 
 
+async def track_peak(tenant_id):
+    """Records this month's peak customer count (billing basis) and returns (current, peak)."""
+    from datetime import datetime as _dt
+    from pymongo import ReturnDocument
+    cur = await db.clients.count_documents({"tenant_id": tenant_id})
+    doc = await db.customer_peaks.find_one_and_update({"tenant_id": tenant_id, "month": _dt.now().strftime("%Y-%m")}, {"$max": {"peak": cur}},
+                                                     upsert=True, return_document=ReturnDocument.AFTER)
+    return cur, doc["peak"]
+
+
 def sees_all(user):
     return user["role"] == "admin" and not user.get("is_consultant")
 

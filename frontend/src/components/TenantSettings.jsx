@@ -36,19 +36,32 @@ function Subscription() {
   };
   if (!data) return <Spinner />;
   const s = data.subscription || {};
+  const p = data.pricing || {};
   return (
     <Card><CardTitle>{t("subscription")}</CardTitle>
+      <div className="mb-4 rounded-xl border border-emerald-100 bg-emerald-50/60 p-4" data-testid="pricing-box">
+        <div className="text-xs text-slate-500">{p.month} · {t("peak_customers")}</div>
+        <div className="mt-1 flex flex-wrap items-baseline gap-2 text-[#071A2B]">
+          <span className="font-num text-2xl font-semibold" data-testid="pricing-peak">{p.peak_customers ?? 0}{t("people_unit")}</span>
+          <span className="text-slate-400">→</span>
+          <span className="text-xs text-slate-500">{t("this_month_fee")}</span>
+          <span className="font-num text-2xl font-semibold text-[#00A878]" data-testid="pricing-amount">{yen(p.amount || 0)}</span>
+        </div>
+        <div className="mt-1 font-num text-[11px] text-slate-500" data-testid="pricing-formula">
+          {t("base_fee")} {yen(p.base_fee || 0)} + {yen(p.per_customer_fee || 0)} × {p.peak_customers ?? 0}{t("people_unit")}{p.months > 1 ? ` × ${p.months}` : ""} · {t("current_customers")} {p.current_customers ?? 0}{t("people_unit")}
+        </div>
+        {!(p.amount > 0) && <div className="mt-1 text-[11px] text-emerald-700" data-testid="pricing-free">{t("no_fee_plan")}</div>}
+      </div>
       <dl className="grid grid-cols-2 gap-2 text-sm" data-testid="subscription-card">
         <dt className="text-slate-500">{t("company_name")}</dt><dd>{data.tenant.name}</dd>
         <dt className="text-slate-500">{t("status")}</dt><dd>{t(data.tenant.status || "ACTIVE")}</dd>
         <dt className="text-slate-500">{t("plan")}</dt><dd>{data.plan?.name || s.plan_code}</dd>
         <dt className="text-slate-500">{t("start_date_c")}</dt><dd className="font-num">{s.start_date || "—"}</dd>
         <dt className="text-slate-500">{t("renewal_date")}</dt><dd className="font-num">{s.renewal_date || "—"}</dd>
-        <dt className="text-slate-500">{t("amount")}</dt><dd className="font-num">{s.amount != null ? yen(s.amount) : t("none_set")}</dd>
         <dt className="text-slate-500">{t("payment_status")}</dt><dd>{s.payment_status || "—"}</dd>
       </dl>
       <p className="mt-3 text-[11px] text-slate-500">{t("saas_separate_note")}</p>
-      {s.amount > 0 && <Button className="btn-emerald mt-4" onClick={paySaas} data-testid="saas-card-pay-btn"><CreditCard className="mr-1 h-4 w-4" />{t("pay_by_card")} ({yen(s.amount)})</Button>}
+      {p.amount > 0 && <Button className="btn-emerald mt-4" onClick={paySaas} data-testid="saas-card-pay-btn"><CreditCard className="mr-1 h-4 w-4" />{t("pay_by_card")} ({yen(p.amount)})</Button>}
     </Card>
   );
 }

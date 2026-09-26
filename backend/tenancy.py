@@ -2,12 +2,12 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from core import (forbid_demo, db, new_id, now, now_iso, clean, staff, admin_only, platform_admin, scope, audit, notify, hash_password,
+from core import (track_peak, sees_all, forbid_demo, db, new_id, now, now_iso, clean, staff, admin_only, platform_admin, scope, audit, notify, hash_password,
                   encrypt, ip_of)
 
 router = APIRouter(prefix="/api")
@@ -148,12 +148,52 @@ async def accept_invitation(token: str, body: AcceptIn, request: Request):
     return {"ok": True, "email": i["email"]}
 
 
+async def customer_fee(tid):
+    """FINORA fee = (plan base fee + per-customer fee × this month's peak customers) × months in billing period."""
+    cur, peak = await track_peak(tid)
+    s = await db.saas_subscriptions.find_one({"tenant_id": tid}) or {}
+    p = await db.plans.find_one({"code": s.get("plan_code")}) or {}
+    base, per = float(p.get("base_fee") or 0), float(p.get("per_customer_fee") or 0)
+    months = 12 if s.get("billing_period") == "yearly" else 1
+    return {"month": datetime.now().strftime("%Y-%m"), "current_customers": cur, "peak_customers": peak, "base_fee": base,
+            "per_customer_fee": per, "months": months, "amount": (base + per * peak) * months}
+
+
 @router.get("/subscription")
 async def my_subscription(user=Depends(admin_only)):
     t = await db.tenants.find_one({"id": user["tenant_id"]}) or {}
     s = await db.saas_subscriptions.find_one({"tenant_id": user["tenant_id"]}) or {}
     p = await db.plans.find_one({"code": s.get("plan_code")}) or {}
-    return {"tenant": {"name": t.get("name"), "status": t.get("status")}, "subscription": clean(s), "plan": clean(p)}
+    return {"tenant": {"name": t.get("name"), "status": t.get("status")}, "subscription": clean(s), "plan": clean(p),
+            "pricing": await customer_fee(user["tenant_id"])}
+
+
+class ReassignIn(BaseModel):
+    from_id: str
+    to_id: str
+    client_ids: List[str] = []
+
+
+@router.post("/clients/reassign")
+async def reassign_clients(body: ReassignIn, request: Request, user=Depends(admin_only)):
+    tid = user["tenant_id"]
+    if body.from_id == body.to_id:
+        raise HTTPException(422, "Choose a different consultant")
+    if not sees_all(user) and body.from_id != user["id"]:
+        raise HTTPException(403, "You can only hand over your own clients")
+    to = await db.users.find_one({"id": body.to_id, "tenant_id": tid, "role": {"$in": ["admin", "consultant"]}, "active": True})
+    if not to:
+        raise HTTPException(404, "Consultant not found")
+    q = {"tenant_id": tid, "consultant_id": body.from_id} | ({"id": {"$in": body.client_ids}} if body.client_ids else {})
+    ids = [c["id"] for c in await db.clients.find(q, {"id": 1}).to_list(5000)]
+    if not ids:
+        raise HTTPException(409, "No clients to hand over")
+    await db.clients.update_many({"id": {"$in": ids}}, {"$set": {"consultant_id": to["id"], "updated_at": now_iso(), "updated_by": user["id"]},
+                                                        "$pull": {"secondary_consultant_ids": to["id"]}})
+    await audit(user, "reassign", "clients", body.from_id, before={"consultant_id": body.from_id}, after={"consultant_id": to["id"], "client_ids": ids},
+                request=request, label=f"{len(ids)} → {to.get('name')}")
+    await notify(tid, [to["id"]], "clients_assigned", {"label": str(len(ids))}, None, "/clients", user)
+    return {"ok": True, "moved": len(ids)}
 
 
 @router.get("/platform/tenants")
@@ -168,6 +208,7 @@ async def platform_tenants(user=Depends(platform_admin)):
                     "amount": s.get("amount"), "billing_period": s.get("billing_period"), "renewal_date": s.get("renewal_date"),
                     "members": await db.users.count_documents({"tenant_id": t["id"], "role": {"$ne": "client"}}),
                     "customers": await db.clients.count_documents({"tenant_id": t["id"]}),
+                    **{k: v for k, v in (await customer_fee(t["id"])).items() if k in ("peak_customers", "amount")},
                     "last_activity": (last or {}).get("at"), "created_at": t.get("created_at")})
     return out
 
@@ -213,6 +254,8 @@ class PlanUpd(BaseModel):
     price_monthly: Optional[float] = None
     price_yearly: Optional[float] = None
     max_customers: Optional[int] = None
+    base_fee: Optional[float] = None
+    per_customer_fee: Optional[float] = None
     active: Optional[bool] = None
 
 

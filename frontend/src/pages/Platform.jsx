@@ -59,7 +59,7 @@ function Tenants() {
             <tr key={r.id} data-testid={`platform-tenant-${r.id}`}>
               <td className="font-medium">{r.name}</td><td className="text-xs">{r.owner_name}<div className="text-slate-400">{r.owner_email}</div></td>
               <td><span className={`rounded-md px-2 py-0.5 text-xs ${r.status === "SUSPENDED" || r.status === "CANCELLED" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>{t(r.status)}</span></td>
-              <td>{r.plan_code || "—"}</td><td className="text-xs">{r.payment_status || "—"}</td><td className="font-num">{r.amount != null ? yen(r.amount) : t("none_set")}</td>
+              <td>{r.plan_code || "—"}</td><td className="text-xs">{r.payment_status || "—"}</td><td className="font-num" data-testid={`tenant-fee-${r.id}`}>{yen(r.amount || 0)}<div className="text-[10px] text-slate-400">{t("peak_customers")} {r.peak_customers ?? 0}</div></td>
               <td className="font-num text-xs">{r.renewal_date || "—"}</td><td className="text-center">{r.members}</td><td className="text-center">{r.customers}</td>
               <td className="font-num text-xs">{fmtDate(r.last_activity)}</td>
               <td><Button size="sm" variant="outline" onClick={() => setEdit(r)} data-testid={`platform-edit-${r.id}`}>{t("edit")}</Button></td>
@@ -80,10 +80,10 @@ function Plans() {
   return (
     <Card><CardTitle>{t("plans")}</CardTitle>
       <table className="data-table w-full text-sm" data-testid="platform-plan-table">
-        <thead><tr>{["plan", "price_monthly", "price_yearly"].map((h) => <th key={h}>{t(h)}</th>)}</tr></thead>
+        <thead><tr>{["plan", "base_fee", "per_customer_fee", "price_monthly", "price_yearly"].map((h) => <th key={h}>{t(h)}</th>)}</tr></thead>
         <tbody>{data.map((p) => (
           <tr key={p.code}><td className="font-medium">{p.name} <span className="text-xs text-slate-400">{p.code}</span></td>
-            {["price_monthly", "price_yearly"].map((k) => <td key={k}><input type="number" defaultValue={p[k] ?? ""} placeholder={t("none_set")} onBlur={(e) => e.target.value !== String(p[k] ?? "") && save(p, k, e.target.value)} className="h-9 w-36 rounded-lg border border-slate-200 px-2 font-num text-sm" data-testid={`plan-${p.code}-${k}`} /></td>)}</tr>
+            {["base_fee", "per_customer_fee", "price_monthly", "price_yearly"].map((k) => <td key={k}><input type="number" defaultValue={p[k] ?? ""} placeholder={t("none_set")} onBlur={(e) => e.target.value !== String(p[k] ?? "") && save(p, k, e.target.value)} className="h-9 w-32 rounded-lg border border-slate-200 px-2 font-num text-sm" data-testid={`plan-${p.code}-${k}`} /></td>)}</tr>
         ))}</tbody>
       </table>
     </Card>
