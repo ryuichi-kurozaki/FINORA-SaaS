@@ -1,12 +1,13 @@
 """E-contract review/sign requests via email (Emergent managed) and the server's shared WhatsApp service."""
 import logging
 import os
+import re
 from datetime import datetime, timezone
 from html import escape
 
 import httpx
 
-from core import db, new_id
+from core import db, decrypt, new_id
 from email_service import APP_URL, EMAIL_FROM_NAME, send_email
 
 logger = logging.getLogger(__name__)
@@ -89,8 +90,12 @@ async def _deliver(c, u, kind, x, subject, body, cta):
     except Exception as e:
         logger.error("sign request email failed %s: %s", c["number"], e)
         await _log(c, u, "EMAIL", u["email"], kind, "FAILED", e)
-    phone = u.get("whatsapp_phone")
-    if not (WA_URL and phone and u.get("whatsapp_opt_in")):
+    phone, opted = u.get("whatsapp_phone"), u.get("whatsapp_opt_in")
+    if not phone and u.get("role") == "client" and u.get("client_id"):
+        cl = await db.clients.find_one({"id": u["client_id"]}, {"whatsapp": 1}) or {}
+        phone = re.sub(r"\D", "", decrypt(cl["whatsapp"])) if cl.get("whatsapp") else None
+        opted = bool(phone)
+    if not (WA_URL and phone and opted):
         return
     try:
         async with httpx.AsyncClient(timeout=20) as h:

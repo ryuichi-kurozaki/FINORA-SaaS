@@ -150,7 +150,7 @@ async def seed_demo(tenant_id, consultant_id, admin_id):
     for ci, inst, typ, reg, own, cur in ACCOUNTS:
         aid = new_id()
         await db.accounts.insert_one({"id": aid, "tenant_id": tenant_id, "client_id": cids[ci], "institution": inst, "account_type": typ,
-                                      "region": reg, "owner_type": own, "currency": cur, "account_number": encrypt(f"{rnd.randint(1000000, 9999999)}"),
+                                      "region": reg, "owner_type": own, "currency": cur,
                                       "created_at": now_iso(), "updated_at": now_iso()})
         acct_ids.append(aid)
     for ci, ai, cls, name, tk, own, ctry, sec, cur, ad, ap, q, cp, div, intr in ASSETS:

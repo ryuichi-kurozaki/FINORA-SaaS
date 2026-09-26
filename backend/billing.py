@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from pymongo import ReturnDocument
 
+from payouts import card_clients
 from core import (forbid_demo, db, new_id, now_iso, clean, current, staff, admin_only, scope, audit, accessible_ids,
                   notify, client_user_ids, consultant_ids)
 
@@ -123,8 +124,8 @@ async def list_invoices(client_id: Optional[str] = None, status: Optional[str] =
     nm = await names(user["tenant_id"])
     refundable = set(await db.payments.distinct("invoice_id", {"tenant_id": user["tenant_id"], "source": "STRIPE", "refunded": {"$ne": True}})) \
         if user["role"] == "admin" else set()
-    card = bool((await db.tenants.find_one({"id": user["tenant_id"]}, {"payout_bank": 1}) or {}).get("payout_bank"))
-    out = [clean(i) | {"client_name": nm.get(i["client_id"]), "card_refundable": i["id"] in refundable, "card_enabled": card} for i in invs]
+    card = await card_clients(user["tenant_id"])
+    out = [clean(i) | {"client_name": nm.get(i["client_id"]), "card_refundable": i["id"] in refundable, "card_enabled": i["client_id"] in card} for i in invs]
     return [i for i in out if not status or i["status"] == status]
 
 

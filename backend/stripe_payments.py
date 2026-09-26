@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from core import forbid_demo, db, new_id, now_iso, current, admin_only, audit, notify, consultant_ids, client_user_ids
 from billing import get_invoice, recompute
 from email_service import send_refund_receipt
-from payouts import record_fee
+from payouts import card_clients, record_fee
 from tenancy import customer_fee
 
 router = APIRouter(prefix="/api")
@@ -61,7 +61,7 @@ async def checkout_invoice(body: CheckoutIn, user=Depends(current)):
     inv = await get_invoice(user, body.invoice_id or "")
     if inv["status"] not in PAYABLE or inv["balance"] <= 0:
         raise HTTPException(409, "This invoice is not payable")
-    if not (await db.tenants.find_one({"id": user["tenant_id"]}, {"payout_bank": 1}) or {}).get("payout_bank"):
+    if inv["client_id"] not in await card_clients(user["tenant_id"]):
         raise HTTPException(409, "カード決済は現在ご利用いただけません (Card payment is not available for this invoice)")
     s = _session(f"Invoice {inv['number']}", inv["balance"], body.origin_url,
                  {"kind": "invoice", "invoice_id": inv["id"], "tenant_id": user["tenant_id"]})

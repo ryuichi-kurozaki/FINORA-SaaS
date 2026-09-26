@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Landmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useApp } from "@/context/AppContext";
 import { api, errMsg, useApi } from "@/lib/api";
 import { fmtDate, yen } from "@/lib/format";
@@ -11,24 +12,30 @@ const inp = "mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 t
 const EMPTY = { bank_name: "", bank_code: "", branch_name: "", branch_code: "", account_type: "ORDINARY", account_number: "", holder_kana: "" };
 const TEXT = [["bank_name", "pb_bank_name"], ["bank_code", "pb_bank_code"], ["branch_name", "pb_branch_name"], ["branch_code", "pb_branch_code"], ["account_number", "pb_account_number"], ["holder_kana", "pb_holder_kana"]];
 
-function BankForm() {
+export function BankForm({ onSaved, bare }) {
   const { t } = useApp();
   const { data } = useApi("/payouts/bank");
   const [f, setF] = useState(EMPTY);
   useEffect(() => { if (data?.bank) setF({ ...EMPTY, ...data.bank }); }, [data]);
-  const save = async () => { try { await api.put("/payouts/bank", f); toast.success(t("saved")); } catch (e) { toast.error(errMsg(e)); } };
+  const save = async () => { try { await api.put("/payouts/bank", f); toast.success(t("saved")); onSaved?.(); } catch (e) { toast.error(errMsg(e)); } };
   if (!data) return <Spinner />;
-  return (
-    <Card data-testid="payout-bank-card"><CardTitle right={<span className={`rounded-md px-2 py-0.5 text-[11px] ${data.bank ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`} data-testid="payout-bank-status">{t(data.bank ? "pb_registered" : "pb_not_registered")}</span>}>
-      <span className="inline-flex items-center gap-2"><Landmark className="h-4 w-4 text-[#00A878]" />{t("payout_bank")}</span></CardTitle>
-      <p className="mb-3 text-xs leading-relaxed text-slate-500">{t("pb_note")}</p>
+  const fields = (
+    <>
       <div className="grid gap-3 sm:grid-cols-2">
-        {TEXT.map(([k, l]) => <label key={k} className="text-xs text-slate-600">{t(l)}<input value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value.trim() === "" ? "" : e.target.value })} className={inp} data-testid={`pb-${k}`} /></label>)}
+        {TEXT.map(([k, l]) => <label key={k} className="text-xs text-slate-600">{t(l)}<input value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} className={inp} data-testid={`pb-${k}`} /></label>)}
         <label className="text-xs text-slate-600">{t("pb_account_type")}
           <select value={f.account_type} onChange={(e) => setF({ ...f, account_type: e.target.value })} className={inp} data-testid="pb-account_type">
             {["ORDINARY", "CHECKING", "SAVINGS"].map((k) => <option key={k} value={k}>{t(`pb_${k}`)}</option>)}</select></label>
       </div>
       <Button className="btn-emerald mt-4" onClick={save} data-testid="pb-save">{t("save")}</Button>
+    </>
+  );
+  if (bare) return fields;
+  return (
+    <Card data-testid="payout-bank-card"><CardTitle right={<span className={`rounded-md px-2 py-0.5 text-[11px] ${data.bank ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`} data-testid="payout-bank-status">{t(data.bank ? "pb_registered" : "pb_not_registered")}</span>}>
+      <span className="inline-flex items-center gap-2"><Landmark className="h-4 w-4 text-[#00A878]" />{t("payout_bank")}</span></CardTitle>
+      <p className="mb-3 text-xs leading-relaxed text-slate-500">{t("pb_note")}</p>
+      {fields}
     </Card>
   );
 }
@@ -55,5 +62,20 @@ function PayoutStatus() {
 }
 
 export default function PayoutSettings() {
-  return <><BankForm /><PayoutStatus /></>;
+  const { user, setUser } = useApp();
+  return <div className="grid gap-6 xl:grid-cols-2"><BankForm onSaved={() => setUser({ ...user, payout_bank_registered: true })} /><PayoutStatus /></div>;
+}
+
+export function PayoutGate() {
+  const { t, user, setUser } = useApp();
+  if (!["admin", "consultant"].includes(user.role) || user.demo || user.payout_bank_registered) return null;
+  return (
+    <Dialog open>
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto [&>button]:hidden" data-testid="payout-gate">
+        <DialogHeader><DialogTitle className="flex items-center gap-2 font-display"><Landmark className="h-5 w-5 text-[#00A878]" />{t("pb_gate_title")}</DialogTitle></DialogHeader>
+        <p className="text-xs leading-relaxed text-slate-500">{t("pb_gate_desc")} {t("pb_note")}</p>
+        <BankForm bare onSaved={() => setUser({ ...user, payout_bank_registered: true })} />
+      </DialogContent>
+    </Dialog>
+  );
 }

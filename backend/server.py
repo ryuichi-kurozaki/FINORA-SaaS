@@ -8,7 +8,7 @@ import logging  # noqa: E402
 from fastapi import FastAPI, Request  # noqa: E402
 from starlette.middleware.cors import CORSMiddleware  # noqa: E402
 
-from core import mongo  # noqa: E402
+from core import mongo, db  # noqa: E402
 import auth_routes  # noqa: E402
 import crud  # noqa: E402
 import routes_analytics  # noqa: E402
@@ -61,6 +61,8 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup():
     await seed()
+    await db.accounts.update_many({"account_number": {"$exists": True}}, {"$unset": {"account_number": ""}})
+    await db.tenants.update_many({"payout_bank": {"$exists": True}}, {"$unset": {"payout_bank": ""}})
     app.state.renewal_task = asyncio.create_task(renewal.loop())
 
 

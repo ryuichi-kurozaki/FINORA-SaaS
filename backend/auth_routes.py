@@ -174,8 +174,9 @@ async def logout(response: Response, user=Depends(current)):
 
 @router.get("/auth/me")
 async def me(user=Depends(current)):
-    tenant = await db.tenants.find_one({"id": user["tenant_id"]}, {"_id": 0})
-    return {**user, "tenant": tenant}
+    tenant = await db.tenants.find_one({"id": user["tenant_id"]}, {"_id": 0, "payout_bank": 0})
+    reg = bool((await db.users.find_one({"id": user["id"]}, {"payout_bank": 1}) or {}).get("payout_bank"))
+    return {**{k: v for k, v in user.items() if k != "payout_bank"}, "tenant": tenant, "payout_bank_registered": reg}
 
 
 @router.post("/auth/change-password")

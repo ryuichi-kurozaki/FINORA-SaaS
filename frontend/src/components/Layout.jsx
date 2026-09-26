@@ -9,6 +9,7 @@ import { useApi } from "@/lib/api";
 import { LANGS } from "@/i18n/dict";
 import { Logo } from "@/components/Logo";
 import ConsentGate from "@/components/ConsentGate";
+import { PayoutGate } from "@/components/PayoutSettings";
 
 export const NAV = [
   ["dashboard", "Dashboard", "/", LayoutDashboard], ["clients", "Clients", "/clients", Users], ["accounts", "Accounts", "/accounts", Landmark],
@@ -133,6 +134,7 @@ export default function Layout() {
           {user.tenant?.finora_contract_required && user.tenant?.finora_contract !== "ACTIVE" && user.role !== "client" && (
             <a href="/settings" className="mb-6 block rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800" data-testid="finora-contract-banner">{t("ec_banner")}</a>)}
           <Outlet /></main>
+        <PayoutGate />
         <ConsentGate />
       </div>
     </div>

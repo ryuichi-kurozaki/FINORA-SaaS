@@ -18,11 +18,11 @@ function SendDialog({ row, onClose, onDone }) {
   const { t } = useApp();
   const [f, setF] = useState({ transfer_fee: 0, transfer_date: new Date().toISOString().slice(0, 10), note: "" });
   const submit = async () => {
-    try { await api.post(`/platform/payouts/${row.tenant_id}`, f); toast.success(t("saved")); onDone(); onClose(); } catch (e) { toast.error(errMsg(e)); }
+    try { await api.post(`/platform/payouts/${row.payee_id}`, f); toast.success(t("saved")); onDone(); onClose(); } catch (e) { toast.error(errMsg(e)); }
   };
   return (
     <Dialog open onOpenChange={onClose}><DialogContent data-testid="payout-send-dialog">
-      <DialogHeader><DialogTitle>{t("po_mark_sent")} — {row.tenant_name}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{t("po_mark_sent")} — {row.payee_name}</DialogTitle></DialogHeader>
       <BankText b={row.bank} t={t} />
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-xs">{t("po_transfer_fee")}<input type="number" min={0} className={inp} value={f.transfer_fee} onChange={(e) => setF({ ...f, transfer_fee: Number(e.target.value) })} data-testid="payout-transfer-fee" /></label>
@@ -45,25 +45,25 @@ export default function PayoutsPanel() {
       <Card><CardTitle>{t("po_schedule")}</CardTitle>
         <p className="mb-3 text-xs text-slate-500">{t("po_formula")}</p>
         <div className="overflow-x-auto"><table className="data-table w-full min-w-[900px] text-sm" data-testid="payout-table">
-          <thead><tr>{["name", "payout_bank", "po_gross", "po_stripe_fee", "po_pending", ""].map((h) => <th key={h}>{h && t(h)}</th>)}</tr></thead>
-          <tbody>{data.tenants.length === 0 && <tr><td colSpan={6} className="text-center text-xs text-slate-400">—</td></tr>}
-            {data.tenants.map((r) => (
-              <tr key={r.tenant_id} data-testid={`payout-row-${r.tenant_id}`}>
-                <td className="font-medium">{r.tenant_name}<div className="text-xs text-slate-400">{r.owner_name} · {r.owner_email}</div>
+          <thead><tr>{["po_payee", "payout_bank", "po_gross", "po_stripe_fee", "po_pending", ""].map((h) => <th key={h}>{h && t(h)}</th>)}</tr></thead>
+          <tbody>{data.payees.length === 0 && <tr><td colSpan={6} className="text-center text-xs text-slate-400">—</td></tr>}
+            {data.payees.map((r) => (
+              <tr key={r.payee_id} data-testid={`payout-row-${r.payee_id}`}>
+                <td className="font-medium">{r.payee_name}<div className="text-xs text-slate-400">{r.tenant_name} · {r.payee_email}</div>
                   <details className="mt-1 text-xs"><summary className="cursor-pointer text-slate-500">{t("po_items")} ({r.items.length})</summary>
                     <ul className="mt-1 space-y-0.5 font-num">{r.items.map((i) => <li key={i.payment_id}>{fmtDate(i.date)} {i.invoice_number} {yen(i.amount)} − {t("po_stripe_fee")} {yen(i.stripe_fee)}{i.fee_estimated ? "*" : ""}{i.refunded ? ` − ${t("po_refunded")} ${yen(i.refunded)}` : ""}{i.settled ? ` − ${t("po_settled")} ${yen(i.settled)}` : ""} = {yen(i.pending)}</li>)}</ul></details></td>
                 <td><BankText b={r.bank} t={t} /></td>
                 <td className="font-num">{yen(r.gross)}</td><td className="font-num">{yen(r.fees)}</td>
-                <td className="font-num font-semibold" data-testid={`payout-pending-${r.tenant_id}`}>{yen(r.total)}</td>
-                <td><Button size="sm" className="btn-emerald" disabled={!r.bank || r.total <= 0} onClick={() => setSend(r)} data-testid={`payout-send-${r.tenant_id}`}>{t("po_mark_sent")}</Button></td>
+                <td className="font-num font-semibold" data-testid={`payout-pending-${r.payee_id}`}>{yen(r.total)}</td>
+                <td><Button size="sm" className="btn-emerald" disabled={!r.bank || r.total <= 0} onClick={() => setSend(r)} data-testid={`payout-send-${r.payee_id}`}>{t("po_mark_sent")}</Button></td>
               </tr>))}</tbody>
         </table></div>
         <p className="mt-2 text-[11px] text-slate-400">{t("po_fee_est_note")}</p>
       </Card>
       <Card><CardTitle>{t("po_history")}</CardTitle>
         <div className="overflow-x-auto"><table className="data-table w-full min-w-[700px] text-sm" data-testid="payout-history-table">
-          <thead><tr>{["po_transfer_date", "name", "po_pending", "po_transfer_fee", "po_amount", "notes"].map((h) => <th key={h}>{t(h)}</th>)}</tr></thead>
-          <tbody>{data.history.map((h) => <tr key={h.id}><td className="font-num text-xs">{fmtDate(h.transfer_date)}</td><td>{h.tenant_name}</td><td className="font-num">{yen(h.total)}</td><td className="font-num">{yen(h.transfer_fee)}</td><td className="font-num font-semibold">{yen(h.amount)}</td><td className="text-xs">{h.note}</td></tr>)}</tbody>
+          <thead><tr>{["po_transfer_date", "po_payee", "po_pending", "po_transfer_fee", "po_amount", "notes"].map((h) => <th key={h}>{t(h)}</th>)}</tr></thead>
+          <tbody>{data.history.map((h) => <tr key={h.id}><td className="font-num text-xs">{fmtDate(h.transfer_date)}</td><td>{h.payee_name || h.tenant_name}</td><td className="font-num">{yen(h.total)}</td><td className="font-num">{yen(h.transfer_fee)}</td><td className="font-num font-semibold">{yen(h.amount)}</td><td className="text-xs">{h.note}</td></tr>)}</tbody>
         </table></div>
       </Card>
       {send && <SendDialog row={send} onClose={() => setSend(null)} onDone={reload} />}

@@ -8,12 +8,11 @@ from core import (require_service, track_peak, sees_all, db, now_iso, new_id, cl
 router = APIRouter(prefix="/api/data")
 
 ENTITIES = {
-    "clients": {"fields": ["client_type", "name", "corporate_name", "email", "phone", "address", "occupation", "business",
+    "clients": {"fields": ["client_type", "name", "corporate_name", "email", "phone", "whatsapp", "address", "occupation", "business",
                            "family", "related_corps", "annual_income", "income", "investment_experience",
                            "investment_purpose", "risk_tolerance", "consultant_id", "secondary_consultant_ids", "status", "notes"],
-                "num": ["annual_income", "income"], "enc": ["phone", "address", "family", "notes"]},
-    "accounts": {"fields": ["client_id", "institution", "account_type", "region", "owner_type", "currency", "branch",
-                            "account_number", "notes"], "enc": ["account_number"]},
+                "num": ["annual_income", "income"], "enc": ["phone", "whatsapp", "address", "family", "notes"]},
+    "accounts": {"fields": ["client_id", "institution", "account_type", "region", "owner_type", "currency", "branch", "notes"]},
     "assets": {"fields": ["client_id", "account_id", "asset_class", "name", "ticker", "owner_type", "country", "sector",
                           "currency", "acquired_date", "acquisition_price", "quantity", "current_price", "realized_pl",
                           "dividend_annual", "interest_annual", "price_date", "balance_date", "notes"],

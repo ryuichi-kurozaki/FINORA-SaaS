@@ -17,7 +17,7 @@ export const ENTITIES = {
     { k: "name", table: true, req: true },
     { k: "corporate_name", table: true },
     { k: "email", table: true },
-    { k: "phone" }, { k: "address", wide: true }, { k: "occupation" }, { k: "business" }, { k: "family" }, { k: "related_corps" },
+    { k: "phone" }, { k: "whatsapp", label: "client_whatsapp" }, { k: "address", wide: true }, { k: "occupation" }, { k: "business" }, { k: "family" }, { k: "related_corps" },
     { k: "annual_income", type: "money", table: true }, { k: "income", type: "money", label: "income_field" },
     { k: "investment_experience" }, { k: "investment_purpose" },
     { k: "risk_tolerance", type: "select", opts: ["conservative", "moderate", "aggressive"], table: true },
@@ -32,7 +32,7 @@ export const ENTITIES = {
     { k: "region", type: "select", opts: ["domestic", "overseas"], table: true },
     { k: "owner_type", type: "select", opts: OWNER, table: true },
     { k: "currency", type: "select", opts: CURRENCIES, raw: true, table: true },
-    { k: "branch" }, { k: "account_number" }, { k: "notes", type: "textarea", wide: true },
+    { k: "branch" }, { k: "notes", type: "textarea", wide: true },
   ],
   assets: [
     { k: "client_id", type: "client", table: true, req: true },

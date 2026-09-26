@@ -34,7 +34,7 @@ def new_id():
 def clean(doc):
     if doc:
         doc.pop("_id", None)
-        for k in ("password_hash", "totp_secret", "totp_pending"):
+        for k in ("password_hash", "totp_secret", "totp_pending", "payout_bank"):
             doc.pop(k, None)
     return doc
 
