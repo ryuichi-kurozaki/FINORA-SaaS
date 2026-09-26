@@ -10,6 +10,7 @@ import { api, downloadFile, errMsg, useApi } from "@/lib/api";
 import { CURRENCIES, ENTITIES, EXPENSE_CATS, INCOME_CATS, OWNED } from "@/config/entities";
 import RecordDrawer from "@/components/RecordDrawer";
 import CorrectionDialog from "@/components/CorrectionDialog";
+import SecuritySearch from "@/components/SecuritySearch";
 import { fmtDate, num, plColor, yen } from "@/lib/format";
 import { Card, Empty, Spinner } from "@/components/common";
 
@@ -28,29 +29,6 @@ function Cell({ f, row, assets }) {
 }
 
 const selCls = "h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A878]/40";
-
-function TickerLookup({ id, v, on, form, set }) {
-  const { t } = useApp();
-  const [busy, setBusy] = useState(false);
-  const run = async () => {
-    setBusy(true);
-    try {
-      const { data: q } = await api.get(`/quote?ticker=${encodeURIComponent(v)}`);
-      set("ticker", q.ticker); set("current_price", q.price); set("price_date", q.price_date);
-      if (!form.name) set("name", q.name);
-      if (q.currency && CURRENCIES.includes(q.currency)) set("currency", q.currency);
-      if (!form.country) set("country", q.country);
-      toast.success(`${q.name} · ${q.price} ${q.currency || ""}`);
-    } catch (e) { toast.error(errMsg(e)); }
-    setBusy(false);
-  };
-  return (
-    <div className="flex gap-2">
-      <Input id={id} data-testid={id} value={v} onChange={on} placeholder="7203.T / AAPL / PETR4.SA" className="h-10" />
-      <Button type="button" variant="outline" className="h-10 shrink-0" disabled={!v || busy} onClick={run} data-testid="ticker-lookup-btn">{busy ? "…" : t("ticker_lookup")}</Button>
-    </div>
-  );
-}
 
 function Field({ f, form, set, users, accounts, assets }) {
   const { t, clients } = useApp();
@@ -71,8 +49,6 @@ function Field({ f, form, set, users, accounts, assets }) {
     input = <select id={id} data-testid={id} className={selCls} value={v} onChange={on}><option value="">—</option>{accounts.filter((a) => a.client_id === form.client_id).map((a) => <option key={a.id} value={a.id}>{a.institution} ({a.currency})</option>)}</select>;
   } else if (f.type === "textarea") {
     input = <textarea id={id} data-testid={id} rows={3} className="w-full rounded-lg border border-slate-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A878]/40" value={v} onChange={on} />;
-  } else if (f.lookup) {
-    input = <TickerLookup id={id} v={v} on={on} form={form} set={set} />;
   } else {
     input = <Input id={id} data-testid={id} type={f.type === "date" ? "date" : ["number", "money"].includes(f.type) ? "number" : "text"} step="any" value={v} onChange={on} className="h-10" />;
   }
@@ -205,6 +181,7 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto" data-testid={`${entity}-form-dialog`}>
           <DialogHeader><DialogTitle className="font-display">{form.id ? t("edit") : t("add")} — {t(entity)}</DialogTitle></DialogHeader>
+          {entity === "assets" && <SecuritySearch key={form.id || "new"} form={form} set={set} />}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {fields.filter((f) => !f.computed && !(clientId && f.type === "client") && !(isClient && f.type === "client")).map((f) => <Field key={f.k} f={f} form={form} set={set} users={users} accounts={accounts} assets={assets} />)}
           </div>

@@ -38,7 +38,7 @@ export const ENTITIES = {
     { k: "client_id", type: "client", table: true, req: true },
     { k: "asset_class", type: "select", opts: ASSET_CLASSES, table: true, req: true },
     { k: "name", label: "asset_name", table: true, req: true },
-    { k: "ticker", lookup: true }, { k: "account_id", type: "account" },
+    { k: "ticker" }, { k: "account_id", type: "account" },
     { k: "owner_type", type: "select", opts: OWNER },
     { k: "country", type: "select", opts: ["JP", "US", "BR", "GLOBAL", "other"] },
     { k: "sector", type: "select", opts: ["technology", "automotive", "diversified", "government", "digital_asset", "real_estate", "commodity", "energy", "finance", "healthcare", "consumer", "industrial", "other"] },

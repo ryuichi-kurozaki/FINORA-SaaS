@@ -29,6 +29,7 @@ import quote  # noqa: E402
 import site_cms  # noqa: E402
 import payouts  # noqa: E402
 import mail_log  # noqa: E402
+import jpx  # noqa: E402
 import asyncio  # noqa: E402
 from seed import seed  # noqa: E402
 
@@ -86,6 +87,7 @@ async def startup():
     app.state.renewal_task = asyncio.create_task(renewal.loop())
     app.state.wa_health_task = asyncio.create_task(wa_health.loop())
     app.state.mail_log_task = asyncio.create_task(mail_log.loop())
+    app.state.jpx_task = asyncio.create_task(jpx.loop())
 
 
 @app.on_event("shutdown")
