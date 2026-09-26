@@ -1,0 +1,36 @@
+{
+  "summary": "Iter21: Backend + Frontend testing of Finora Email Delivery Log. Backend pytest 10/10 pass in /app/backend/tests/test_email_log.py: platform_admin AuthZ (consultant + tenant-B owner get 403 on GET /api/platform/email-log and POST /sync); GET list returns items/total/counts/tracking/synced_at with no _id leak; q searches to+subject case-insensitive; kind filter respects allowed enum; counts ignore the status filter; pagination via skip+limit; items sorted by 'at' desc; POST /platform/email-log/sync parses postfix/cleanup message-id lines and postfix/smtp status lines to map queued rows to delivered / deferred / bounced, plus postfix/qmgr status=expired -> bounced; a second sync returns updated=0 (offset preserved via db.system_state id='mail_log'); truncation restart-from-0 works; POST /api/public/inquiries creates an email_log row with kind='inquiry', message_id stripped of angle brackets, status in {logged,queued}. Frontend: logged in as ryuichi.kurozaki@gmail.com, /platform → platform-tab-email_log opens email-log-panel with email-log-table, 5 rows including seeded test0/1/2, all 7 status chips (email-log-chip-{all|delivered|queued|deferred|bounced|failed|logged}) render with counts; email-log-search + email-log-search-btn filter 5→3; email-log-kind='inquiry' filters to 1 row; email-log-chip-bounced filters to 1 (test0 dsn=5.1.1 host said: 550 5.1.1 user unknown — details rendered under status); email-log-sync-btn triggers /platform/email-log/sync and shows Sonner toast '配信状況を更新しました（0件）' (uses el_synced replaced token); email-log-prev/next present; email-log-total shows '5 件 · 最終更新 …'. Row/status testids email-log-row-{id} and email-log-status-{id} present. i18n keys (el_*) are wired via useApp.t; per-row 種類 labels render (お問い合わせ / 招待 / 請求書 / 返金 / その他).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Platform TabsList (Platform.jsx:114)", "issue": "The platform TabsList uses shadcn's default `inline-flex ... whitespace-nowrap` and DOES NOT wrap on mobile. At 390px, computed style is `flex-wrap: nowrap` and document.scrollWidth=852 vs clientWidth=390 (horizontal page overflow). Review request explicitly requires the Platform tab list to wrap on mobile with no horizontal page overflow. Fix: add `flex-wrap` (e.g. className='flex flex-wrap h-auto ... bg-white/70') to the <TabsList>.", "selector": "[data-testid='platform-tab-email_log']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Layout header (Header.jsx / Layout.jsx:95 header-client-select)", "issues": ["Pre-existing React hydration warning: <span data-ve-dynamic> inside <option> (dev-only instrumentation, non-blocking, unchanged from iter20)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_email_log.py",
+    "/app/test_reports/pytest/email_log.xml"
+  ],
+  "action_items": [
+    "HIGH: Make the Platform TabsList wrap on mobile — add `flex flex-wrap h-auto` to <TabsList className=…> in /app/frontend/src/pages/Platform.jsx:114 (or override via a wrapper) so the 7 platform tabs no longer overflow horizontally at 390px. The inner email-log table already scrolls horizontally within its card and is correct."
+  ],
+  "critical_code_review_comments": [
+    "backend/mail_log.py: parse() is compact and correct — last status per queue_id wins (later smtp entry overwrites earlier deferred, matching Postfix retry semantics). Detail is truncated to 300 chars — good. MAP includes expired→bounced via RE_EXPIRED separately.",
+    "backend/mail_log.py sync(): correctly persists inode+offset in db.system_state, handles logrotate by reading MAIL_LOG_PATH+'.1' when inode changed, and resets offset to 0 on truncation (offset > size). No _id leak in list_log() (projection {'_id':0}).",
+    "backend/mail_log.py list_log(): counts aggregation intentionally ignores the status filter (uses base filter) so status chips still show totals — behavior verified end-to-end.",
+    "backend/email_service.py _record(): message_id is stripped of angle brackets, ensuring it matches Postfix cleanup log's <message-id> capture. send_email correctly writes status='failed' AND re-raises on SMTP exception, and status='queued' on success; EMAIL_TRANSPORT=log writes status='logged' and returns the Message-ID.",
+    "frontend/EmailLogPanel.jsx: sound, minimal component — chips, filters, pagination, sync all wired to /api/platform/email-log via authenticated api client; toast on sync uses t('el_synced') replace token.",
+    "frontend/pages/Platform.jsx: TabsList lacks responsive flex-wrap — the only concrete regression found in this iter."
+  ],
+  "updated_files": ["/app/backend/tests/test_email_log.py"],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "~90% — all email-log flows work; Platform tab list mobile-wrap regression is the only failing check"},
+  "test_credentials": "ryuichi.kurozaki@gmail.com / Finora2026! (platform admin); consultant@finora.co.jp / Finora2026! ; consultantb@finora.co.jp / Finora2026!",
+  "seed_data_creation": "Tests create/cleanup TEST_* rows in db.email_log and append test lines to /tmp/finora_mail.log. Public inquiry test may leave one legitimate kind='inquiry' row in email_log; harmless. The pre-existing test0/1/2 seed rows added by main agent remain untouched.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression suite: pytest /app/backend/tests/test_email_log.py. Note: /tmp/finora_mail.log offset is persisted in db.system_state id='mail_log'; if you clear the file, next sync auto-resets. On mobile 390px, once the TabsList wrap fix is applied, expect document.scrollWidth == 390 and TabsList parent computed flex-wrap == 'wrap'.",
+  "rca of the issue": "Platform tab list overflow: shadcn's TabsList is `inline-flex items-center whitespace-nowrap`. With 7 items and their padding at 390px the intrinsic width is ~852px, so the page scrolls horizontally. Fix by overriding className on <TabsList> to add `flex-wrap h-auto` (h-auto because default is fixed h-9)."
+}

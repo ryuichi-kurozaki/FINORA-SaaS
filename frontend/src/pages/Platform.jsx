@@ -111,7 +111,7 @@ export default function Platform() {
     <div data-testid="platform-page">
       <PageHeader eyebrow="FINORA Platform" title={t("platform")} sub={t("platform_note")} />
       <Tabs defaultValue="tenants">
-        <TabsList className="bg-white/70">{["tenants", "ec_consultant_contracts", "payouts", "email_log", "site_admin", "plans", "audit_logs"].map((k) => <TabsTrigger key={k} value={k} data-testid={`platform-tab-${k}`} className="data-[state=active]:bg-[#071A2B] data-[state=active]:text-white">{t(k)}</TabsTrigger>)}</TabsList>
+        <TabsList className="h-auto flex-wrap justify-start bg-white/70">{["tenants", "ec_consultant_contracts", "payouts", "email_log", "site_admin", "plans", "audit_logs"].map((k) => <TabsTrigger key={k} value={k} data-testid={`platform-tab-${k}`} className="data-[state=active]:bg-[#071A2B] data-[state=active]:text-white">{t(k)}</TabsTrigger>)}</TabsList>
         <TabsContent value="tenants" className="mt-5"><Tenants /></TabsContent>
         <TabsContent value="ec_consultant_contracts" className="mt-5"><EContractPanel type="FINORA_SAAS" allowCreate title={t("ec_consultant_contracts")} /></TabsContent>
         <TabsContent value="payouts" className="mt-5"><PayoutsPanel /></TabsContent>

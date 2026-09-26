@@ -180,3 +180,12 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - email_service.send_email now uses the VPS Postfix (127.0.0.1:25, OpenDKIM signs *@prcremit.co.jp, SPF mx, DMARC p=none). From "FINORA <finora@prcremit.co.jp>", Reply-To info@prcremit.co.jp (finora@ has NO mailbox yet). Emergent managed email no longer used
 - Env: EMAIL_TRANSPORT (prod smtp, preview log → db.email_log only, nothing sent), EMAIL_FROM, EMAIL_REPLY_TO, SMTP_HOST, SMTP_PORT; SITE_INQUIRY_EMAIL=info@prcremit.co.jp (prod & preview)
 - Verified on prod: test mail to Gmail accepted (250 OK) and to info@prcremit.co.jp delivered to maildir
+
+## 2026-09 finora@ mailbox + Email delivery log
+- PROD VPS: created real mailbox finora@prcremit.co.jp (/etc/postfix/vmailbox + postmap, /etc/dovecot/users SHA512-CRYPT, Maildir /var/mail/vhosts/prcremit.co.jp/finora, backups *.bak-<ts>). IMAP mail.prcremit.co.jp:993 SSL login verified; test delivery OK. Password in /root/finora_prod_secrets.txt. Reply-To still info@prcremit.co.jp (unchanged)
+- backend/mail_log.py: send_email(kind=...) records db.email_log {id,to,subject,kind,message_id,queue_id,status queued|delivered|deferred|bounced|failed|logged,detail,at,updated_at}. 2-min loop parses Postfix log MAIL_LOG_PATH incrementally (offset+inode in system_state id='mail_log', handles logrotate .1 & truncation): cleanup message-id → queue_id, smtp/virtual status=sent/deferred/bounced, qmgr expired → bounced
+- API (platform admin only): GET /api/platform/email-log?q&kind&status&skip&limit, POST /api/platform/email-log/sync
+- UI: Platform → メール送信ログ tab (EmailLogPanel.jsx): search to/subject, kind select, status chips with counts, pagination, sync button. Platform TabsList now wraps on mobile
+- Env: MAIL_LOG_PATH (preview /tmp/finora_mail.log fake file; prod should be /var/log/mail.log — backend runs as root)
+- iteration_21: backend 10/10, frontend pass (mobile tab wrap fixed & verified)
+- NOT YET DEPLOYED to prod (awaiting user approval): needs prod .env MAIL_LOG_PATH=/var/log/mail.log + backend rsync (exclude venv) + frontend build
