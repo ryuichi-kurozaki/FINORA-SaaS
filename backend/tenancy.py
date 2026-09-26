@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from core import (require_service, track_peak, sees_all, forbid_demo, db, new_id, now, now_iso, clean, staff, admin_only, platform_admin, scope, audit, notify, hash_password,
                   encrypt, decrypt, ip_of)
 from invite_notify import send_invite
+from sign_notify import wa_digits
 
 router = APIRouter(prefix="/api")
 TENANT_STATUS = ("TRIAL", "ACTIVE", "SUSPENDED", "CANCELLED")
@@ -78,17 +79,22 @@ async def signup(body: SignupIn, request: Request):
 
 class InviteIn(BaseModel):
     client_id: str
-    email: str = Field(min_length=5, max_length=200)
+    email: str = Field("", max_length=200)
     whatsapp: str = Field("", max_length=30)
+    channel: str = Field("email", pattern="^(email|whatsapp)$")
 
 
 async def _deliver(user, doc, token, whatsapp):
     t = await db.tenants.find_one({"id": user["tenant_id"]}, {"name": 1}) or {}
     c = await db.clients.find_one({"id": doc["client_id"]}, {"name": 1}) or {}
-    d = await send_invite(doc, token, user.get("lang"), t.get("name") or "FINORA", c.get("name"), whatsapp)
+    d = await send_invite(doc, token, user.get("lang"), t.get("name") or "FINORA", c.get("name"), whatsapp, doc.get("channel", "email"))
     d["at"] = now_iso()
     await db.invitations.update_one({"id": doc["id"]}, {"$set": {"delivery": d}})
     return d
+
+
+def _valid_email(e):
+    return "@" in e and "." in e.split("@")[-1] and len(e) >= 5
 
 
 @router.post("/invitations")
@@ -96,17 +102,23 @@ async def create_invitation(body: InviteIn, request: Request, user=Depends(staff
     forbid_demo(user)
     await require_service(user)
     await scope(user, body.client_id)
-    email = body.email.strip().lower()
-    if await db.users.find_one({"email": email}):
+    email, wa = body.email.strip().lower(), body.whatsapp.strip()
+    if body.channel == "whatsapp" and not wa_digits(wa):
+        raise HTTPException(422, "WhatsApp番号を入力してください (WhatsApp number is required)")
+    if body.channel == "email" and not _valid_email(email):
+        raise HTTPException(422, "Invalid email")
+    if email and not _valid_email(email):
+        raise HTTPException(422, "Invalid email")
+    if email and await db.users.find_one({"email": email}):
         raise HTTPException(409, "This email already has a FINORA account")
     await db.invitations.update_many({"tenant_id": user["tenant_id"], "client_id": body.client_id, "status": "PENDING"}, {"$set": {"status": "CANCELLED"}})
     token = secrets.token_urlsafe(24)
-    wa = body.whatsapp.strip()
-    doc = {"id": new_id(), "tenant_id": user["tenant_id"], "client_id": body.client_id, "email": email, "token_hash": _hash(token),
+    doc = {"id": new_id(), "tenant_id": user["tenant_id"], "client_id": body.client_id, "email": email or None, "channel": body.channel, "token_hash": _hash(token),
            "invited_by": user["id"], "invited_by_name": user.get("name"), "status": "PENDING", "created_at": now_iso(),
            "expires_at": (now() + timedelta(days=7)).isoformat(), "whatsapp": encrypt(wa) if wa else None, "whatsapp_masked": ("***" + wa[-4:]) if wa else None}
     await db.invitations.insert_one(doc)
-    await audit(user, "invite", "invitations", doc["id"], after={"email": email, "whatsapp": doc["whatsapp_masked"]}, request=request, client_id=body.client_id, label=email)
+    await audit(user, "invite", "invitations", doc["id"], after={"email": email, "whatsapp": doc["whatsapp_masked"], "channel": body.channel}, request=request,
+                client_id=body.client_id, label=email or doc["whatsapp_masked"])
     d = await _deliver(user, doc, token, wa)
     return clean({k: v for k, v in doc.items() if k not in ("token_hash", "whatsapp")}) | {"token": token, "path": f"/invite/{token}", "delivery": d}
 
@@ -123,7 +135,7 @@ async def resend_invitation(iid: str, request: Request, user=Depends(staff)):
     token = secrets.token_urlsafe(24)
     exp = (now() + timedelta(days=7)).isoformat()
     await db.invitations.update_one({"id": iid}, {"$set": {"token_hash": _hash(token), "status": "PENDING", "expires_at": exp}, "$inc": {"resend_count": 1}})
-    await audit(user, "resend", "invitations", iid, request=request, client_id=i["client_id"], label=i["email"])
+    await audit(user, "resend", "invitations", iid, request=request, client_id=i["client_id"], label=i.get("email") or i.get("whatsapp_masked"))
     d = await _deliver(user, i, token, decrypt(i["whatsapp"]) if i.get("whatsapp") else "")
     return {"ok": True, "path": f"/invite/{token}", "expires_at": exp, "delivery": d}
 
@@ -157,13 +169,14 @@ async def invitation_info(token: str):
     i = await _by_token(token)
     t = await db.tenants.find_one({"id": i["tenant_id"]}, {"name": 1})
     c = await db.clients.find_one({"id": i["client_id"]}, {"name": 1, "corporate_name": 1})
-    return {"email": i["email"], "status": inv_status(i), "expires_at": i["expires_at"], "tenant_name": (t or {}).get("name"),
+    return {"email": i.get("email"), "status": inv_status(i), "expires_at": i["expires_at"], "tenant_name": (t or {}).get("name"),
             "client_name": (c or {}).get("corporate_name") or (c or {}).get("name"), "inviter": i.get("invited_by_name")}
 
 
 class AcceptIn(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     password: str = Field(min_length=8, max_length=128)
+    email: str = Field("", max_length=200)
 
 
 @router.post("/public/invitations/{token}/accept")
@@ -171,15 +184,18 @@ async def accept_invitation(token: str, body: AcceptIn, request: Request):
     i = await _by_token(token)
     if inv_status(i) != "PENDING":
         raise HTTPException(410, "Invitation is no longer valid")
-    if await db.users.find_one({"email": i["email"]}):
+    email = i.get("email") or body.email.strip().lower()
+    if not _valid_email(email):
+        raise HTTPException(422, "メールアドレスを入力してください (Please enter a valid email)")
+    if await db.users.find_one({"email": email}):
         raise HTTPException(409, "This email already has a FINORA account")
-    user = {"id": new_id(), "tenant_id": i["tenant_id"], "email": i["email"], "name": body.name, "role": "client", "client_id": i["client_id"],
+    user = {"id": new_id(), "tenant_id": i["tenant_id"], "email": email, "name": body.name, "role": "client", "client_id": i["client_id"],
             "active": True, "password_hash": hash_password(body.password), "created_at": now_iso()}
     await db.users.insert_one(user)
-    await db.invitations.update_one({"id": i["id"]}, {"$set": {"status": "ACCEPTED", "accepted_at": now_iso(), "user_id": user["id"]}})
-    await audit(user, "accept", "invitations", i["id"], after={"email": i["email"]}, request=request, client_id=i["client_id"], label=i["email"])
+    await db.invitations.update_one({"id": i["id"]}, {"$set": {"status": "ACCEPTED", "accepted_at": now_iso(), "user_id": user["id"], "email": email}})
+    await audit(user, "accept", "invitations", i["id"], after={"email": email}, request=request, client_id=i["client_id"], label=email)
     await notify(i["tenant_id"], [i["invited_by"]], "invitation_accepted", {"label": body.name}, i["client_id"], f"/clients/{i['client_id']}")
-    return {"ok": True, "email": i["email"]}
+    return {"ok": True, "email": email}
 
 
 async def customer_fee(tid):

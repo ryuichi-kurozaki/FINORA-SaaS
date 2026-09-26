@@ -131,3 +131,4 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - POST /api/invitations/{id}/resend (PENDING/EXPIRED): new token, +7 days, resend both channels
 - sign_notify.wa_digits normalizes numbers (JP leading 0 → 81)
 - iteration_16: backend 6/6, frontend pass. Deployed to prod
+- 2026-09 WhatsApp invite icon: 顧客一覧 actions have green WhatsApp icon → WhatsApp-only invite (channel=whatsapp, email optional; client enters own email on /invite accept). Delivery shown as mail/WhatsApp icon badges. Self-tested (curl + screenshots). Deployed to prod

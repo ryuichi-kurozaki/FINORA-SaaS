@@ -15,20 +15,24 @@ INV = {
 }
 
 
-async def send_invite(inv, token, lang, tenant_name, client_name, whatsapp):
-    """Returns delivery status per channel; never raises."""
+async def send_invite(inv, token, lang, tenant_name, client_name, whatsapp, channel="email"):
+    """Returns delivery status per channel; never raises. channel='whatsapp' → WhatsApp only."""
     lang = lang if lang in INV else "ja"
     subject, body, cta, hello = INV[lang]
     subject, body = subject.format(tenant=tenant_name), body.format(tenant=tenant_name, inviter=inv.get("invited_by_name") or tenant_name)
     link = f"{APP_URL}/invite/{token}"
     x = {**TXT[lang], "hello": hello, "login": ""}
-    out = {"email": "FAILED", "whatsapp": "SKIPPED"}
-    try:
-        await send_email(to=inv["email"], subject=subject, html=_html(x, client_name or inv["email"], body, link, cta))
-        out["email"] = "SENT"
-    except Exception as e:  # noqa: BLE001
-        logger.error("invite email failed %s: %s", inv["email"], e)
+    out = {"email": "SKIPPED", "whatsapp": "SKIPPED"}
+    if channel == "email" and inv.get("email"):
+        try:
+            await send_email(to=inv["email"], subject=subject, html=_html(x, client_name or inv["email"], body, link, cta))
+            out["email"] = "SENT"
+        except Exception as e:  # noqa: BLE001
+            logger.error("invite email failed %s: %s", inv["email"], e)
+            out["email"] = "FAILED"
     phone = wa_digits(whatsapp)
+    if phone and not WA_URL:
+        out["whatsapp"] = "FAILED" if channel == "whatsapp" else "SKIPPED"
     if phone and WA_URL:
         try:
             async with httpx.AsyncClient(timeout=20) as h:

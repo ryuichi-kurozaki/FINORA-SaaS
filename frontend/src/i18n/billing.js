@@ -35,6 +35,8 @@ export const B = {
   invite_mock_note: ["※メール自動送信は未連携です。リンクを顧客へお送りください。", "Email delivery is not connected yet — send this link to the client.", "Envio por e-mail ainda não conectado — envie o link."],
   invite_send_note: ["「招待する」を押すと、メールとWhatsApp（番号がある場合）で招待リンクを自動送信します。", "Clicking Invite sends the invitation link automatically by email and WhatsApp (if a number is entered).", "Ao clicar em Convidar, o link é enviado automaticamente por e-mail e WhatsApp (se houver número)."],
   invite_delivery: ["送信先", "Delivery", "Envio"], invite_resend: ["再送", "Resend", "Reenviar"], invite_resent: ["招待を再送しました", "Invitation resent", "Convite reenviado"],
+  invite_by_whatsapp: ["WhatsAppで招待", "Invite via WhatsApp", "Convidar pelo WhatsApp"], invite_send_wa: ["WhatsAppで送る", "Send via WhatsApp", "Enviar pelo WhatsApp"],
+  invite_wa_note: ["招待リンクをWhatsAppだけで送ります。顧客はリンクを開いた後、ご自身のメールアドレスを入力してアカウントを作成します。", "The invitation link is sent by WhatsApp only. After opening it, the client enters their own email address to create the account.", "O link é enviado apenas pelo WhatsApp. Ao abrir, o cliente informa o próprio e-mail para criar a conta."],
   dlv_SENT: ["送信済", "sent", "enviado"], dlv_FAILED: ["失敗", "failed", "falhou"], dlv_SKIPPED: ["なし", "none", "não"],
   copied: ["コピーしました", "Copied", "Copiado"], unpaid_badge: ["未入金あり", "Unpaid", "Em aberto"], client_list: ["顧客一覧", "Client list", "Lista de clientes"],
   signup: ["コンサルタント会員登録", "Consultant sign-up", "Cadastro de consultor"], signup_sub: ["登録すると専用のテナントが作成され、すぐに顧客管理を始められます。", "A dedicated tenant is created on sign-up so you can start managing clients immediately.", "Um tenant dedicado é criado no cadastro."],

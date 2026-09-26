@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Copy, MailPlus, Search } from "lucide-react";
+import { Copy, Mail, MailPlus, Search } from "lucide-react";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -14,32 +15,39 @@ const HC = { ok: "bg-emerald-50 text-emerald-700", review: "bg-amber-50 text-amb
 
 function DeliveryBadges({ d, t }) {
   if (!d) return <span className="text-xs text-slate-400">—</span>;
-  const cls = { SENT: "bg-emerald-50 text-emerald-700", FAILED: "bg-red-50 text-red-700", SKIPPED: "bg-slate-100 text-slate-400" };
-  return <span className="flex flex-wrap gap-1">{[["email", "email"], ["whatsapp", "WhatsApp"]].map(([k, l]) => <span key={k} className={`rounded-md px-1.5 py-0.5 text-[10px] ${cls[d[k]]}`} data-testid={`delivery-${k}`}>{k === "email" ? t("email") : l} {t(`dlv_${d[k]}`)}</span>)}</span>;
+  const cls = { SENT: "bg-emerald-50 text-emerald-700 ring-emerald-200", FAILED: "bg-red-50 text-red-600 ring-red-200", SKIPPED: "bg-slate-50 text-slate-300 ring-slate-200" };
+  const ic = { email: <Mail className="h-3.5 w-3.5" />, whatsapp: <WhatsAppIcon className="h-3.5 w-3.5" /> };
+  return <span className="flex gap-1.5">{["email", "whatsapp"].map((k) => (
+    <span key={k} title={`${k === "email" ? t("email") : "WhatsApp"}: ${t(`dlv_${d[k]}`)}`} className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] ring-1 ${cls[d[k]]}`} data-testid={`delivery-${k}`}>{ic[k]}{d[k] !== "SKIPPED" && t(`dlv_${d[k]}`)}</span>))}</span>;
 }
 
-function InviteDialog({ client, onClose, onDone }) {
+function InviteDialog({ client, mode, onClose, onDone }) {
   const { t } = useApp();
   const { data: rec } = useApi(`/data/clients/${client.id}`, [client.id]);
   const [f, setF] = useState(null);
   const [res, setRes] = useState(null);
   const [busy, setBusy] = useState(false);
-  const v = f || { email: rec?.email || "", whatsapp: rec?.whatsapp || "" };
+  const wa = mode === "whatsapp";
+  const v = f || { email: wa ? "" : rec?.email || "", whatsapp: rec?.whatsapp || "" };
   const send = async () => {
     setBusy(true);
-    try { const { data } = await api.post("/invitations", { client_id: client.id, ...v }); setRes({ link: `${window.location.origin}${data.path}`, d: data.delivery }); onDone(); } catch (e) { toast.error(errMsg(e)); }
+    try { const { data } = await api.post("/invitations", { client_id: client.id, channel: mode, ...v }); setRes({ link: `${window.location.origin}${data.path}`, d: data.delivery }); onDone(); } catch (e) { toast.error(errMsg(e)); }
     setBusy(false);
   };
   const inp = "mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm";
+  const ok = wa ? v.whatsapp.replace(/\D/g, "").length >= 8 : v.email.includes("@");
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md" data-testid="invite-dialog">
-        <DialogHeader><DialogTitle>{t("invite_client")} · {client.name}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="flex items-center gap-2">{wa ? <WhatsAppIcon className="h-5 w-5 text-[#25D366]" /> : <MailPlus className="h-5 w-5 text-[#00A878]" />}{t(wa ? "invite_by_whatsapp" : "invite_client")} · {client.name}</DialogTitle></DialogHeader>
         {!res ? (
           <div className="grid gap-3">
-            <label className="text-xs text-slate-600">{t("email")}<input type="email" value={v.email} onChange={(e) => setF({ ...v, email: e.target.value })} className={inp} data-testid="invite-email" /></label>
-            <label className="text-xs text-slate-600">{t("client_whatsapp")}<input value={v.whatsapp} onChange={(e) => setF({ ...v, whatsapp: e.target.value })} placeholder="090-1234-5678 / +55 11 91234-5678" className={inp} data-testid="invite-whatsapp" /></label>
-            <p className="text-[11px] text-slate-500">{t("invite_send_note")}</p>
+            {wa ? <label className="text-xs text-slate-600">{t("client_whatsapp")} *<input value={v.whatsapp} onChange={(e) => setF({ ...v, whatsapp: e.target.value })} placeholder="090-1234-5678 / +55 11 91234-5678" className={inp} data-testid="invite-whatsapp" /></label>
+              : <>
+                <label className="text-xs text-slate-600">{t("email")} *<input type="email" value={v.email} onChange={(e) => setF({ ...v, email: e.target.value })} className={inp} data-testid="invite-email" /></label>
+                <label className="text-xs text-slate-600">{t("client_whatsapp")}<input value={v.whatsapp} onChange={(e) => setF({ ...v, whatsapp: e.target.value })} placeholder="090-1234-5678 / +55 11 91234-5678" className={inp} data-testid="invite-whatsapp" /></label>
+              </>}
+            <p className="text-[11px] text-slate-500">{t(wa ? "invite_wa_note" : "invite_send_note")}</p>
           </div>
         ) : (
           <div className="space-y-3" data-testid="invite-link-box">
@@ -49,7 +57,7 @@ function InviteDialog({ client, onClose, onDone }) {
               <Button variant="outline" onClick={() => { navigator.clipboard?.writeText(res.link); toast.success(t("copied")); }} data-testid="invite-copy"><Copy className="h-4 w-4" /></Button></div>
           </div>
         )}
-        {!res && <DialogFooter><Button className="btn-emerald" onClick={send} disabled={busy || !v.email.includes("@")} data-testid="invite-send">{t("invite")}</Button></DialogFooter>}
+        {!res && <DialogFooter><Button className={wa ? "bg-[#25D366] text-white hover:bg-[#1ebe5b]" : "btn-emerald"} onClick={send} disabled={busy || !ok} data-testid="invite-send">{t(wa ? "invite_send_wa" : "invite")}</Button></DialogFooter>}
       </DialogContent>
     </Dialog>
   );
@@ -66,7 +74,7 @@ export function InvitationsList({ clientId, k }) {
       <div className="overflow-x-auto"><table className="data-table w-full min-w-[760px] text-sm" data-testid="invitation-table">
         <thead><tr>{["email", "client_whatsapp", "invite_delivery", "invited_by", "date", "expiry_date", "status", ""].map((h) => <th key={h}>{h && t(h)}</th>)}</tr></thead>
         <tbody>{data.map((i) => (
-          <tr key={i.id}><td>{i.email}</td><td className="font-num text-xs">{i.whatsapp_masked || "—"}</td><td><DeliveryBadges d={i.delivery} t={t} /></td>
+          <tr key={i.id}><td>{i.email || "—"}</td><td className="font-num text-xs">{i.whatsapp_masked || "—"}</td><td><DeliveryBadges d={i.delivery} t={t} /></td>
             <td>{i.invited_by_name}</td><td className="font-num">{fmtDate(i.created_at)}</td><td className="font-num">{fmtDate(i.expires_at)}</td>
             <td><span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs">{t(i.status)}</span></td>
             <td className="whitespace-nowrap">{["PENDING", "EXPIRED"].includes(i.status) && <button className="mr-3 text-xs text-[#00A878]" onClick={() => resend(i.id)} data-testid={`invitation-resend-${i.id}`}>{t("invite_resend")}</button>}
@@ -110,14 +118,15 @@ export default function ClientOverviewTable() {
                 <td className="font-num text-xs">{r.next_meeting || "—"}</td><td className="text-center">{r.open_requests || "—"}</td>
                 <td>{r.unpaid > 0 ? <span className={`font-num text-xs font-semibold ${r.overdue ? "text-red-600" : "text-[#8a6d12]"}`}>{yen(r.unpaid)}</span> : "—"}</td>
                 <td><span className={`rounded-md px-2 py-0.5 text-xs ${HC[r.health]}`}>{t(`health_${r.health}`)} {r.health_score}</span></td>
-                <td><button className="icon-btn text-[#00A878]" onClick={() => setInv(r)} title={t("invite")} data-testid={`client-invite-${r.id}`}><MailPlus className="h-4 w-4" /></button></td>
+                <td className="whitespace-nowrap"><button className="icon-btn text-[#00A878]" onClick={() => setInv({ c: r, mode: "email" })} title={t("invite_client")} data-testid={`client-invite-${r.id}`}><MailPlus className="h-4 w-4" /></button>
+                  <button className="icon-btn !text-[#25D366]" onClick={() => setInv({ c: r, mode: "whatsapp" })} title={t("invite_by_whatsapp")} data-testid={`client-invite-wa-${r.id}`}><WhatsAppIcon /></button></td>
               </tr>
             ))}</tbody>
           </table></div>
         )}
       </Card>
       <InvitationsList k={k} />
-      {inv && <InviteDialog key={inv.id} client={inv} onClose={() => setInv(null)} onDone={() => setK(k + 1)} />}
+      {inv && <InviteDialog key={inv.c.id + inv.mode} client={inv.c} mode={inv.mode} onClose={() => setInv(null)} onDone={() => setK(k + 1)} />}
     </div>
   );
 }

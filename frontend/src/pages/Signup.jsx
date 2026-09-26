@@ -73,7 +73,7 @@ export function InviteAccept() {
   const { token } = useParams();
   const login = useAutoLogin();
   const { data, error } = useApi(`/public/invitations/${token}`, [token]);
-  const [f, setF] = useState({ name: "", password: "" });
+  const [f, setF] = useState({ name: "", password: "", email: "" });
   const [busy, setBusy] = useState(false);
   if (user) return <Navigate to="/" replace />;
   const submit = async (e) => {
@@ -85,7 +85,8 @@ export function InviteAccept() {
     <Shell title={t("accept_invite")} sub={data ? `${data.tenant_name} · ${t("invited_by")}: ${data.inviter}` : ""}>
       {!data && !error ? <div className="text-sm text-slate-400">{t("loading")}</div> : !valid ? <div className="text-sm text-red-600" data-testid="invite-invalid">{t("invite_invalid")}</div> : (
         <form onSubmit={submit} className="grid gap-3" data-testid="invite-accept-form">
-          <div className="rounded-lg bg-slate-50 p-3 text-sm">{data.client_name} · <span className="font-num">{data.email}</span></div>
+          <div className="rounded-lg bg-slate-50 p-3 text-sm">{data.client_name}{data.email && <> · <span className="font-num">{data.email}</span></>}</div>
+          {!data.email && <label className="text-xs text-slate-600">{t("email")}<input required type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} className={inp} data-testid="invite-accept-email" /></label>}
           <label className="text-xs text-slate-600">{t("name")}<input required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={inp} data-testid="invite-name" /></label>
           <label className="text-xs text-slate-600">{t("password")} (8+)<PasswordInput required minLength={8} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} wrapperClassName="mt-1" className={inp} data-testid="invite-password" autoComplete="new-password" /></label>
           <Button type="submit" className="btn-emerald h-11" disabled={busy} data-testid="invite-accept-submit">{t("accept_invite")}</Button>
