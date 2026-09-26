@@ -1,0 +1,29 @@
+{
+  "summary": "Verified the new 更新期限のお知らせ (contract renewal/expiry notice) feature end-to-end. Backend: 5/5 pytest cases pass in /app/backend/tests/test_renewal_notices.py — POST /api/econtracts/renewals/run is 403 for non-platform-admin (consultant) and 200 for platform admin; GET /api/econtracts/{id} exposes renew_on (ISO) and renew_days (int); the renew_on() unit-matrix covers all 6 scenarios (open-ended + auto_renew → yearly anniversary, end_date + auto_renew → rolled-forward, end_date + auto_renew=false with future/past end, open-ended + auto_renew=false → None, non-ACTIVE → None); a full time-travel run against CC-00003 (open-ended auto_renew, start 2026-02-01, renew_on=2027-02-01) produced stage 30 with days=27 at today=2027-01-05, deduped on the same day and the next day (2027-01-06, still stage-30 window), fired stage 7 with days=5 at today=2027-01-27, deduped again on the same day, and emitted nothing when today was 60 days out; MongoDB db.renewal_notices unique index on `key` (contract_id:renew_on:stage) enforces idempotency; each fired stage created 2 in-app notifications (kind=econtract_renewal_notice) and 2 message_log EMAIL rows (both parties). Frontend: with CC-00003 end_date time-warped to today+20 days, EContractDetail shows amber badge data-testid=ec-renewal-badge reading '更新期限まで残り 20日' (auto_renew wording) and the summary row includes '更新日／満了日 2026-10-16'; the Notifications page for consultant@finora.co.jp lists '契約の更新期限が近づいています — CC-00003 UI Test 契約 (2026-10-16)' with the expected label including number, service and date. Background renewal loop starts on backend startup without crashing (backend.out.log shows normal startup + prior /run 200 OK). Cleanup: restored CC-00003 terms.end_date to null, deleted 3 renewal_notices, 2 renewal notifications and 2 message_log entries created during testing.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_renewal_notices.py",
+    "/app/test_reports/pytest/renewal.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "renewal.scan uses (rd - t).days where rd may be = today, so days=0 correctly triggers stage 7 (matches spec 0..7). But there's no lower bound: if a contract was set ACTIVE past its renew_on (unlikely since renew_on rolls forward), no notice fires. OK.",
+    "renewal.loop calls db.renewal_notices.create_index inside the loop coroutine (line 49) — this happens on startup only once because create_index is idempotent; safe. Consider moving to server.py startup for clarity.",
+    "renewal._send iterates people from ISSUER + RECIPIENT with duplicates unfiltered — if the same user is both parties (edge case), they'd receive the notice twice. Not a practical case for FINORA/CONSULTING but worth a dedup(set) later.",
+    "Emergent email service returns 422 unknown for demo @finora.co.jp addresses; this is expected and the FAILED rows do not break the flow. sign_notify._deliver correctly logs FAILED and continues.",
+    "sign_notify.WA_URL still uses os.environ['WHATSAPP_SERVICE_URL'] (KeyError if unset). Preview has it empty, so it works; prefer os.environ.get('WHATSAPP_SERVICE_URL','').rstrip('/') for safety.",
+    "econtract._row calls renew_on(c) synchronously per row inside list_contracts — fine now (pure Python date math) but if renewal logic grows, this loop is O(N) per page load.",
+    "EContractDetail.jsx correctly hides the ec-renewal-badge when renew_days > 30 or renew_on is null (renewSoon = d.renew_on && d.renew_days <= 30). Verified visible only at 20 days out."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_renewal_notices.py"
+  ],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100%"},
+  "test_credentials": "See /app/memory/test_credentials.md. Tested with ryuichi.kurozaki@gmail.com (platform admin) and consultant@finora.co.jp.",
+  "seed_data_creation": "During test_stage30_then_stage7_then_dedupe, temporary rows are written to db.renewal_notices, db.notifications and db.message_log for CC-00003; the test cleans them up at the end. Manual frontend verification set CC-00003 terms.end_date to today+20 days then restored it to null. Final DB state: renewal_notices=0, notifications(kind=econtract_renewal_notice)=0, message_log(kind=econtract_renewal_notice)=0, CC-00003 terms.end_date=null (as-was).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Test file uses -o addopts=\"\" is NOT needed here (xdist loadscope groups the whole module on one worker). To re-run: pytest /app/backend/tests/test_renewal_notices.py -v. The test imports econtract.renew_on directly, so it needs sys.path=/app/backend and load_dotenv('/app/backend/.env') + load_dotenv('/app/frontend/.env') at module top (already done). CC-00003 (id 8c2f1900-0066-47c4-ad9e-9bc4248bf033) is the only ACTIVE consulting contract we mutate. If you toggle its end_date, remember to reset to null.",
+  "rca of the issue": "N/A — feature works as specified. All stage transitions, idempotency, both-parties notification, and frontend badge/label render correctly. The only 'failures' in logs are Emergent email 422 for @finora.co.jp addresses, which is an inherent provider limitation for undeliverable test recipients, not a bug."
+}
