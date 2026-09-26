@@ -197,9 +197,9 @@ function LatestNews() {
 }
 
 function useHashScroll() {
-  const { hash } = useLocation();
+  const { hash, key } = useLocation();
   useEffect(() => {
-    if (!hash) return undefined;
+    if (!hash) { window.scrollTo({ top: 0, behavior: "smooth" }); return undefined; }
     let tries = 0;
     const id = setInterval(() => {
       const el = document.getElementById(hash.slice(1));
@@ -207,7 +207,7 @@ function useHashScroll() {
       if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 72, behavior: "smooth" });
     }, 50);
     return () => clearInterval(id);
-  }, [hash]);
+  }, [hash, key]);
 }
 
 export default function Landing() {
