@@ -154,11 +154,11 @@ function Security() {
 
 function Pricing() {
   const { t } = useApp();
-  const plans = [["Starter", "pl1"], ["Professional", "pl2"], ["Enterprise", "pl3"]];
+  const plans = [["Starter", "pl1", "STANDARD"], ["Professional", "pl2", "PRO"], ["Enterprise", "pl3", "ENTERPRISE"]];
   return (
     <Section id="pricing" eyebrow="Pricing" title={t("price_title")} sub={t("price_sub")}>
       <div className="grid gap-5 lg:grid-cols-3">
-        {plans.map(([name, k]) => {
+        {plans.map(([name, k, code]) => {
           const pro = k === "pl2";
           return (
             <div key={k} className={`relative rounded-3xl p-8 ${pro ? "bg-[#071A2B] text-white shadow-2xl ring-1 ring-[#C9A227]/50 lg:-translate-y-3" : "glass-card"}`} data-testid={`plan-${k}`}>
@@ -167,7 +167,7 @@ function Pricing() {
               <div className={`mt-1 text-sm ${pro ? "text-slate-400" : "text-slate-500"}`}>{t(`${k}_d`)}</div>
               <div className={`mt-6 font-display text-2xl font-bold ${pro ? "text-[#C9A227]" : "text-[#071A2B]"}`}>{t("price_contact")}</div>
               <ul className="mt-6 space-y-3">{[1, 2, 3, 4].map((n) => <li key={n} className={`flex items-center gap-2.5 text-sm ${pro ? "text-slate-200" : "text-slate-600"}`}><Check className="h-4 w-4 shrink-0 text-[#00A878]" />{t(`${k}_f${n}`)}</li>)}</ul>
-              <a href="#contact" className={`mt-8 block rounded-full py-3 text-center text-sm font-semibold transition-colors ${pro ? "btn-emerald" : "border border-slate-300 text-[#071A2B] hover:border-[#00A878] hover:text-[#00A878]"}`} data-testid={`plan-${k}-cta`}>{t("choose")}</a>
+              <Link to={`/signup?plan=${code}`} className={`mt-8 block rounded-full py-3 text-center text-sm font-semibold transition-colors ${pro ? "btn-emerald" : "border border-slate-300 text-[#071A2B] hover:border-[#00A878] hover:text-[#00A878]"}`} data-testid={`plan-${k}-cta`}>{t("choose")}</Link>
             </div>
           );
         })}

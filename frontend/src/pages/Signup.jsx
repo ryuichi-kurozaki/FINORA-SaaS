@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/context/AppContext";
@@ -43,8 +43,10 @@ export function Signup() {
   const { t, user } = useApp();
   const login = useAutoLogin();
   const { data: plans } = useApi("/public/plans");
-  const [f, setF] = useState({ name: "", company_name: "", entity_type: "individual", email: "", phone: "", address: "", profile: "", qualifications: "", plan_code: "TRIAL", password: "" });
+  const [sp] = useSearchParams();
+  const [f, setF] = useState({ name: "", company_name: "", entity_type: "individual", email: "", phone: "", address: "", profile: "", qualifications: "", plan_code: sp.get("plan") || "TRIAL", password: "" });
   const [busy, setBusy] = useState(false);
+  useEffect(() => { if (plans && !plans.some((p) => p.code === f.plan_code)) setF((x) => ({ ...x, plan_code: "TRIAL" })); }, [plans]); // eslint-disable-line react-hooks/exhaustive-deps
   if (user) return <Navigate to="/" replace />;
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const submit = async (e) => {
