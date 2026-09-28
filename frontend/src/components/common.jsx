@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 
-export function PageHeader({ title, sub, eyebrow, children }) {
+export function PageHeader({ title, sub, eyebrow, eyebrowCls = "text-[11px]", children }) {
   return (
     <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between fade-up">
       <div>
-        {eyebrow && <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#00A878]">{eyebrow}</div>}
+        {eyebrow && <div className={`mb-2 font-semibold uppercase tracking-[0.22em] text-[#00A878] ${eyebrowCls}`} data-testid="page-eyebrow">{eyebrow}</div>}
         <h1 className="font-display text-3xl font-extrabold tracking-tight text-[#071A2B] sm:text-4xl" data-testid="page-title">{title}</h1>
         {sub && <p className="mt-2 max-w-2xl text-sm text-slate-500">{sub}</p>}
       </div>

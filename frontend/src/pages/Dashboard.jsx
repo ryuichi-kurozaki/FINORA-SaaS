@@ -26,7 +26,7 @@ export default function Dashboard() {
   ];
   return (
     <div data-testid="dashboard-page">
-      <PageHeader eyebrow={user.role === "consultant" ? scope : `${t("dashboard")} · ${scope}`}
+      <PageHeader eyebrowCls="text-[22px]" eyebrow={user.role === "consultant" ? scope : `${t("dashboard")} · ${scope}`}
         title={user.role === "consultant" ? t("dashboard") : `${t("welcome_prefix")}${user.name}${t("welcome_suffix")}`} sub={t("tagline")} />
       {isClient && <div className="mb-6"><ActionCenter health={data.health} /></div>}
       {!isClient && !scopeClient && <BusinessOverview />}
