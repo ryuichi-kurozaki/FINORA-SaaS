@@ -207,4 +207,5 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - 2026-09-28 REVERTED (user request): login signup link back to small text link; nav 料金プラン back to /#pricing. Deployed prod
 - 2026-09-28 Login signup link made prominent again (bordered emerald button + UserPlus icon); nav 料金プラン stays /#pricing. Deployed prod
 - 2026-09-28 Landing pricing card 「選択する」 → /signup?plan=CODE (Starter→STANDARD, Professional→PRO, Enterprise→ENTERPRISE); Signup preselects ?plan (invalid → TRIAL). Deployed prod
+- 2026-09-28 Pricing card button label 相談する → 仮登録する (landing.js choose). Deployed prod
 - 2026-09-26 follow-up: after /#pricing, clicking ホーム/logo ("/") didn't scroll up (same route). useHashScroll now depends on location.key and scrolls to top when no hash. Verified preview; deployed prod
