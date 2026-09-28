@@ -16,7 +16,7 @@ from econtract_pdf import render
 from io_routes import bucket
 from billing import build_invoice, InvoiceIn
 from tenancy import customer_fee
-from sign_notify import KINDS, send_sign_request
+from sign_notify import KINDS, send_ended_notice, send_sign_request
 
 _BG = set()
 
@@ -224,10 +224,13 @@ async def _tell(c, side, kind, actor=None):
     people = await _people(c, side)
     for tid, uid in people:
         await notify(tid, [uid], kind, {"label": f"{c['number']} {c['terms']['service_name']}", "contract_type": c["contract_type"]}, c.get("client_id"), link, actor)
-    if kind in KINDS:
+    if kind in KINDS or kind == "econtract_ended":
         ctx = await _ctx(c)
+        ec = {"id": c["id"], "tenant_id": c["tenant_id"], "lang": c.get("lang"), "number": c["number"], "service": c["terms"]["service_name"],
+              "end_date": c.get("end_date") or ""}
         for _, uid in people:
-            task = asyncio.create_task(send_sign_request(uid, c, kind, ctx["issuer_name"]))
+            coro = send_ended_notice(uid, ec, "contract", ctx["issuer_name"], link) if kind == "econtract_ended" else send_sign_request(uid, c, kind, ctx["issuer_name"])
+            task = asyncio.create_task(coro)
             _BG.add(task)
             task.add_done_callback(_BG.discard)
 

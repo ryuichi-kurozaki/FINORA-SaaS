@@ -91,6 +91,9 @@ M = {
     "Only PNG, JPEG, WebP or GIF images are allowed": ("画像はPNG・JPEG・WebP・GIFのみアップロードできます", "Apenas imagens PNG, JPEG, WebP ou GIF"),
     "File is too large (max 5MB)": ("ファイルが大きすぎます（最大5MB）", "Arquivo muito grande (máx. 5MB)"),
     "Quote not found for this ticker": ("この銘柄コードの価格が見つかりませんでした（例：7203.T、AAPL、PETR4.SA）", "Cotação não encontrada para este código (ex.: 7203.T, AAPL, PETR4.SA)"),
+    "This contract is managed by an e-contract. End it from the e-contract page.": ("この契約は電子契約で管理されています。電子契約の画面から終了してください", "Este contrato é gerenciado por contrato eletrônico. Encerre-o na página do contrato eletrônico."),
+    "This client is already terminated": ("この顧客との契約はすでに解除されています", "Este cliente já foi rescindido"),
+    "Your contract has ended. Your data is view-only.": ("ご契約は解除されています。データは閲覧のみ可能です", "Seu contrato foi encerrado. Seus dados são somente leitura."),
 }
 P = [
     (re.compile(r"^This step is not allowed in status (\w+)$"), "現在のステータス（{0}）ではこの操作はできません", "Esta etapa não é permitida no status {0}"),

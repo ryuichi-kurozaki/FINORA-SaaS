@@ -10,6 +10,7 @@ import { Card, CardTitle, KpiCard, PageHeader, Spinner } from "@/components/comm
 import { Donut, TrendChart } from "@/components/charts";
 import EntityManager from "@/components/EntityManager";
 import EContractPanel from "@/components/econtract/EContractPanel";
+import TerminateDialog from "@/components/TerminateDialog";
 import InsightPanel from "@/components/InsightPanel";
 import AIAssistant from "@/components/AIAssistant";
 import { DocumentsPanel } from "@/pages/Documents";
@@ -29,11 +30,12 @@ const SELECTS = ["client_type", "risk_tolerance", "status"];
 
 export default function ClientDetail() {
   const { id } = useParams();
-  const { t, lang, clients, isClient, setScopeClient } = useApp();
+  const { t, lang, clients, isClient, setScopeClient, refreshClients } = useApp();
   const c = clients.find((x) => x.id === id);
   const { data, reload } = useDashboard(id);
   const [ai, setAi] = useState(false);
   const [corr, setCorr] = useState(false);
+  const [term, setTerm] = useState(false);
   const { data: invs } = useApi(`/invoices?client_id=${id}`, [id]);
   if (!c || !data) return <Spinner />;
   const s = data.summary;
@@ -44,7 +46,11 @@ export default function ClientDetail() {
       <Link to="/clients" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-[#00A878]" data-testid="client-back-link"><ArrowLeft className="h-4 w-4" />{t("clients")}</Link>
       <PageHeader eyebrow={`${t(c.client_type)} · ${c.status ? t(c.status) : ""}`} title={c.corporate_name || c.name} sub={c.corporate_name ? c.name : c.occupation}>
         <button onClick={() => setAi(true)} className="btn-emerald inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold" data-testid="client-ask-ai-btn"><Sparkles className="h-4 w-4" />{t("ask_ai")}</button>
+        {!isClient && (c.status === "terminated"
+          ? <span className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-600" data-testid="client-terminated-badge">{t("term_client_badge")}{c.terminated_end_date ? ` · ${c.terminated_end_date}` : ""}</span>
+          : <button onClick={() => setTerm(true)} className="inline-flex items-center rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50" data-testid="client-terminate-btn">{t("term_client")}</button>)}
       </PageHeader>
+      {term && <TerminateDialog path={`/clients/${id}/terminate`} title={`${t("term_client")} — ${c.corporate_name || c.name}`} desc={t("term_client_desc")} onClose={() => setTerm(false)} onDone={() => { refreshClients(); reload(); }} testid="client-term" />}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiCard label={t("total_assets")} value={s.total_assets} format={(v) => compact(v, lang)} testid="client-kpi-assets" />
         <KpiCard label={t("total_liabilities")} value={s.total_liabilities} format={(v) => compact(v, lang)} accent="navy" testid="client-kpi-liabilities" />

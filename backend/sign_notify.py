@@ -102,11 +102,33 @@ async def send_renewal_notice(user_id, c, renew_date, days):
     await _deliver(c, u, "econtract_renewal_notice", TXT[lang], subject, body, RENEW[lang]["cta"])
 
 
-async def _deliver(c, u, kind, x, subject, body, cta):
-    link = f"{APP_URL}/econtracts/{c['id']}"
+ENDED = {
+    "ja": {"contract": ("【FINORA】契約終了のお知らせ（{number}）", "{issuer}との「{service}」の契約は、{date} をもって終了（解除）しました。これまでの記録は引き続きFINORAでご覧いただけます。"),
+           "client": ("【FINORA】ご契約解除のお知らせ", "{issuer}とのご契約は、{date} をもってすべて解除されました。FINORAのデータは、閲覧のみ可能な状態で引き続きご覧いただけます。"),
+           "cta": "FINORAで確認する"},
+    "en": {"contract": ("[FINORA] Contract ended ({number})", "Your \"{service}\" contract with {issuer} ended (was terminated) as of {date}. Your records remain available in FINORA."),
+           "client": ("[FINORA] Your contracts have been terminated", "All your contracts with {issuer} were terminated as of {date}. You can still view your FINORA data (view-only)."),
+           "cta": "View in FINORA"},
+    "pt": {"contract": ("[FINORA] Contrato encerrado ({number})", "O contrato \"{service}\" com {issuer} foi encerrado em {date}. Seus registros continuam disponíveis no FINORA."),
+           "client": ("[FINORA] Seus contratos foram rescindidos", "Todos os seus contratos com {issuer} foram rescindidos em {date}. Você ainda pode consultar seus dados no FINORA (somente leitura)."),
+           "cta": "Ver no FINORA"},
+}
+
+
+async def send_ended_notice(user_id, c, scope_kind, issuer, link):
+    u = await db.users.find_one({"id": user_id})
+    if not u:
+        return
+    lang = u.get("lang") if u.get("lang") in TXT else c.get("lang") if c.get("lang") in TXT else "ja"
+    subject, body = (s.format(number=c.get("number", ""), service=c.get("service", ""), issuer=issuer, date=c.get("end_date") or "") for s in ENDED[lang][scope_kind])
+    await _deliver(c, u, "contract_ended", TXT[lang], subject, body, ENDED[lang]["cta"], link)
+
+
+async def _deliver(c, u, kind, x, subject, body, cta, path=None):
+    link = f"{APP_URL}{path or '/econtracts/' + c['id']}"
     try:
         await send_email(to=u["email"], subject=subject, html=_html(x, u.get("name") or u["email"], body, link, cta),
-                         kind="renewal" if kind == "econtract_renewal_notice" else "econtract")
+                         kind={"econtract_renewal_notice": "renewal", "contract_ended": "termination"}.get(kind, "econtract"))
         await _log(c, u, "EMAIL", u["email"], kind, "SENT")
     except Exception as e:
         logger.error("sign request email failed %s: %s", c["number"], e)

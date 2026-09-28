@@ -50,15 +50,16 @@ export function AppProvider({ children }) {
 
   const canWrite = user && user.role !== "client";
   const isClient = user && user.role === "client";
+  const clientEnded = isClient && clients.find((c) => c.id === user.client_id)?.status === "terminated";
   const canEdit = (entity, row) => {
-    if (!user) return false;
+    if (!user || clientEnded) return false;
     if (OWNED.includes(entity)) return isClient;
     if (entity === "tasks") return !row || row.owner_id === user.id;
     if (entity === "contracts") return user.role === "admin";
     return !isClient;
   };
   return (
-    <Ctx.Provider value={{ user, setUser, lang, setLang, t, clients, refreshClients, scopeClient, setScopeClient, logout, clientName, canWrite, isClient, canEdit }}>
+    <Ctx.Provider value={{ user, setUser, lang, setLang, t, clients, refreshClients, scopeClient, setScopeClient, logout, clientName, canWrite, isClient, clientEnded, canEdit }}>
       {children}
     </Ctx.Provider>
   );

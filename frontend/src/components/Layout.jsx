@@ -122,7 +122,7 @@ function Header({ onMenu }) {
 
 export default function Layout() {
   const [open, setOpen] = useState(false);
-  const { t, user } = useApp();
+  const { t, user, clientEnded } = useApp();
   return (
     <div className="min-h-screen bg-[#F7F9FC]">
       <aside className="sidebar fixed inset-y-0 left-0 z-40 hidden w-[260px] lg:block" data-testid="sidebar"><SideNav /></aside>
@@ -133,6 +133,7 @@ export default function Layout() {
         <Header onMenu={() => setOpen(true)} />
         <main className="mx-auto max-w-[1500px] px-4 py-8 sm:px-8">
           {user.role === "admin" && !user.demo && <WaHealthBanner />}
+          {clientEnded && <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800" data-testid="client-ended-banner">{t("term_client_banner")}</div>}
           {user.tenant?.finora_contract_required && user.tenant?.finora_contract !== "ACTIVE" && user.role !== "client" && (
             <a href="/settings" className="mb-6 block rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800" data-testid="finora-contract-banner">{t("ec_banner")}</a>)}
           <Outlet /></main>

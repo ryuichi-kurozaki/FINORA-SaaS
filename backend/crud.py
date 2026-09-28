@@ -99,6 +99,8 @@ async def list_query(user, entity, client_id=None):
 
 
 async def check_write(user, entity, doc, existing=None):
+    if user["role"] == "client" and (await db.clients.find_one({"id": user.get("client_id")}, {"status": 1}) or {}).get("status") == "terminated":
+        raise HTTPException(403, "Your contract has ended. Your data is view-only.")
     if entity in OWNED:
         if user["role"] != "client":
             raise HTTPException(403, "Client-owned data is read-only for staff. Please send a correction request.")

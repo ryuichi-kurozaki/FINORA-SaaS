@@ -30,6 +30,7 @@ import site_cms  # noqa: E402
 import payouts  # noqa: E402
 import mail_log  # noqa: E402
 import jpx  # noqa: E402
+import termination  # noqa: E402
 import asyncio  # noqa: E402
 from seed import seed  # noqa: E402
 
@@ -53,7 +54,7 @@ async def root():
     return {"service": "FINORA", "status": "ok"}
 
 
-for r in (auth_routes.router, routes_analytics.router, io_routes.router, public_routes.router, features.router, stripe_payments.router, payouts.router, billing.router, tenancy.router, renewal.router, wa_health.router, quote.router, site_cms.router, econtract.router, mail_log.router, crud.router):
+for r in (auth_routes.router, routes_analytics.router, io_routes.router, public_routes.router, features.router, stripe_payments.router, payouts.router, billing.router, tenancy.router, renewal.router, wa_health.router, quote.router, site_cms.router, econtract.router, mail_log.router, termination.router, crud.router):
     app.include_router(r)
 
 

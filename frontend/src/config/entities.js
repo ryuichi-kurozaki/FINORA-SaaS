@@ -22,7 +22,7 @@ export const ENTITIES = {
     { k: "investment_experience" }, { k: "investment_purpose" },
     { k: "risk_tolerance", type: "select", opts: ["conservative", "moderate", "aggressive"], table: true },
     { k: "consultant_id", type: "user", table: true, adminOnly: true },
-    { k: "status", type: "select", opts: ["active", "prospect", "dormant"], table: true },
+    { k: "status", type: "select", opts: ["active", "prospect", "dormant", "terminated"], table: true },
     { k: "notes", type: "textarea", wide: true },
   ],
   accounts: [

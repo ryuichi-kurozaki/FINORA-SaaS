@@ -7,6 +7,7 @@ import { useApp } from "@/context/AppContext";
 import { useApi } from "@/lib/api";
 import { fmtDate, yen } from "@/lib/format";
 import EContractForm from "./EContractForm";
+import LegacyContracts from "./LegacyContracts";
 
 const TONE = { ACTIVE: "bg-emerald-50 text-emerald-700", ENDED: "bg-slate-100 text-slate-500", CANCELLED: "bg-red-50 text-red-600", PAUSED: "bg-amber-50 text-amber-700" };
 export const StatusPill = ({ s, t }) => <span className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${TONE[s] || "bg-sky-50 text-sky-700"}`} data-testid="ec-status">{t(`ec_${s}`)}</span>;
@@ -47,6 +48,7 @@ export default function EContractPanel({ type = "CONSULTING", clientId, mine, al
     <Card data-testid={`ec-panel-${type}`}>
       <CardTitle right={allowCreate && <Button className="btn-emerald" onClick={() => setOpen(true)} data-testid="ec-new-btn"><FilePlus2 className="mr-1 h-4 w-4" />{t(saas ? "ec_new_saas" : "ec_new")}</Button>}>{title || t(saas ? "ec_finora_contract" : "ec_client_contract")}</CardTitle>
       {body}
+      {!saas && <LegacyContracts clientId={clientId} />}
       {open && <EContractForm type={type} clientId={clientId} onClose={() => setOpen(false)} onDone={(id) => nav(`/econtracts/${id}`)} />}
     </Card>
   );
