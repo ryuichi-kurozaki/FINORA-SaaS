@@ -162,6 +162,8 @@ async def scope(user, client_id=None):
     if client_id:
         if ids is not None and client_id not in ids:
             raise HTTPException(403, "No access to this client")
+        if ids is None and not await db.clients.find_one({"id": client_id, "tenant_id": user["tenant_id"]}, {"_id": 1}):
+            raise HTTPException(403, "No access to this client")
         q["client_id"] = client_id
     elif ids is not None:
         q["client_id"] = {"$in": ids}

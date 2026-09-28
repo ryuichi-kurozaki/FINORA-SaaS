@@ -1,0 +1,60 @@
+{
+  "summary": "Iteration 25 — 1:1 Video Meetings (backend/meetings.py + MeetingsPanel/MeetingRoom) tested end-to-end. Backend: 10/12 pytest tests pass. All CRUD/signaling/recording/signed-URL/minutes flows work as specified. Frontend: consultant sees テレビ電話 panel with meeting-new-btn, dialog creates a meeting successfully (toast 予約しました。相手に通知しました, status 予約済み, meeting-join-{id} + meeting-cancel-{id} rendered). Client (client@finora.co.jp) sees the same meeting with join button ONLY (no new-btn, no cancel). 1 critical cross-tenant isolation bug found: consultantb (role=admin tenant B) can CREATE meetings referencing tenant A's client_id (should be 403). Did NOT attempt dual-browser-context WebRTC handshake — signaling REST endpoints verified to route messages to the other party only and to flip SCHEDULED→LIVE on first hello.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/meetings (and GET /api/meetings?client_id=)",
+        "issue": "Cross-tenant isolation broken for TENANT_OWNER (role=admin, is_consultant not set). consultantb@finora.co.jp (tenant B, role=admin) successfully creates a meeting with client_id belonging to tenant A (client 56f42e4d... which is tenant 57c88bf7...). Meeting is inserted with tenant_id=B but client_id=A's client. Same admin can also GET /api/meetings?client_id=<tenantA client> and receive the meeting he just created (200). RCA: core.scope() -> accessible_ids() returns None for admins via sees_all(user), so the client_id-in-ids check is skipped; scope() never verifies that the passed client_id actually belongs to user.tenant_id. Fix: in core.scope(), when client_id is provided and sees_all(user), also validate `await db.clients.find_one({'id': client_id, 'tenant_id': user['tenant_id']})` — otherwise raise 403. This affects every route that accepts a client_id from the body/query.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "GET /api/meetings/ice",
+        "issue": "meetings.py line 94 does `if os.environ['TURN_URL']:` which will KeyError if TURN_URL is unset in the env. Currently TURN_URL='' in preview so it's falsy and OK, but the correct guard is `os.environ.get('TURN_URL')` to avoid a hard crash if the key is removed."
+      },
+      {
+        "endpoint": "POST /api/meetings/{id}/recording/done",
+        "issue": "minutes_status stays PROCESSING/FAILED silently — API returns {ok:true} immediately. Consider returning a job_id and exposing GET /api/meetings/{id}/minutes-status for the FE, otherwise the FE has to poll GET /api/meetings and diff."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Layout header client-select",
+        "issue": "React hydration warning: <span> cannot be a child of <option>. Emergent visual-editor `x-` wrapper injects a <span> inside <option> elements. Not caused by MeetingsPanel but pollutes console for every /consulting load.",
+        "selector": "[data-testid=\"header-client-select\"]",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_meetings.py",
+    "/app/test_reports/pytest/iter25_meetings.xml"
+  ],
+  "action_items": [
+    "URGENT: Fix cross-tenant client_id validation in core.scope() (or add an explicit tenant check in meetings.create/list). Currently a TENANT_OWNER admin can create meetings referencing any other tenant's client_id.",
+    "Optional: Harden meetings.ice() with os.environ.get('TURN_URL') instead of ['TURN_URL']."
+  ],
+  "critical_code_review_comments": [
+    "core.scope() trusts admin role globally (sees_all → accessible_ids=None) and skips client_id ownership validation. This is the root of the cross-tenant bug in meetings, and likely affects other routes that pass client_id via body/query without a follow-up tenant check. Split scope() into two concerns: (a) filter query for LIST, (b) authorize client_id for CREATE (must be in user.tenant_id AND accessible).",
+    "meetings.py stores _BG asyncio tasks in a module-level set that only grows. It's fine for a preview but not for production; tie to the FastAPI lifespan.",
+    "meetings.chunk() writes files with idx=0→'wb' and any other idx→'ab'. Two idx=0 uploads for the same mid will silently overwrite each other. Consider rejecting idx that arrives out of order.",
+    "meetings._sig uses HMAC-SHA256 over `mid:exp` only — no user binding. Anyone with the signed URL can watch the recording. Preview allows this by design but consider also binding to the requesting user's session or IP.",
+    "meetings.NOTICE dict uses `s.format(...)` inside a generator expression — silently swallows missing keys (e.g. 'who' for the 'soon' subject template if the template references it). Current templates match, but a future edit could KeyError. Add a unit test.",
+    "meetings.list_meetings returns transcript-stripped rows but does NOT strip minutes/minutes_error — client can read minutes body (may be intended, keep in mind for privacy)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_meetings.py"
+  ],
+  "success_rate": {"backend": "83% (10/12 pytest tests pass — 2 failures document the real cross-tenant bug)", "frontend": "100% for smoke of consultant-create + client-view + role gating; two-browser WebRTC connect NOT attempted"},
+  "test_credentials": "consultant@finora.co.jp / Finora2026!, client@finora.co.jp / Finora2026!, consultantb@finora.co.jp / Finora2026!, ryuichi.kurozaki@gmail.com / Finora2026!.",
+  "seed_data_creation": "Created ~4 meetings prefixed TEST_ during the run (one of them via cross-tenant leak). ALL deleted at teardown (db.meetings.delete_many title regex ^TEST_ — 3+1 deleted). Existing seeded 初回面談テスト for client 56f42e4d preserved but is now in status LIVE / ENDED (I triggered a hello + end during signaling tests — not a data change the main agent needs to undo, but be aware in the next run its status is no longer SCHEDULED).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: `python -m pytest backend/tests/test_meetings.py -v -o addopts=''`. Two failing tests (test_other_tenant_cannot_create, test_list_cross_tenant_forbidden) will pass once scope() enforces tenant-ownership of client_id for admins. If MongoDB has stale TEST_ meetings, delete via db.meetings.delete_many({title:{$regex:'^TEST_'}}). The seeded 初回面談テスト was flipped to LIVE by the signaling test and then ENDED; if the FE flow expects it to be SCHEDULED again, reset via db.meetings.update_one({title:'初回面談テスト'},{'$set':{status:'SCHEDULED'},$unset:{started_at:1,ended_at:1}}). Frontend note: meeting-client is a native HTML <select>, not shadcn — use page.select_option, not [role=option] clicks. Bank-registration modal for consultant@ has 6 inputs (銀行名/銀行コード/支店名/支店コード/口座番号/口座名義); fill first 6 visible <input> tags to dismiss.",
+  "rca of the issue": "core.scope() line 159-168: `ids = await accessible_ids(user)` returns None when sees_all(user) is True (admin, not is_consultant). Then `if ids is not None and client_id not in ids` short-circuits, so the client_id is accepted without any tenant check. meetings.create then inserts a doc with tenant_id=user.tenant_id and client_id=<other tenant's>. Reproduction: login consultantb@ (admin/tenant B), POST /api/meetings {client_id:'56f42e4d-...(tenant A)', title:'X', scheduled_at:'...'} → 200. Mitigation: in scope(), when client_id is provided, always do `if not await db.clients.find_one({'id': client_id, 'tenant_id': user['tenant_id']}): raise HTTPException(403)` regardless of accessible_ids result."
+}
