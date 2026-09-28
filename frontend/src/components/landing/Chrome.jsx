@@ -6,7 +6,7 @@ import { LANGS } from "@/i18n/dict";
 import { Logo, LogoFull } from "@/components/Logo";
 import { useSite } from "@/lib/useSite";
 
-const LINKS = [["nav_home", "/"], ["nav_company", "/company"], ["nav_services", "/services"], ["nav_pricing", "/signup"], ["nav_news", "/news"], ["nav_faq", "/faq"], ["nav_contact", "/contact"]];
+const LINKS = [["nav_home", "/"], ["nav_company", "/company"], ["nav_services", "/services"], ["nav_pricing", "/#pricing"], ["nav_news", "/news"], ["nav_faq", "/faq"], ["nav_contact", "/contact"]];
 const SOCIAL = [["social_x", "X"], ["social_facebook", "Facebook"], ["social_linkedin", "LinkedIn"], ["social_instagram", "Instagram"], ["social_youtube", "YouTube"]];
 
 function NavLink({ k, h, className, onClick, tid = "landing-link" }) {

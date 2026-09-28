@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { ArrowLeft, Lock, ShieldCheck, UserPlus } from "lucide-react";
+import { ArrowLeft, Lock, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useApp } from "@/context/AppContext";
@@ -89,7 +89,7 @@ export default function Login() {
           </Button>
           <div className="mt-6 flex items-start gap-2 text-[11px] text-slate-500"><ShieldCheck className="h-4 w-4 shrink-0 text-[#00A878]" />{t("secure_note")}</div>
           <DemoLogins active={email} onPick={(e, p) => { setEmail(e); setPassword(p); setErr(""); }} />
-          <Link to="/signup" className="mt-5 flex items-center justify-center gap-2 rounded-xl border-2 border-[#00A878] bg-emerald-50 px-4 py-3 text-sm font-bold text-[#007a58] shadow-sm transition-colors hover:bg-[#00A878] hover:text-white" data-testid="login-signup-link"><UserPlus className="h-4 w-4" />{t("no_account")}</Link>
+          <Link to="/signup" className="mt-4 block text-center text-xs font-medium text-[#00A878] hover:underline" data-testid="login-signup-link">{t("no_account")}</Link>
         </form>
       </div>
     </div>
