@@ -205,4 +205,5 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 - 2026-09-28 Meetings enhancements: request card 「テレビ電話を予約」 (NewMeeting preset, request.video_meeting_id/at, cleared on cancel); AI minutes → DRAFT, staff edit (PUT /minutes) + approve (POST /minutes/approve → minutes_approved, notify client in-app+email+WA); client never gets minutes draft/transcript (_view); staff GET /transcript; .ics invites (REQUEST on booking, CANCEL on cancel) to client users AND consultant (send_email ics param). iteration_26 pass. Deployed prod
 - 2026-09-28 Login 「コンサルタント会員登録はこちら」 → prominent bordered button w/ icon; public nav 料金プラン now links to /signup. Deployed prod
 - 2026-09-28 REVERTED (user request): login signup link back to small text link; nav 料金プラン back to /#pricing. Deployed prod
+- 2026-09-28 Login signup link made prominent again (bordered emerald button + UserPlus icon); nav 料金プラン stays /#pricing. Deployed prod
 - 2026-09-26 follow-up: after /#pricing, clicking ホーム/logo ("/") didn't scroll up (same route). useHashScroll now depends on location.key and scrolls to top when no hash. Verified preview; deployed prod
