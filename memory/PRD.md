@@ -1,5 +1,7 @@
 # FINORA — PRD
 
+> **USER PREFERENCE (MUST): すべてのメッセージ・報告・finish の「Next Action Items」も含めて日本語で書くこと。See /app/memory/USER_PREFS.md**
+
 ## Original Problem Statement
 FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人・法人の資産／投資／負債／キャッシュフロー／金融口座を一元管理し、AI分析・リスク管理・将来シミュレーション・コンサルティング支援を行う。デザイン「Premium FinTech × Near Future」、ブランドカラー Midnight Navy #071A2B / Emerald #00A878 / Gold #C9A227。ロール：管理者・コンサルタント・顧客。Phase 1〜8 の順で開発。
 
