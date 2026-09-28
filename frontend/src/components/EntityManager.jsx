@@ -24,7 +24,11 @@ function Cell({ f, row, assets }) {
   if (f.type === "number") return <span className="font-num">{num(v, 4)}</span>;
   if (f.type === "date") return <span className="font-num text-slate-600">{fmtDate(v)}</span>;
   if (f.type === "user") return <span>{row._userName || "—"}</span>;
-  if ((f.type === "select" || f.type === "category") && !f.raw) return v ? <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{t((f.prefix || "") + v)}</span> : "—";
+  if ((f.type === "select" || f.type === "category") && !f.raw) {
+    if (!v) return "—";
+    if (f.opts && !f.opts.includes(String(v))) return <span>{typeof v === "number" ? yen(v) : v}</span>;
+    return <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{t((f.prefix || "") + v)}</span>;
+  }
   return <span className="line-clamp-1 max-w-[260px]">{v || "—"}</span>;
 }
 
@@ -38,7 +42,9 @@ function Field({ f, form, set, users, accounts, assets }) {
   let input;
   if (f.type === "select" || f.type === "category") {
     const opts = f.type === "category" ? (form.direction === "income" ? INCOME_CATS : EXPENSE_CATS) : f.opts;
-    input = <select id={id} data-testid={id} className={selCls} value={v} onChange={on}><option value="">—</option>{opts.map((o) => <option key={o} value={o}>{f.raw ? o : t((f.prefix || "") + o)}</option>)}</select>;
+    input = <select id={id} data-testid={id} className={selCls} value={v} onChange={on}><option value="">—</option>
+      {v !== "" && !opts.includes(String(v)) && <option value={v}>{typeof v === "number" ? yen(v) : v}</option>}
+      {opts.map((o) => <option key={o} value={o}>{f.raw ? o : t((f.prefix || "") + o)}</option>)}</select>;
   } else if (f.type === "asset") {
     input = <select id={id} data-testid={id} className={selCls} value={v} onChange={on}><option value="">—</option>{assets.filter((a) => a.client_id === form.client_id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>;
   } else if (f.type === "client") {
@@ -143,8 +149,9 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input placeholder={t("search")} value={q} onChange={(e) => setQ(e.target.value)} className="h-9 w-48 pl-9" data-testid={`${entity}-search-input`} />
           </div>
-          <Button variant="outline" size="sm" onClick={() => exp("csv")} data-testid={`${entity}-export-csv`}><Download className="mr-1 h-4 w-4" />CSV</Button>
-          <Button variant="outline" size="sm" onClick={() => exp("xlsx")} data-testid={`${entity}-export-xlsx`}><FileSpreadsheet className="mr-1 h-4 w-4" />Excel</Button>
+          {user.role !== "consultant" && <>
+            <Button variant="outline" size="sm" onClick={() => exp("csv")} data-testid={`${entity}-export-csv`}><Download className="mr-1 h-4 w-4" />CSV</Button>
+            <Button variant="outline" size="sm" onClick={() => exp("xlsx")} data-testid={`${entity}-export-xlsx`}><FileSpreadsheet className="mr-1 h-4 w-4" />Excel</Button></>}
           {canWrite && (
             <>
               <Button variant="outline" size="sm" onClick={() => fileRef.current.click()} data-testid={`${entity}-import-btn`}><Upload className="mr-1 h-4 w-4" />{t("import")}</Button>

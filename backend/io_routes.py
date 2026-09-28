@@ -19,6 +19,8 @@ DOC_TYPES = ("application/pdf", "image/", "text/", "application/vnd", "applicati
 async def export(entity: str, request: Request, fmt: str = "csv", client_id: Optional[str] = None, user=Depends(current)):
     if entity not in ENTITIES:
         raise HTTPException(404, "Unknown entity")
+    if user["role"] == "consultant":
+        raise HTTPException(403, "Forbidden")
     items = await list_items(user, entity, client_id)
     cols = ["id"] + ENTITIES[entity]["fields"]
     df = pd.DataFrame([{c: i.get(c) for c in cols} for i in items], columns=cols)

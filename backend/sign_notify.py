@@ -128,7 +128,7 @@ async def _deliver(c, u, kind, x, subject, body, cta, path=None):
     link = f"{APP_URL}{path or '/econtracts/' + c['id']}"
     try:
         await send_email(to=u["email"], subject=subject, html=_html(x, u.get("name") or u["email"], body, link, cta),
-                         kind={"econtract_renewal_notice": "renewal", "contract_ended": "termination"}.get(kind, "econtract"))
+                         kind={"econtract_renewal_notice": "renewal", "contract_ended": "termination", "meeting": "meeting"}.get(kind, "econtract"))
         await _log(c, u, "EMAIL", u["email"], kind, "SENT")
     except Exception as e:
         logger.error("sign request email failed %s: %s", c["number"], e)

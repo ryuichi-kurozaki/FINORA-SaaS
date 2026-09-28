@@ -7,7 +7,7 @@ import { api, errMsg } from "@/lib/api";
 import { fmtDateTime } from "@/lib/format";
 import { Card, CardTitle, Spinner } from "@/components/common";
 
-const KINDS = ["invite", "econtract", "renewal", "termination", "invoice", "refund", "inquiry", "system", "other"];
+const KINDS = ["invite", "econtract", "renewal", "termination", "meeting", "invoice", "refund", "inquiry", "system", "other"];
 const STATUSES = ["delivered", "queued", "deferred", "bounced", "failed", "logged"];
 const TONE = { delivered: "bg-emerald-50 text-emerald-700", queued: "bg-sky-50 text-sky-700", deferred: "bg-amber-50 text-amber-700", bounced: "bg-red-50 text-red-700", failed: "bg-red-100 text-red-800", logged: "bg-slate-100 text-slate-600" };
 const PAGE = 50;

@@ -12,6 +12,7 @@ import { REQ_CATS, REQ_STATUS } from "@/config/entities";
 import { Card, Empty, PageHeader } from "@/components/common";
 import { useScopeLabel } from "@/lib/useDashboard";
 import EntityManager from "@/components/EntityManager";
+import MeetingsPanel from "@/components/MeetingsPanel";
 import CommentThread from "@/components/CommentThread";
 
 const inp = "h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm";
@@ -103,6 +104,8 @@ export function ConsultingPanels({ clientId }) {
   const reqs = useApi(`/requests${q}`, [clientId]);
   const corr = useApi(`/corrections${q}`, [clientId]);
   return (
+    <>
+    <MeetingsPanel clientId={clientId} />
     <Tabs defaultValue={sp.get("tab") || "requests"}>
       <TabsList className="h-auto flex-wrap bg-white/70 p-1">
         {["consulting_requests", "corrections", "consulting_records"].map((k, i) => <TabsTrigger key={k} value={["requests", "corrections", "records"][i]} data-testid={`consulting-tab-${k}`} className="data-[state=active]:bg-[#071A2B] data-[state=active]:text-white">{t(k)}</TabsTrigger>)}
@@ -116,6 +119,7 @@ export function ConsultingPanels({ clientId }) {
       </TabsContent>
       <TabsContent value="records" className="mt-4"><EntityManager entity="consulting" clientId={clientId} /></TabsContent>
     </Tabs>
+    </>
   );
 }
 

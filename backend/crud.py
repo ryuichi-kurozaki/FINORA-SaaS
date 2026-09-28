@@ -11,7 +11,7 @@ ENTITIES = {
     "clients": {"fields": ["client_type", "name", "corporate_name", "email", "phone", "whatsapp", "address", "occupation", "business",
                            "family", "related_corps", "annual_income", "income", "investment_experience",
                            "investment_purpose", "risk_tolerance", "consultant_id", "secondary_consultant_ids", "status", "notes"],
-                "num": ["annual_income", "income"], "enc": ["phone", "whatsapp", "address", "family", "notes"]},
+                "num": [], "enc": ["phone", "whatsapp", "address", "family", "notes"]},
     "accounts": {"fields": ["client_id", "institution", "account_type", "region", "owner_type", "currency", "branch", "notes"]},
     "assets": {"fields": ["client_id", "account_id", "asset_class", "name", "ticker", "owner_type", "country", "sector",
                           "currency", "acquired_date", "acquisition_price", "quantity", "current_price", "price_unit", "realized_pl",

@@ -11,6 +11,7 @@ import { Donut, TrendChart } from "@/components/charts";
 import EntityManager from "@/components/EntityManager";
 import EContractPanel from "@/components/econtract/EContractPanel";
 import TerminateDialog from "@/components/TerminateDialog";
+import { ENTITIES } from "@/config/entities";
 import InsightPanel from "@/components/InsightPanel";
 import AIAssistant from "@/components/AIAssistant";
 import { DocumentsPanel } from "@/pages/Documents";
@@ -27,6 +28,7 @@ import CorrectionDialog from "@/components/CorrectionDialog";
 
 const PROFILE = ["client_type", "email", "phone", "address", "occupation", "business", "family", "related_corps", "annual_income", "income", "investment_experience", "investment_purpose", "risk_tolerance", "status", "notes"];
 const SELECTS = ["client_type", "risk_tolerance", "status"];
+const OPTS = Object.fromEntries(ENTITIES.clients.filter((f) => f.prefix).map((f) => [f.k, f]));
 
 export default function ClientDetail() {
   const { id } = useParams();
@@ -44,7 +46,7 @@ export default function ClientDetail() {
   return (
     <div data-testid="client-detail-page">
       <Link to="/clients" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-[#00A878]" data-testid="client-back-link"><ArrowLeft className="h-4 w-4" />{t("clients")}</Link>
-      <PageHeader eyebrow={`${t(c.client_type)} · ${c.status ? t(c.status) : ""}`} title={c.corporate_name || c.name} sub={c.corporate_name ? c.name : c.occupation}>
+      <PageHeader eyebrow={[c.client_type && t(c.client_type), c.status && t(c.status)].filter(Boolean).join(" · ")} title={c.corporate_name || c.name} sub={c.corporate_name ? c.name : c.occupation}>
         <button onClick={() => setAi(true)} className="btn-emerald inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold" data-testid="client-ask-ai-btn"><Sparkles className="h-4 w-4" />{t("ask_ai")}</button>
         {!isClient && (c.status === "terminated"
           ? <span className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-600" data-testid="client-terminated-badge">{t("term_client_badge")}{c.terminated_end_date ? ` · ${c.terminated_end_date}` : ""}</span>
@@ -69,7 +71,7 @@ export default function ClientDetail() {
               <dl className="space-y-2.5 text-sm">
                 {PROFILE.filter((k) => c[k]).map((k) => (
                   <div key={k} className="grid grid-cols-[120px_1fr] gap-2"><dt className="text-xs text-slate-500">{t(k === "income" ? "income_field" : k)}</dt>
-                    <dd className="break-words text-slate-800">{SELECTS.includes(k) ? t(c[k]) : typeof c[k] === "number" ? yen(c[k]) : c[k]}</dd></div>
+                    <dd className="break-words text-slate-800">{OPTS[k]?.opts.includes(String(c[k])) ? t(OPTS[k].prefix + c[k]) : SELECTS.includes(k) ? t(c[k]) : typeof c[k] === "number" ? yen(c[k]) : c[k]}</dd></div>
                 ))}
               </dl>
               <p className="mt-4 rounded-lg bg-emerald-50/60 p-2.5 text-[11px] text-emerald-800">{t("derived_note")}</p>

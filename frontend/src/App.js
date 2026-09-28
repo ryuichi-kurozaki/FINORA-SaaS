@@ -26,6 +26,7 @@ import Notifications from "@/pages/Notifications";
 import Billing from "@/pages/Billing";
 import Platform from "@/pages/Platform";
 import EContractDetail from "@/pages/EContractDetail";
+import MeetingRoom from "@/pages/MeetingRoom";
 import EContractPanel from "@/components/econtract/EContractPanel";
 import { Signup, InviteAccept } from "@/pages/Signup";
 import { PaymentSuccess, PaymentCancel } from "@/pages/PaymentResult";
@@ -80,6 +81,7 @@ function App() {
               <Route path="/billing" element={<Billing />} />
               <Route path="/platform" element={<Platform />} />
               <Route path="/econtracts/:id" element={<EContractDetail />} />
+              <Route path="/meetings/:id" element={<MeetingRoom />} />
               <Route path="/my-contracts" element={<div className="space-y-6"><EContractPanel grouped /></div>} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/documents" element={<Documents />} />

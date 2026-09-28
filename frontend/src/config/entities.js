@@ -1,6 +1,7 @@
 const ASSET_CLASSES = ["cash", "deposit", "jp_stock", "foreign_stock", "etf", "fund", "bond", "fx", "crypto", "real_estate", "insurance", "pension", "gold", "precious_metal", "unlisted", "other"];
 export const CURRENCIES = ["JPY", "USD", "EUR", "GBP", "BRL", "CNY", "AUD", "HKD", "SGD", "CHF"];
 const OWNER = ["individual", "corporate"];
+const INCOME_BANDS = ["u3m", "3_5m", "5_10m", "10_20m", "20_50m", "50_100m", "100m_1b", "over_1b"];
 export const INCOME_CATS = ["salary", "executive_comp", "business_income", "dividend", "interest", "real_estate_income", "investment_income", "other_income"];
 export const EXPENSE_CATS = ["living", "business_expense", "tax", "social_insurance", "insurance", "loan_repayment", "investment", "other"];
 export const DOC_CATS = ["contract", "bank_doc", "securities_doc", "financial_statement", "tax_return", "insurance_policy", "real_estate_doc", "loan_doc", "investment_doc", "other"];
@@ -17,8 +18,11 @@ export const ENTITIES = {
     { k: "name", table: true, req: true },
     { k: "corporate_name", table: true },
     { k: "email", table: true },
-    { k: "phone" }, { k: "whatsapp", label: "client_whatsapp" }, { k: "address", wide: true }, { k: "occupation" }, { k: "business" }, { k: "family" }, { k: "related_corps" },
-    { k: "annual_income", type: "money", table: true }, { k: "income", type: "money", label: "income_field" },
+    { k: "phone" }, { k: "whatsapp", label: "client_whatsapp" }, { k: "address", wide: true },
+    { k: "occupation", type: "select", prefix: "occ_", opts: ["employee", "executive", "public_servant", "self_employed", "professional", "pensioner", "homemaker", "student", "unemployed", "other"] },
+    { k: "business", type: "select", prefix: "biz_", opts: ["manufacturing", "construction_realestate", "wholesale_retail", "finance_insurance", "it", "medical_welfare", "food_hospitality", "services", "logistics", "agriculture", "other"] },
+    { k: "family", type: "select", prefix: "fam_", opts: ["single", "married_no_kids", "married_kids", "single_parent", "other"] }, { k: "related_corps" },
+    { k: "annual_income", type: "select", prefix: "inc_", opts: INCOME_BANDS, table: true }, { k: "income", type: "select", prefix: "inc_", opts: INCOME_BANDS, label: "income_field" },
     { k: "investment_experience" }, { k: "investment_purpose" },
     { k: "risk_tolerance", type: "select", opts: ["conservative", "moderate", "aggressive"], table: true },
     { k: "consultant_id", type: "user", table: true, adminOnly: true },

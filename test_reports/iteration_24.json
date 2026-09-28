@@ -1,0 +1,46 @@
+{
+  "summary": "Iteration 24 — Contract termination (legacy per-contract + whole-client) feature tested end-to-end. Backend termination endpoints work correctly (validation, RBAC/tenant scope, state transitions, persistence, idempotency 409). Frontend: client-terminate-btn / client-term-dialog / legacy-contracts section render with correct JA copy, submit-disabled logic, and proper data-testids. One real backend bug discovered: /api/platform/email-log?kind=termination is silently ignored because mail_log.py KINDS tuple is missing 'termination'.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/platform/email-log?kind=termination",
+        "issue": "Filter is silently dropped. `KINDS` in /app/backend/mail_log.py (line 16) is ('invite','econtract','renewal','invoice','refund','inquiry','system','other') — missing 'termination'. The route validates with `if kind in KINDS`, so termination filter never applies and the endpoint returns rows of all kinds. Frontend spec explicitly requires 'termination (契約解除)' in the platform email log kind filter.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "ClientDetail header for a terminated client with no client type set",
+        "issues": ["Breadcrumb renders 'UNDEFINED › 解約済み' when the client has no legal_form/type. Fallback label should be i18n'd (e.g., '—') instead of literal 'UNDEFINED'. Reproduced on newly-created test client TEST_Termination_2_KK after termination."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_termination.py",
+    "/app/test_reports/pytest/iter24_termination.xml"
+  ],
+  "action_items": [
+    "Add 'termination' to KINDS in /app/backend/mail_log.py (line 16) so the platform email-log kind filter can filter termination emails.",
+    "In ClientDetail breadcrumb / status area, replace the literal 'UNDEFINED' when a client has no legal_form/type."
+  ],
+  "critical_code_review_comments": [
+    "termination.py `_client` calls `scope(user, cid)` then does another `db.clients.find_one` — redundant DB read; `scope` could already return the client doc.",
+    "termination.py stores background asyncio tasks in module-level `_BG` set. It works but under load could accumulate; consider tying tasks to app lifecycle.",
+    "sign_notify.py `_deliver` maps kind→'termination' inline (`{'contract_ended': 'termination'}`) — this mapping only exists here while mail_log.KINDS whitelist is defined elsewhere. Both places must agree; keep the vocabulary in a single constants module."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_termination.py"
+  ],
+  "success_rate": {"backend": "94% (15/16 pytest tests pass, the failing one documents a real bug)", "frontend": "100% smoke tested (dialog/testids/section render)"},
+  "test_credentials": "Used consultant@finora.co.jp / Finora2026! and ryuichi.kurozaki@gmail.com / Finora2026!. Did NOT terminate seeded demo clients 56f42e4d… / 65c1bdfd…. Did NOT touch client@finora.co.jp login.",
+  "seed_data_creation": "Created 2 test clients under consultant@ tenant (TEST_Term_* and TEST_Term2_*). Inserted 1 legacy db.contracts row for TEST_Term_* client (terminated during tests). TEST_Term2_* client is now status='terminated'. All prefixed TEST_ for easy cleanup.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend tests file: /app/backend/tests/test_termination.py runs with: `python -m pytest backend/tests/test_termination.py -v -o addopts=''`. The one failing test (test_email_log_termination_kind) is intentional — it documents the mail_log.py KINDS-missing-'termination' bug and will pass once the KINDS tuple is fixed. Legacy contract creation via API is blocked (STAFF_ENTITIES); the fixture inserts directly via motor. Frontend testing tip: consultant@finora.co.jp has a required bank-account modal that blocks clicks — use admin (ryuichi.kurozaki@) or a consultant whose billing_profile is set up for UI tests.",
+  "rca of the issue": "File /app/backend/mail_log.py line 16 defines KINDS = ('invite','econtract','renewal','invoice','refund','inquiry','system','other'). The route at line 94 uses `if kind in KINDS: f['kind']=kind`. sign_notify._deliver maps 'contract_ended' → 'termination' when calling send_email, so db.email_log ends up with kind='termination' (correct). But when the frontend passes kind=termination to /api/platform/email-log, the guard rejects it and the filter is discarded, so the UI can never show a termination-only list. Fix: add 'termination' to KINDS."
+}
