@@ -104,7 +104,7 @@ async def _record(to, subject, kind, message_id, status, detail=""):
                                    "queue_id": None, "status": status, "detail": str(detail)[:300], "at": at, "updated_at": at})
 
 
-async def send_email(*, to: str, subject: str, html: str, reply_to: str | None = None, kind: str = "other") -> str | None:
+async def send_email(*, to: str, subject: str, html: str, reply_to: str | None = None, kind: str = "other", ics: str | None = None, ics_method: str = "REQUEST") -> str | None:
     _assert_safe_email(subject, html)
     msg = EmailMessage()
     msg["From"] = formataddr((str(Header(EMAIL_FROM_NAME, "utf-8")), EMAIL_FROM))
@@ -115,6 +115,8 @@ async def send_email(*, to: str, subject: str, html: str, reply_to: str | None =
     msg["Message-ID"] = make_msgid(domain=EMAIL_FROM.split("@")[-1])
     msg.set_content(re.sub(r"<[^>]+>", " ", html))
     msg.add_alternative(html, subtype="html")
+    if ics:
+        msg.add_attachment(ics.encode(), maintype="text", subtype="calendar", filename="invite.ics", params={"method": ics_method, "charset": "utf-8"})
     if EMAIL_TRANSPORT == "log":
         logger.info("email (log transport, not sent) to=%s subject=%s", to, subject)
         await _record(to, subject, kind, msg["Message-ID"], "logged")

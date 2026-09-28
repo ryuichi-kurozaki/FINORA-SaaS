@@ -124,10 +124,10 @@ async def send_ended_notice(user_id, c, scope_kind, issuer, link):
     await _deliver(c, u, "contract_ended", TXT[lang], subject, body, ENDED[lang]["cta"], link)
 
 
-async def _deliver(c, u, kind, x, subject, body, cta, path=None):
+async def _deliver(c, u, kind, x, subject, body, cta, path=None, ics=None, ics_method="REQUEST"):
     link = f"{APP_URL}{path or '/econtracts/' + c['id']}"
     try:
-        await send_email(to=u["email"], subject=subject, html=_html(x, u.get("name") or u["email"], body, link, cta),
+        await send_email(to=u["email"], subject=subject, html=_html(x, u.get("name") or u["email"], body, link, cta), ics=ics, ics_method=ics_method,
                          kind={"econtract_renewal_notice": "renewal", "contract_ended": "termination", "meeting": "meeting"}.get(kind, "econtract"))
         await _log(c, u, "EMAIL", u["email"], kind, "SENT")
     except Exception as e:

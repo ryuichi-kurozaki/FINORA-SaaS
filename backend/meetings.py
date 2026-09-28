@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from core import audit, client_user_ids, current, db, new_id, notify, now_iso, scope
-from sign_notify import TXT, _deliver
+from sign_notify import APP_URL, TXT, _deliver
 
 logger = logging.getLogger("meetings")
 router = APIRouter(prefix="/api/meetings")
@@ -28,14 +28,39 @@ MINUTES_PROMPT = ("あなたは資産運用コンサルティング会社の議�
 NOTICE = {
     "ja": {"new": ("【FINORA】テレビ電話のご予約（{when}）", "{who}とのテレビ電話「{title}」を {when} に予約しました。時間になりましたらFINORAの「通話に参加」からご参加ください。"),
            "soon": ("【FINORA】まもなくテレビ電話が始まります（{when}）", "テレビ電話「{title}」が {when} に始まります。FINORAの「通話に参加」からご参加ください。"),
-           "cancel": ("【FINORA】テレビ電話のキャンセル（{when}）", "{when} に予定していたテレビ電話「{title}」はキャンセルされました。"), "cta": "FINORAで確認する"},
+           "cancel": ("【FINORA】テレビ電話のキャンセル（{when}）", "{when} に予定していたテレビ電話「{title}」はキャンセルされました。"),
+           "minutes": ("【FINORA】議事録が届きました（{title}）", "{when} のテレビ電話「{title}」の議事録が届きました。FINORAのコンサルティング画面からご確認ください。"), "cta": "FINORAで確認する"},
     "en": {"new": ("[FINORA] Video call scheduled ({when})", "A video call \"{title}\" with {who} is scheduled for {when}. Please join from \"Join call\" in FINORA."),
            "soon": ("[FINORA] Your video call starts soon ({when})", "The video call \"{title}\" starts at {when}. Please join from \"Join call\" in FINORA."),
-           "cancel": ("[FINORA] Video call cancelled ({when})", "The video call \"{title}\" scheduled for {when} was cancelled."), "cta": "Open FINORA"},
+           "cancel": ("[FINORA] Video call cancelled ({when})", "The video call \"{title}\" scheduled for {when} was cancelled."),
+           "minutes": ("[FINORA] Meeting minutes are ready ({title})", "The minutes of the video call \"{title}\" on {when} are ready. Please check them on the Consulting page in FINORA."), "cta": "Open FINORA"},
     "pt": {"new": ("[FINORA] Videochamada agendada ({when})", "A videochamada \"{title}\" com {who} foi agendada para {when}. Entre por \"Entrar na chamada\" no FINORA."),
            "soon": ("[FINORA] Sua videochamada começa em breve ({when})", "A videochamada \"{title}\" começa às {when}. Entre por \"Entrar na chamada\" no FINORA."),
-           "cancel": ("[FINORA] Videochamada cancelada ({when})", "A videochamada \"{title}\" agendada para {when} foi cancelada."), "cta": "Abrir o FINORA"},
+           "cancel": ("[FINORA] Videochamada cancelada ({when})", "A videochamada \"{title}\" agendada para {when} foi cancelada."),
+           "minutes": ("[FINORA] A ata da reunião está disponível ({title})", "A ata da videochamada \"{title}\" de {when} está disponível. Confira na página de Consultoria do FINORA."), "cta": "Abrir o FINORA"},
 }
+ICS_KIND = {"new": "REQUEST", "cancel": "CANCEL"}
+STAFF_ONLY = ("minutes", "transcript", "minutes_error")
+
+
+def _ics(m, method, email):
+    fmt = lambda d: d.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")  # noqa: E731
+    start = datetime.fromisoformat(m["scheduled_at"])
+    esc = lambda s: s.replace("\\", "\\\\").replace(",", "\\,").replace(";", "\\;").replace("\n", "\\n")  # noqa: E731
+    url = f"{APP_URL}/consulting"
+    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//FINORA//Meetings//JA", f"METHOD:{method}", "BEGIN:VEVENT",
+             f"UID:{m['id']}@finora.co.jp", f"DTSTAMP:{fmt(datetime.now(timezone.utc))}", f"DTSTART:{fmt(start)}",
+             f"DTEND:{fmt(start + timedelta(minutes=m['duration_min']))}", f"SUMMARY:{esc('FINORA テレビ電話: ' + m['title'])}",
+             f"DESCRIPTION:{esc('FINORAの「通話に参加」からご参加ください / Join from FINORA: ' + url)}", f"URL:{url}", "LOCATION:FINORA",
+             f"ORGANIZER;CN=FINORA:mailto:{os.environ['EMAIL_FROM']}", f"ATTENDEE;ROLE=REQ-PARTICIPANT;RSVP=FALSE:mailto:{email}",
+             f"SEQUENCE:{1 if method == 'CANCEL' else 0}", f"STATUS:{'CANCELLED' if method == 'CANCEL' else 'CONFIRMED'}", "END:VEVENT", "END:VCALENDAR"]
+    return "\r\n".join(lines) + "\r\n"
+
+
+def _view(m, user):
+    if user["role"] == "client":
+        return {k: v for k, v in m.items() if k not in STAFF_ONLY}
+    return {k: v for k, v in m.items() if k != "transcript"}
 
 
 class MeetIn(BaseModel):
@@ -49,6 +74,10 @@ class MeetIn(BaseModel):
 class SignalIn(BaseModel):
     type: str = Field(pattern="^(hello|offer|answer|ice|rec|bye)$")
     data: Dict[str, Any] = {}
+
+
+class MinutesIn(BaseModel):
+    text: str = Field(min_length=1, max_length=50000)
 
 
 def _staff(user):
@@ -73,13 +102,17 @@ async def _tell(m, kind, actor=None, both=False):
     uids = list(await client_user_ids(m["tenant_id"], m["client_id"])) + ([m["consultant_id"]] if both else [])
     await notify(m["tenant_id"], uids, f"meeting_{kind}", {"label": m["title"]}, m["client_id"], "/consulting", actor)
     who = (await db.users.find_one({"id": m["consultant_id"]}, {"name": 1}) or {}).get("name") or "FINORA"
+    cl = await db.clients.find_one({"id": m["client_id"]}, {"name": 1, "corporate_name": 1}) or {}
     for uid in set(uids):
         u = await db.users.find_one({"id": uid})
         if not u:
             continue
         lang = u.get("lang") if u.get("lang") in NOTICE else "ja"
-        subject, body = (s.format(when=_when(m), title=m["title"], who=who) for s in NOTICE[lang][kind])
-        task = asyncio.create_task(_deliver({"id": m["id"], "tenant_id": m["tenant_id"]}, u, "meeting", TXT[lang], subject, body, NOTICE[lang]["cta"], "/consulting"))
+        other = (cl.get("corporate_name") or cl.get("name") or "") if uid == m["consultant_id"] else who
+        subject, body = (s.format(when=_when(m), title=m["title"], who=other) for s in NOTICE[lang][kind])
+        method = ICS_KIND.get(kind)
+        task = asyncio.create_task(_deliver({"id": m["id"], "tenant_id": m["tenant_id"], "number": m["title"]}, u, "meeting", TXT[lang], subject, body,
+                                            NOTICE[lang]["cta"], "/consulting", ics=_ics(m, method, u["email"]) if method else None, ics_method=method or "REQUEST"))
         _BG.add(task)
         task.add_done_callback(_BG.discard)
 
@@ -101,7 +134,7 @@ async def list_meetings(client_id: Optional[str] = None, user=Depends(current)):
     q = await scope(user, client_id)
     rows = await db.meetings.find(q, {"_id": 0, "transcript": 0}).sort("scheduled_at", -1).to_list(300)
     names = {c["id"]: c.get("corporate_name") or c.get("name") for c in await db.clients.find({"tenant_id": user["tenant_id"]}, {"id": 1, "name": 1, "corporate_name": 1}).to_list(5000)}
-    return [r | {"client_name": names.get(r["client_id"])} for r in rows]
+    return [_view(r, user) | {"client_name": names.get(r["client_id"])} for r in rows]
 
 
 @router.post("")
@@ -109,12 +142,16 @@ async def create(body: MeetIn, request: Request, user=Depends(current)):
     _staff(user)
     await scope(user, body.client_id)
     datetime.fromisoformat(body.scheduled_at)
+    if body.request_id and not await db.requests.find_one({"id": body.request_id, "client_id": body.client_id, "tenant_id": user["tenant_id"]}, {"_id": 1}):
+        raise HTTPException(404, "Not found")
     m = {"id": new_id(), "tenant_id": user["tenant_id"], "client_id": body.client_id, "consultant_id": user["id"], "title": body.title,
          "scheduled_at": body.scheduled_at, "duration_min": body.duration_min, "request_id": body.request_id, "status": "SCHEDULED",
          "reminded": False, "created_at": now_iso(), "expires_at": (datetime.now(timezone.utc) + timedelta(days=365 * 3)).isoformat()}
     await db.meetings.insert_one(dict(m))
     await audit(user, "create", "meetings", m["id"], after={"title": m["title"], "scheduled_at": m["scheduled_at"]}, request=request, client_id=m["client_id"], label=m["title"])
-    await _tell(m, "new", user)
+    if body.request_id:
+        await db.requests.update_one({"id": body.request_id}, {"$set": {"video_meeting_id": m["id"], "video_meeting_at": m["scheduled_at"]}})
+    await _tell(m, "new", user, both=True)
     m.pop("_id", None)
     return m
 
@@ -127,8 +164,40 @@ async def cancel(mid: str, request: Request, user=Depends(current)):
         raise HTTPException(409, f"This step is not allowed in status {m['status']}")
     await db.meetings.update_one({"id": mid}, {"$set": {"status": "CANCELLED"}})
     await audit(user, "cancel", "meetings", mid, request=request, client_id=m["client_id"], label=m["title"])
-    await _tell(m, "cancel", user)
+    await db.requests.update_many({"video_meeting_id": mid}, {"$unset": {"video_meeting_id": "", "video_meeting_at": ""}})
+    await _tell(m, "cancel", user, both=True)
     return {"status": "CANCELLED"}
+
+
+@router.get("/{mid}/transcript")
+async def transcript(mid: str, user=Depends(current)):
+    _staff(user)
+    m = await db.meetings.find_one({"id": (await _load(user, mid))["id"]}, {"transcript": 1})
+    return {"transcript": m.get("transcript") or ""}
+
+
+@router.put("/{mid}/minutes")
+async def edit_minutes(mid: str, body: MinutesIn, request: Request, user=Depends(current)):
+    _staff(user)
+    m = await _load(user, mid)
+    if m.get("minutes_status") not in ("DRAFT", "APPROVED"):
+        raise HTTPException(409, f"This step is not allowed in status {m.get('minutes_status')}")
+    await db.meetings.update_one({"id": mid}, {"$set": {"minutes": body.text, "minutes_status": "DRAFT", "minutes_edited_at": now_iso(), "minutes_edited_by": user["id"]}})
+    await audit(user, "edit_minutes", "meetings", mid, request=request, client_id=m["client_id"], label=m["title"])
+    return {"minutes_status": "DRAFT"}
+
+
+@router.post("/{mid}/minutes/approve")
+async def approve_minutes(mid: str, request: Request, user=Depends(current)):
+    _staff(user)
+    m = await _load(user, mid)
+    if m.get("minutes_status") != "DRAFT" or not m.get("minutes"):
+        raise HTTPException(409, f"This step is not allowed in status {m.get('minutes_status')}")
+    await db.meetings.update_one({"id": mid}, {"$set": {"minutes_approved": m["minutes"], "minutes_status": "APPROVED", "minutes_approved_at": now_iso(),
+                                                        "minutes_approved_by": user["id"], "minutes_approved_by_name": user.get("name")}})
+    await audit(user, "approve_minutes", "meetings", mid, request=request, client_id=m["client_id"], label=m["title"])
+    await _tell(m, "minutes", user)
+    return {"minutes_status": "APPROVED"}
 
 
 @router.post("/{mid}/end")
@@ -219,7 +288,7 @@ async def make_minutes(mid):
                 out += ev.content
             elif isinstance(ev, StreamDone):
                 break
-        await db.meetings.update_one({"id": mid}, {"$set": {"transcript": text, "minutes": out.strip(), "minutes_status": "DONE", "minutes_at": now_iso()}})
+        await db.meetings.update_one({"id": mid}, {"$set": {"transcript": text, "minutes": out.strip(), "minutes_status": "DRAFT", "minutes_at": now_iso()}})
     except Exception as e:  # noqa: BLE001
         logger.exception("minutes failed %s", mid)
         await db.meetings.update_one({"id": mid}, {"$set": {"minutes_status": "FAILED", "minutes_error": str(e)[:300]}})

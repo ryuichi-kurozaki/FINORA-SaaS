@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,7 +12,7 @@ import { REQ_CATS, REQ_STATUS } from "@/config/entities";
 import { Card, Empty, PageHeader } from "@/components/common";
 import { useScopeLabel } from "@/lib/useDashboard";
 import EntityManager from "@/components/EntityManager";
-import MeetingsPanel from "@/components/MeetingsPanel";
+import MeetingsPanel, { NewMeeting } from "@/components/MeetingsPanel";
 import CommentThread from "@/components/CommentThread";
 
 const inp = "h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm";
@@ -49,6 +49,7 @@ function NewRequest({ onDone }) {
 function RequestCard({ r, onDone }) {
   const { t, isClient, clientName } = useApp();
   const [m, setM] = useState({ status: r.status, answer: r.answer || "", meeting_at: "" });
+  const [book, setBook] = useState(false);
   const save = async () => {
     try { await api.put(`/requests/${r.id}/manage`, { status: m.status, answer: m.answer || null, meeting_at: m.meeting_at || null }); toast.success(t("saved")); onDone(); } catch (e) { toast.error(errMsg(e)); }
   };
@@ -61,6 +62,11 @@ function RequestCard({ r, onDone }) {
         <span className="ml-auto text-[11px] text-slate-400">{clientName(r.client_id)} · <span className="font-num">{fmtDateTime(r.created_at)}</span></span>
       </div>
       <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{r.content}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {r.video_meeting_at && <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700" data-testid={`request-video-at-${r.id}`}><Video className="h-3.5 w-3.5" />{t("mt_title_panel")}: {new Date(r.video_meeting_at).toLocaleString("ja-JP", { dateStyle: "medium", timeStyle: "short" })}</span>}
+        {!isClient && !r.video_meeting_at && <Button size="sm" variant="outline" onClick={() => setBook(true)} data-testid={`request-book-video-${r.id}`}><Video className="mr-1 h-4 w-4" />{t("mt_new")}</Button>}
+      </div>
+      {book && <NewMeeting preset={{ client_id: r.client_id, title: r.title, request_id: r.id }} onClose={() => setBook(false)} onDone={onDone} />}
       {r.answer && <div className="mt-2 rounded-lg bg-slate-50 p-2.5 text-sm"><b className="text-xs text-slate-500">{t("answer")}:</b> {r.answer}</div>}
       {!isClient && (
         <div className="mt-3 grid gap-2 md:grid-cols-[160px_1fr_170px_auto]">
