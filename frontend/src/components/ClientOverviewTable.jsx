@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { Copy, Mail, MailPlus, Search } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Copy, FileText, Mail, MailPlus, Search } from "lucide-react";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -10,6 +10,7 @@ import { api, errMsg, useApi } from "@/lib/api";
 import { fmtDate, yen } from "@/lib/format";
 import { Card, CardTitle, Spinner } from "@/components/common";
 import { ST } from "@/pages/Billing";
+import EContractForm from "@/components/econtract/EContractForm";
 
 const HC = { ok: "bg-emerald-50 text-emerald-700", review: "bg-amber-50 text-amber-700", attention: "bg-red-50 text-red-700" };
 
@@ -88,10 +89,12 @@ export function InvitationsList({ clientId, k }) {
 
 export default function ClientOverviewTable() {
   const { t } = useApp();
+  const nav = useNavigate();
   const { data, loading } = useApi("/clients/overview");
   const [q, setQ] = useState("");
   const [flt, setFlt] = useState("");
   const [inv, setInv] = useState(null);
+  const [ec, setEc] = useState(null);
   const [k, setK] = useState(0);
   const rows = useMemo(() => (data || []).filter((r) => (!q || r.name?.toLowerCase().includes(q.toLowerCase())) &&
     (!flt || (flt === "unpaid" ? r.unpaid > 0 : flt === "attention" ? r.health !== "ok" : r.contract_status === flt))), [data, q, flt]);
@@ -119,7 +122,8 @@ export default function ClientOverviewTable() {
                 <td className="font-num text-xs">{r.next_meeting || "—"}</td><td className="text-center">{r.open_requests || "—"}</td>
                 <td>{r.unpaid > 0 ? <span className={`font-num text-xs font-semibold ${r.overdue ? "text-red-600" : "text-[#8a6d12]"}`}>{yen(r.unpaid)}</span> : "—"}</td>
                 <td><span className={`rounded-md px-2 py-0.5 text-xs ${HC[r.health]}`}>{t(`health_${r.health}`)} {r.health_score}</span></td>
-                <td className="whitespace-nowrap"><button className="icon-btn text-[#00A878]" onClick={() => setInv({ c: r, mode: "email" })} title={t("invite_client")} data-testid={`client-invite-${r.id}`}><MailPlus className="h-4 w-4" /></button>
+                <td className="whitespace-nowrap"><button className="icon-btn text-[#071A2B]" onClick={() => setEc(r)} title={t("ec_new")} data-testid={`client-new-contract-${r.id}`}><FileText className="h-4 w-4" /></button>
+                  <button className="icon-btn text-[#00A878]" onClick={() => setInv({ c: r, mode: "email" })} title={t("invite_client")} data-testid={`client-invite-${r.id}`}><MailPlus className="h-4 w-4" /></button>
                   <button className="icon-btn !text-[#25D366]" onClick={() => setInv({ c: r, mode: "whatsapp" })} title={t("invite_by_whatsapp")} data-testid={`client-invite-wa-${r.id}`}><WhatsAppIcon /></button></td>
               </tr>
             ))}</tbody>
@@ -128,6 +132,7 @@ export default function ClientOverviewTable() {
       </Card>
       <InvitationsList k={k} />
       {inv && <InviteDialog key={inv.c.id + inv.mode} client={inv.c} mode={inv.mode} onClose={() => setInv(null)} onDone={() => setK(k + 1)} />}
+      {ec && <EContractForm type="CONSULTING" clientId={ec.id} onClose={() => setEc(null)} onDone={(id) => nav(`/econtracts/${id}`)} />}
     </div>
   );
 }
