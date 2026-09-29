@@ -7,13 +7,16 @@ import { api, errMsg, useApi } from "@/lib/api";
 
 const inp = "mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm";
 const today = () => new Date().toISOString().slice(0, 10);
+const DEF = { ja: { s: "コンサルティングサービス", d: "月次の資産運用に関するコンサルティングおよび助言業務。詳細は別途協議のうえ定めるものとする。（仮入力：後で編集してください）" },
+  en: { s: "Consulting service", d: "Monthly asset management consulting and advisory services. Details to be agreed separately. (draft — edit later)" },
+  pt: { s: "Serviço de consultoria", d: "Consultoria e assessoria mensal de gestão de ativos. Detalhes a combinar separadamente. (rascunho — edite depois)" } };
 
 export default function EContractForm({ type, clientId, prefill, requestId, onClose, onDone }) {
   const { t, lang, clients } = useApp();
   const saas = type === "FINORA_SAAS";
   const { data: tenants } = useApi(saas ? "/platform/tenants" : null);
   const { data: plans } = useApi(saas ? "/platform/plans" : null);
-  const [f, setF] = useState({ tenant_id: "", client_id: "", lang: lang || "ja", service_name: saas ? "FINORA SaaS" : "", description: "", fee_type: "MONTHLY", fee: 0, tax_mode: "exclusive",
+  const [f, setF] = useState({ tenant_id: "", client_id: "", lang: lang || "ja", service_name: saas ? "FINORA SaaS" : (DEF[lang] || DEF.ja).s, description: saas ? "" : (DEF[lang] || DEF.ja).d, fee_type: "MONTHLY", fee: 0, tax_mode: "exclusive",
     tax_rate: 10, start_date: today(), end_date: "", billing_day: 1, payment_terms_days: 30, auto_renew: true, plan_code: "STANDARD", ...(prefill || {}) });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value });
   const save = async () => {
@@ -36,9 +39,9 @@ export default function EContractForm({ type, clientId, prefill, requestId, onCl
             <option value="">—</option>{(tenants || []).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select>)}
           {saas && L("plan", <select className={inp} value={f.plan_code} onChange={set("plan_code")} data-testid="ec-plan">
             {(plans || []).map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}</select>)}
-          {L("ec_service", <input className={inp} value={f.service_name} onChange={set("service_name")} data-testid="ec-service" />)}
+          {L("ec_service", <input className={inp} value={f.service_name} onChange={set("service_name")} placeholder={(DEF[lang] || DEF.ja).s} data-testid="ec-service" />)}
           {L("ec_doc_lang", <select className={inp} value={f.lang} onChange={set("lang")} data-testid="ec-lang"><option value="ja">日本語</option><option value="en">English</option><option value="pt">Português</option></select>)}
-          <label className="text-xs text-slate-600 sm:col-span-2">{t("description")}<textarea className={`${inp} h-20 py-2`} value={f.description} onChange={set("description")} data-testid="ec-description" /></label>
+          <label className="text-xs text-slate-600 sm:col-span-2">{t("description")}<textarea className={`${inp} h-20 py-2`} value={f.description} onChange={set("description")} placeholder={(DEF[lang] || DEF.ja).d} data-testid="ec-description" /></label>
           {!saas && L("ec_fee", <input type="number" min="0" className={inp} value={f.fee} onChange={set("fee")} data-testid="ec-fee" />)}
           {!saas && L("ec_cycle", <select className={inp} value={f.fee_type} onChange={set("fee_type")} data-testid="ec-cycle">{["MONTHLY", "YEARLY", "ONE_TIME", "HOURLY"].map((x) => <option key={x} value={x}>{t(`cyc_${x}`)}</option>)}</select>)}
           {!saas && L("ec_tax", <select className={inp} value={f.tax_mode} onChange={set("tax_mode")} data-testid="ec-tax">{["exclusive", "inclusive", "exempt"].map((x) => <option key={x} value={x}>{t(`tax_${x}`)}</option>)}</select>)}
