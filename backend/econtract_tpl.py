@@ -92,6 +92,7 @@ def build_sections(doc_type, lang, ctx, overrides=None):
         "parties": ("甲：{a}\n乙：{b}", "Party A: {a}\nParty B: {b}", "Parte A: {a}\nParte B: {b}")[i].format(a=ctx["issuer_name"], b=ctx["recipient_name"]),
         "service": ctx["service"], "plan": ctx.get("plan") or "-", "fee": fee, "billing_cycle": _t(CYCLE.get(ctx.get("cycle"), CYCLE["MONTHLY"]), lang),
         "term": ctx["term_text"], "start_date": ctx.get("start_date") or "-", "doc_date": ctx["doc_date"], "doc_version": ctx["doc_version"],
+        "payment_method": ctx.get("pay_method"),
     }
     out = []
     for k in SECTIONS[doc_type].split():

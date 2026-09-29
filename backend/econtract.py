@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from pymongo import ReturnDocument
-from core import (db, new_id, now_iso, clean, current, audit, notify, client_user_ids, scope, sees_all, require_service)
+from core import (db, new_id, now_iso, clean, current, audit, notify, client_user_ids, scope, sees_all, require_service, decrypt)
 from econtract_tpl import DOC_TYPES, CYCLE, LANGS, T, build_sections, doc_title
 from econtract_pdf import render, render_certificate
 from io_routes import bucket
@@ -134,6 +134,7 @@ async def _site_issuer(lang, i):
 
 async def _ctx(c):
     tm, i = c["terms"], LANGS[c["lang"]]
+    pay_method = None
     tenant = await db.tenants.find_one({"id": c["tenant_id"]}) or {}
     if c["contract_type"] == "FINORA_SAAS":
         op = await db.users.find_one({"platform_admin": True}) or {}
@@ -153,7 +154,20 @@ async def _ctx(c):
         bp = tenant.get("billing_profile") or {}
         cl = await db.clients.find_one({"id": c["client_id"]}) or {}
         recipient = cl.get("corporate_name") or cl.get("name") or "-"
-        consultant = ((await db.users.find_one({"id": c.get("consultant_id")})) or {}).get("name")
+        cu = await db.users.find_one({"id": c.get("consultant_id")}) or {}
+        consultant = cu.get("name")
+        enc = (cu.get("payout_bank") or {}).get("enc")
+        if enc:
+            b = json.loads(decrypt(enc))
+            atype = {"ORDINARY": ("普通", "Ordinary", "Corrente comum"), "CHECKING": ("当座", "Checking", "Conta corrente"),
+                     "SAVINGS": ("貯蓄", "Savings", "Poupança")}.get(b.get("account_type"), ("", "", ""))[i]
+            bc = f"（{b['bank_code']}）" if b.get("bank_code") else ""
+            brc = f"（{b['branch_code']}）" if b.get("branch_code") else ""
+            pay_method = [
+                f"銀行振込\n振込先：{b['bank_name']}{bc} {b['branch_name']}{brc} {atype} {b['account_number']}\n口座名義：{b['holder_kana']}\n※振込手数料はお客様のご負担となります。請求書記載の期日までにお振り込みください。",
+                f"Bank transfer\nBank: {b['bank_name']}{bc}  Branch: {b['branch_name']}{brc}  {atype} account No. {b['account_number']}\nAccount holder: {b['holder_kana']}\nTransfer fees are borne by the client. Please pay by the due date shown on the invoice.",
+                f"Transferência bancária\nBanco: {b['bank_name']}{bc}  Agência: {b['branch_name']}{brc}  Conta {atype} nº {b['account_number']}\nTitular: {b['holder_kana']}\nAs taxas de transferência são por conta do cliente. Pague até a data indicada na fatura.",
+            ][i]
         tax = {"exclusive": ("税別", "excl. tax", "sem impostos"), "inclusive": ("税込", "incl. tax", "com impostos"), "exempt": ("非課税", "tax exempt", "isento")}[tm["tax_mode"]][i]
         fee, plan_name = f"¥{tm['fee']:,.0f}（{CYCLE[tm['fee_type']][i]}・{tax}）", None
     issuer = bp.get("company_name") or "FINORA"
@@ -166,7 +180,7 @@ async def _ctx(c):
             "fee_text": fee, "cycle": tm["fee_type"], "start_date": tm["start_date"], "term_text": f"{tm['start_date']} 〜 {tm.get('end_date') or open_end}",
             "renewal": (("期間満了時に同一条件で自動更新します。", "Renews automatically on the same terms.", "Renova-se automaticamente nas mesmas condições.")
                         if tm.get("auto_renew") else ("自動更新しません。", "Does not renew automatically.", "Não se renova automaticamente."))[i],
-            "doc_date": date.today().isoformat(), "doc_version": f"Version {c['version']}.0"}
+            "doc_date": date.today().isoformat(), "doc_version": f"Version {c['version']}.0", "pay_method": pay_method}
 
 
 async def preview(c):
