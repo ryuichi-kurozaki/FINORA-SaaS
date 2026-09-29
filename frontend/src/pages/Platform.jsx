@@ -16,10 +16,17 @@ const inp = "mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 t
 
 function EditTenant({ row, plans, onClose, onDone }) {
   const { t } = useApp();
-  const [f, setF] = useState({ status: row?.status, plan_code: row?.plan_code, payment_status: row?.payment_status || "", renewal_date: row?.renewal_date || "", amount: row?.amount ?? "", billing_period: row?.billing_period || "monthly" });
+  const [f, setF] = useState({ status: row?.status, plan_code: row?.plan_code, payment_status: row?.payment_status || "", renewal_date: row?.renewal_date || "", amount: row?.amount ?? "", billing_period: row?.billing_period || "monthly", fixed_fee: row?.fixed_fee ?? "" });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
-  const save = async () => {
-    try { await api.put(`/platform/tenants/${row.id}`, { ...f, amount: f.amount === "" ? null : Number(f.amount) }); toast.success(t("saved")); onDone(); onClose(); } catch (e) { toast.error(errMsg(e)); }
+  const save = async (clearFixed = false) => {
+    try {
+      await api.put(`/platform/tenants/${row.id}`, {
+        ...f, amount: f.amount === "" ? null : Number(f.amount),
+        fixed_fee: clearFixed || f.fixed_fee === "" ? null : Number(f.fixed_fee),
+        clear_fixed_fee: clearFixed || undefined,
+      });
+      toast.success(t("saved")); onDone(); onClose();
+    } catch (e) { toast.error(errMsg(e)); }
   };
   return (
     <Dialog open={!!row} onOpenChange={(o) => !o && onClose()}>
@@ -35,7 +42,16 @@ function EditTenant({ row, plans, onClose, onDone }) {
             <label>{t("billing_cycle")}<select className={inp} value={f.billing_period} onChange={set("billing_period")}><option value="monthly">{t("MONTHLY")}</option><option value="yearly">{t("YEARLY")}</option></select></label>
           </div>
         </div>
-        <DialogFooter><Button className="btn-emerald" onClick={save} data-testid="tenant-save">{t("save")}</Button></DialogFooter>
+        <label className="text-xs text-slate-600">{t("fixed_fee")}
+          <input type="number" className={inp} value={f.fixed_fee} onChange={set("fixed_fee")} placeholder={t("none_set")} data-testid="tenant-fixed-fee" />
+          <span className="mt-1 block text-[11px] leading-relaxed text-slate-400">{t("fixed_fee_note")}</span>
+        </label>
+        <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+          {row?.fixed_fee != null
+            ? <Button variant="outline" onClick={() => save(true)} data-testid="tenant-fixed-fee-clear">{t("fixed_fee_clear")}</Button>
+            : <span />}
+          <Button className="btn-emerald" onClick={() => save(false)} data-testid="tenant-save">{t("save")}</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -63,7 +79,7 @@ function Tenants() {
             <tr key={r.id} data-testid={`platform-tenant-${r.id}`}>
               <td className="font-medium">{r.name}</td><td className="text-xs">{r.owner_name}<div className="text-slate-400">{r.owner_email}</div>{r.owner_whatsapp && <div className="text-slate-400" data-testid={`tenant-wa-${r.id}`}>WhatsApp: +{r.owner_whatsapp}</div>}{r.owner_line && <div className="text-slate-400" data-testid={`tenant-line-${r.id}`}>LINE: {r.owner_line}</div>}</td>
               <td><span className={`rounded-md px-2 py-0.5 text-xs ${r.status === "SUSPENDED" || r.status === "CANCELLED" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>{t(r.status)}</span></td>
-              <td>{r.plan_code || "—"}</td><td className="text-xs">{r.payment_status || "—"}</td><td className="font-num" data-testid={`tenant-fee-${r.id}`}>{yen(r.amount || 0)}<div className="text-[10px] text-slate-400">{t("peak_customers")} {r.peak_customers ?? 0}</div></td>
+              <td>{r.plan_code || "—"}</td><td className="text-xs">{r.payment_status || "—"}</td><td className="font-num" data-testid={`tenant-fee-${r.id}`}>{yen(r.amount || 0)}{r.fixed_fee != null && <span className="ml-1 rounded-md bg-amber-50 px-1.5 py-0.5 font-sans text-[10px] font-semibold text-amber-700" data-testid={`tenant-fixed-badge-${r.id}`}>{t("fixed_fee_badge")}</span>}<div className="text-[10px] text-slate-400">{t("peak_customers")} {r.peak_customers ?? 0}</div></td>
               <td className="font-num text-xs">{r.renewal_date || "—"}</td><td className="text-center">{r.members}</td><td className="text-center">{r.customers}</td>
               <td className="font-num text-xs">{fmtDate(r.last_activity)}</td>
               <td><Button size="sm" variant="outline" onClick={() => setEdit(r)} data-testid={`platform-edit-${r.id}`}>{t("edit")}</Button></td>

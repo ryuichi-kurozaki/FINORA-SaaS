@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 MAIL_LOG_PATH = os.environ["MAIL_LOG_PATH"]
 KEY = "mail_log"
 STATUSES = ("queued", "delivered", "deferred", "bounced", "failed", "logged")
-KINDS = ("invite", "econtract", "renewal", "termination", "meeting", "invoice", "refund", "inquiry", "system", "other")
+KINDS = ("invite", "econtract", "renewal", "termination", "meeting", "invoice", "refund", "saas_fee", "inquiry", "system", "other")
 RE_MSGID = re.compile(r"postfix/cleanup\[\d+\]: ([0-9A-Za-z]+): message-id=<?([^>\s]+)>?")
 RE_STATUS = re.compile(r"postfix/[\w-]+\[\d+\]: ([0-9A-Za-z]+): to=<([^>]*)>.*?(?:dsn=([\d.]+), )?status=(\w+) ?(.*)$")
 RE_EXPIRED = re.compile(r"postfix/qmgr\[\d+\]: ([0-9A-Za-z]+): from=<[^>]*>, status=expired(.*)$")

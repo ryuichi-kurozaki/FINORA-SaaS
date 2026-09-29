@@ -1,5 +1,6 @@
 """Tenancy: consultant signup (own tenant), customer invitations, FINORA SaaS plans/subscriptions (separate ledger), platform admin."""
 import hashlib
+import logging
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -14,6 +15,7 @@ from invite_notify import send_invite
 from sign_notify import wa_digits
 
 router = APIRouter(prefix="/api")
+logger = logging.getLogger(__name__)
 TENANT_STATUS = ("TRIAL", "ACTIVE", "SUSPENDED", "CANCELLED")
 
 
@@ -240,14 +242,44 @@ async def accept_invitation(token: str, body: AcceptIn, request: Request):
 
 
 async def customer_fee(tid):
-    """FINORA fee = (plan base fee + per-customer fee × this month's peak customers) × months in billing period."""
+    """FINORA fee = per-tenant fixed monthly fee when set by a platform admin, otherwise
+    (plan base fee + per-customer fee × this month's peak customers) × months in billing period."""
     cur, peak = await track_peak(tid)
     s = await db.saas_subscriptions.find_one({"tenant_id": tid}) or {}
     p = await db.plans.find_one({"code": s.get("plan_code")}) or {}
     base, per = float(p.get("base_fee") or 0), float(p.get("per_customer_fee") or 0)
     months = 12 if s.get("billing_period") == "yearly" else 1
-    return {"month": datetime.now().strftime("%Y-%m"), "current_customers": cur, "peak_customers": peak, "base_fee": base,
-            "per_customer_fee": per, "months": months, "amount": (base + per * peak) * months}
+    fixed = s.get("fixed_fee")
+    fixed = float(fixed) if fixed is not None else None
+    amount = fixed * months if fixed is not None else (base + per * peak) * months
+    return {"month": datetime.now().strftime("%Y-%m"), "current_customers": cur, "peak_customers": peak,
+            "base_fee": fixed if fixed is not None else base, "per_customer_fee": 0.0 if fixed is not None else per,
+            "fixed_fee": fixed, "months": months, "amount": amount}
+
+
+FEE_TXT = {
+    "ja": ("【FINORA】ご利用料金の変更のお知らせ", "FINORAのご利用料金が変更されました。\n新しい料金：{amount}（{cycle}）\n適用：次回のご請求・お支払いから\n\nご不明な点がございましたら、このメールにご返信ください。", "FINORAで確認する", "{name} 様", "月額", "年額"),
+    "en": ("[FINORA] Your subscription fee has changed", "Your FINORA subscription fee has been updated.\nNew fee: {amount} ({cycle})\nApplies from your next invoice/payment.\n\nIf you have any questions, just reply to this email.", "View in FINORA", "Dear {name},", "monthly", "yearly"),
+    "pt": ("[FINORA] Alteração da sua mensalidade", "A sua mensalidade FINORA foi alterada.\nNovo valor: {amount} ({cycle})\nVálido a partir da próxima fatura/pagamento.\n\nEm caso de dúvida, responda a este e-mail.", "Ver no FINORA", "Prezado(a) {name},", "mensal", "anual"),
+}
+
+
+async def send_fee_change_notice(tid, amount, yearly):
+    """In-app + email notice to the consultant (tenant owner/admins) after a platform admin changed the fee."""
+    from email_service import send_email
+    from sign_notify import APP_URL, TXT, _html
+    admins = await db.users.find({"tenant_id": tid, "role": "admin", "active": True}).to_list(20)
+    await notify(tid, [u["id"] for u in admins], "saas_fee_changed", {"amount": amount})
+    for u in admins:
+        if u.get("demo"):
+            continue
+        lang = u.get("lang") if u.get("lang") in FEE_TXT else "ja"
+        subj, body, cta, hello, monthly_w, yearly_w = FEE_TXT[lang]
+        msg = body.format(amount=f"¥{amount:,.0f}", cycle=yearly_w if yearly else monthly_w)
+        try:
+            await send_email(to=u["email"], subject=subj, html=_html({**TXT[lang], "hello": hello, "login": ""}, u.get("name") or u["email"], msg, f"{APP_URL}/settings", cta), kind="saas_fee")
+        except Exception as e:  # noqa: BLE001
+            logger.error("fee change email failed for %s: %s", u["email"], e)
 
 
 @router.get("/subscription")
@@ -297,7 +329,7 @@ async def platform_tenants(user=Depends(platform_admin)):
         out.append({"id": t["id"], "name": t.get("name"), "status": t.get("status", "ACTIVE"), "owner_name": owner.get("name"), "owner_email": owner.get("email"),
                     "owner_whatsapp": owner.get("whatsapp_phone"), "owner_line": owner.get("line_id"),
                     "plan_code": s.get("plan_code"), "subscription_status": s.get("status"), "payment_status": s.get("payment_status"),
-                    "amount": s.get("amount"), "billing_period": s.get("billing_period"), "renewal_date": s.get("renewal_date"),
+                    "amount": s.get("amount"), "fixed_fee": s.get("fixed_fee"), "billing_period": s.get("billing_period"), "renewal_date": s.get("renewal_date"),
                     "members": await db.users.count_documents({"tenant_id": t["id"], "role": {"$ne": "client"}}),
                     "customers": await db.clients.count_documents({"tenant_id": t["id"]}),
                     **{k: v for k, v in (await customer_fee(t["id"])).items() if k in ("peak_customers", "amount")},
@@ -312,6 +344,8 @@ class TenantUpd(BaseModel):
     amount: Optional[float] = None
     billing_period: Optional[str] = None
     payment_status: Optional[str] = None
+    fixed_fee: Optional[float] = None
+    clear_fixed_fee: Optional[bool] = None
 
 
 @router.put("/platform/tenants/{tid}")
@@ -322,7 +356,10 @@ async def platform_update_tenant(tid: str, body: TenantUpd, request: Request, us
     if body.status and body.status not in TENANT_STATUS:
         raise HTTPException(422, "Invalid status")
     before = clean(await db.saas_subscriptions.find_one({"tenant_id": tid}) or {}) | {"tenant_status": t.get("status")}
-    sub = {k: v for k, v in body.model_dump().items() if v is not None and k != "status"}
+    sub = {k: v for k, v in body.model_dump().items() if v is not None and k not in ("status", "clear_fixed_fee")}
+    if body.clear_fixed_fee:
+        sub.pop("fixed_fee", None)
+        await db.saas_subscriptions.update_one({"tenant_id": tid}, {"$unset": {"fixed_fee": ""}})
     if body.status:
         sub["status"] = body.status
         await db.tenants.update_one({"id": tid}, {"$set": {"status": body.status}})
@@ -332,7 +369,10 @@ async def platform_update_tenant(tid: str, body: TenantUpd, request: Request, us
     if sub:
         await db.saas_subscriptions.update_one({"tenant_id": tid}, {"$set": sub}, upsert=True)
     await audit(user, "update", "saas_subscriptions", tid, before=before, after=body.model_dump(exclude_none=True), request=request, label=t.get("name"))
-    return {"ok": True}
+    fee = await customer_fee(tid)
+    if (body.fixed_fee is not None and before.get("fixed_fee") != body.fixed_fee) or (body.clear_fixed_fee and before.get("fixed_fee") is not None):
+        await send_fee_change_notice(tid, fee["amount"], fee["months"] > 1)
+    return {"ok": True, "pricing": fee}
 
 
 @router.get("/platform/plans")

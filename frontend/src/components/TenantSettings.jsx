@@ -48,7 +48,9 @@ function Subscription() {
           <span className="font-num text-2xl font-semibold text-[#00A878]" data-testid="pricing-amount">{yen(p.amount || 0)}</span>
         </div>
         <div className="mt-1 font-num text-[11px] text-slate-500" data-testid="pricing-formula">
-          {t("base_fee")} {yen(p.base_fee || 0)} + {yen(p.per_customer_fee || 0)} × {p.peak_customers ?? 0}{t("people_unit")}{p.months > 1 ? ` × ${p.months}` : ""} · {t("current_customers")} {p.current_customers ?? 0}{t("people_unit")}
+          {p.fixed_fee != null
+            ? <>{t("fixed_fee")} {yen(p.fixed_fee)}{p.months > 1 ? ` × ${p.months}` : ""} · {t("current_customers")} {p.current_customers ?? 0}{t("people_unit")}</>
+            : <>{t("base_fee")} {yen(p.base_fee || 0)} + {yen(p.per_customer_fee || 0)} × {p.peak_customers ?? 0}{t("people_unit")}{p.months > 1 ? ` × ${p.months}` : ""} · {t("current_customers")} {p.current_customers ?? 0}{t("people_unit")}</>}
         </div>
         {!(p.amount > 0) && <div className="mt-1 text-[11px] text-emerald-700" data-testid="pricing-free">{t("no_fee_plan")}</div>}
       </div>
