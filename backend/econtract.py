@@ -14,11 +14,11 @@ from pydantic import BaseModel, Field
 from pymongo import ReturnDocument
 from core import (db, new_id, now_iso, clean, current, audit, notify, client_user_ids, scope, sees_all, require_service)
 from econtract_tpl import DOC_TYPES, CYCLE, LANGS, T, build_sections, doc_title
-from econtract_pdf import render
+from econtract_pdf import render, render_certificate
 from io_routes import bucket
 from billing import build_invoice, InvoiceIn
 from tenancy import customer_fee
-from sign_notify import KINDS, send_ended_notice, send_sign_request
+from sign_notify import KINDS, send_contract_proof, send_ended_notice, send_sign_request
 
 _BG = set()
 
@@ -627,6 +627,53 @@ async def amend(cid: str, request: Request, user=Depends(current)):
     body = ECIn(contract_type=c["contract_type"], client_id=c.get("client_id"), tenant_id=c["tenant_id"], lang=c["lang"], terms=TermsIn(**c["terms"]), fields=c.get("fields") or {})
     new = await create_contract(user, body, request, actor_id=user["id"], parent=c)
     return clean(new)
+
+
+TYPE_LABEL = {"FINORA_SAAS": ("FINORA利用契約", "FINORA service agreement", "Contrato de serviço FINORA"),
+              "CONSULTING": ("コンサルティング契約", "Consulting agreement", "Contrato de consultoria")}
+STATUS_LABEL = {"ACTIVE": ("有効（締結済み）", "Active (executed)", "Vigente (celebrado)"),
+                "ENDED": ("終了", "Ended", "Encerrado")}
+
+
+@router.post("/{cid}/send-proof")
+async def send_proof(cid: str, request: Request, user=Depends(current)):
+    """One click: build the execution certificate, store it for the counterparty and email it with the signed agreement."""
+    from bson import ObjectId
+    c = await load(user, cid)
+    _need(is_issuer(user, c))
+    if c["status"] not in ("ACTIVE", "ENDED"):
+        raise HTTPException(409, "Only executed contracts can be certified")
+    lang, i = c["lang"], LANGS[c["lang"]]
+    ctx = await _ctx(c)
+    imp, agr = await _doc(c, "important"), await _doc(c, "agreement")
+    acts = await db.econtract_acts.find({"contract_id": c["id"], "act": "SIGN"}).to_list(20)
+    signs = [a | {"party_label": PARTY[(c["contract_type"], a["party"])][i]} for a in acts]
+    cert_no = await _seq("platform" if c["contract_type"] == "FINORA_SAAS" else c["tenant_id"], "CRT")
+    values = [c["number"], TYPE_LABEL[c["contract_type"]][i], ctx["service"], ctx["fee_text"], ctx["term_text"], c.get("activated_at"),
+              STATUS_LABEL[c["status"]][i], c.get("end_date"), ctx["issuer_name"], ctx["recipient_name"],
+              f"{imp['number']} v{imp['version']}", f"{agr['number']} v{agr['version']}", imp["hash"], agr["hash"]]
+    cert = render_certificate(lang, cert_no, values, signs, ctx["issuer_block"])
+    fname = f"{('契約締結証明書' if lang == 'ja' else 'Certificate')}_{cert_no}.pdf"
+    fid = await bucket.upload_from_stream(fname, cert, metadata={"tenant_id": c["tenant_id"], "content_type": "application/pdf"})
+    files = [(fname, cert)]
+    if agr.get("pdf_file_id"):
+        files.append((agr.get("pdf_filename") or f"{agr['number']}.pdf", await (await bucket.open_download_stream(ObjectId(agr["pdf_file_id"]))).read()))
+    if c.get("client_id"):
+        await db.documents.insert_one({"id": new_id(), "tenant_id": c["tenant_id"], "client_id": c["client_id"], "category": "contract", "filename": fname,
+                                       "content_type": "application/pdf", "size": len(cert), "file_id": str(fid), "notes": f"{c['number']} {cert_no}",
+                                       "uploaded_by": user.get("name") or "FINORA", "uploaded_by_role": user["role"], "created_at": now_iso()})
+    people = await _people(c, "RECIPIENT")
+    sent = []
+    for tid, uid in people:
+        if not uid:
+            continue
+        res = await send_contract_proof(uid, c, ctx["issuer_name"], files)
+        await notify(tid, [uid], "econtract_proof_sent", {"label": f"{c['number']} {cert_no}"}, c.get("client_id"), f"/econtracts/{c['id']}", user)
+        sent.append(res)
+    await db.econtracts.update_one({"id": c["id"]}, {"$push": {"certificates": {"number": cert_no, "file_id": str(fid), "filename": fname, "at": now_iso(), "by": user["id"]}}})
+    await audit(user, "send_proof", "econtracts", cid, after={"certificate_number": cert_no, "recipients": len(sent)},
+                request=request, client_id=c.get("client_id"), label=f"{c['number']} {cert_no}")
+    return {"certificate_number": cert_no, "file_id": str(fid), "sent": sent}
 
 
 @router.get("/{cid}/docs/{doc_id}/pdf")

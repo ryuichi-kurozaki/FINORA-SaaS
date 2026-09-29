@@ -92,6 +92,42 @@ async def send_sign_request(user_id, c, kind, issuer_name):
     await _deliver(c, u, kind, x, subject, body, x["cta"])
 
 
+PROOF = {
+    "ja": ("【FINORA】契約締結証明書の送付（{number}）", "{issuer}より、「{service}」の契約締結証明書をお送りいたします。\n添付の「契約締結証明書」と「署名入り契約書」をご確認ください。FINORAの「書類」からもいつでもダウンロードいただけます。", "FINORAで書類を見る"),
+    "en": ("[FINORA] Certificate of contract execution ({number})", "{issuer} has sent you the certificate of contract execution for \"{service}\".\nPlease find the certificate and the signed agreement attached. You can also download them anytime from Documents in FINORA.", "View documents in FINORA"),
+    "pt": ("[FINORA] Certificado de celebração de contrato ({number})", "{issuer} enviou o certificado de celebração do contrato \"{service}\".\nVeja o certificado e o contrato assinado em anexo. Você também pode baixá-los a qualquer momento em Documentos no FINORA.", "Ver documentos no FINORA"),
+}
+
+
+async def send_contract_proof(user_id, c, issuer_name, files):
+    """Emails the execution certificate + signed agreement to the counterparty; WhatsApp gets a heads-up only."""
+    u = await db.users.find_one({"id": user_id})
+    if not u:
+        return {"email": "SKIPPED"}
+    lang = u.get("lang") if u.get("lang") in TXT else c.get("lang") if c.get("lang") in TXT else "ja"
+    x, (subject, body, cta) = TXT[lang], PROOF[lang]
+    subject = subject.format(number=c["number"])
+    body = body.format(issuer=issuer_name, service=c["terms"]["service_name"])
+    link = f"{APP_URL}/documents"
+    out = {}
+    try:
+        await send_email(to=u["email"], subject=subject, html=_html(x, u.get("name") or u["email"], body, link, cta), kind="econtract", attachments=files)
+        out["email"] = "SENT"
+        await _log(c, u, "EMAIL", u["email"], "econtract_proof", "SENT")
+    except Exception as e:  # noqa: BLE001
+        logger.error("contract proof email failed %s: %s", c["number"], e)
+        out["email"] = "FAILED"
+        await _log(c, u, "EMAIL", u["email"], "econtract_proof", "FAILED", e)
+    phone = u.get("whatsapp_phone") if u.get("whatsapp_opt_in") else None
+    if not phone and u.get("role") == "client" and u.get("client_id"):
+        cl = await db.clients.find_one({"id": u["client_id"]}, {"whatsapp": 1}) or {}
+        phone = decrypt(cl["whatsapp"]) if cl.get("whatsapp") else None
+    if phone:
+        out["whatsapp"] = await wa_send(phone, f"{subject}\n\n{body}\n\n{cta}: {link}")
+        await _log(c, u, "WHATSAPP", wa_digits(phone) or "", "econtract_proof", out["whatsapp"])
+    return out
+
+
 async def send_renewal_notice(user_id, c, renew_date, days):
     u = await db.users.find_one({"id": user_id})
     if not u:

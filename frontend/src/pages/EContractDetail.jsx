@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { CalendarClock, Download } from "lucide-react";
+import { CalendarClock, Download, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle, PageHeader } from "@/components/common";
 import { useApp } from "@/context/AppContext";
@@ -67,6 +67,7 @@ function IssuerTools({ d, act, t }) {
         {d.status === "DRAFT" && <Button className="btn-emerald" onClick={() => act("send-important")} data-testid="ec-send-important">{t("ec_send_important")}</Button>}
         {d.status === "IMPORTANT_INFO_CONFIRMED" && <Button className="btn-emerald" onClick={() => act("send-agreement")} data-testid="ec-send-agreement">{t("ec_send_agreement")}</Button>}
         {["IMPORTANT_INFO_SENT", "CONTRACT_SENT"].includes(d.status) && <Button variant="outline" onClick={() => window.confirm(t("ec_reissue_confirm")) && act("reissue")} data-testid="ec-reissue">{t("ec_reissue")}</Button>}
+        {["ACTIVE", "ENDED"].includes(d.status) && <Button className="btn-emerald" onClick={() => act("send-proof")} data-testid="ec-send-proof"><Send className="mr-1 h-4 w-4" />{t("ec_send_proof")}</Button>}
         {["ACTIVE", "PAUSED"].includes(d.status) && <>
           <Button variant="outline" onClick={() => act("amend")} data-testid="ec-amend">{t("ec_amend")}</Button>
           <Button variant="outline" onClick={() => act("pause")} data-testid="ec-pause">{t(d.status === "PAUSED" ? "ec_resume" : "ec_pause")}</Button>
