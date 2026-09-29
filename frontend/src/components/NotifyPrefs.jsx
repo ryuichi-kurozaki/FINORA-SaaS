@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardTitle } from "@/components/common";
 import { useApp } from "@/context/AppContext";
 import { api, errMsg } from "@/lib/api";
+import LineLink from "@/components/LineLink";
 
 export default function NotifyPrefs() {
   const { t, user } = useApp();
@@ -15,6 +16,7 @@ export default function NotifyPrefs() {
     try { await api.put("/auth/preferences", { whatsapp_phone: phone, whatsapp_opt_in: optIn, ...(user.role !== "client" ? { line_id: line } : {}) }); toast.success(t("saved")); } catch (e) { toast.error(errMsg(e)); }
   };
   return (
+    <div className="space-y-6">
     <Card data-testid="notify-prefs"><CardTitle>{t("notify_prefs")}</CardTitle>
       <p className="mb-4 text-xs text-slate-500">{t("notify_prefs_note")}</p>
       <label className="block max-w-sm text-xs text-slate-500">{t("whatsapp_phone")}
@@ -24,5 +26,7 @@ export default function NotifyPrefs() {
         <Input value={line} onChange={(e) => setLine(e.target.value)} placeholder="@finora123" className="mt-1" data-testid="line-id-input" /></label>}
       <Button className="btn-emerald mt-4" onClick={save} data-testid="notify-prefs-save">{t("save")}</Button>
     </Card>
+    <LineLink />
+    </div>
   );
 }
