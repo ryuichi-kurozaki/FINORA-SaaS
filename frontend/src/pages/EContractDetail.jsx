@@ -8,6 +8,7 @@ import { useApp } from "@/context/AppContext";
 import { api, errMsg, useApi } from "@/lib/api";
 import { fmtDate, fmtDateTime, yen } from "@/lib/format";
 import { StatusPill } from "@/components/econtract/EContractPanel";
+import { ecDefaultText } from "@/components/econtract/EContractForm";
 import SignaturePad from "@/components/econtract/SignaturePad";
 
 const STEPS = ["DRAFT", "IMPORTANT_INFO_SENT", "IMPORTANT_INFO_CONFIRMED", "CONTRACT_SENT", "FIRST_PARTY_SIGNED", "BOTH_SIGNED", "ACTIVE"];
@@ -108,7 +109,7 @@ export default function EContractDetail() {
   const timeline = [...(d.messages || []).map((m) => ({ at: m.at, who: m.to, what: `${m.channel} ${m.status} · ${m.kind}`, ip: "" })),
     ...(d.acts || []).map((a) => ({ at: a.at, who: a.user_email, what: `${a.act} · ${a.document_type} v${a.document_version}`, ip: a.ip })),
     ...(d.history || []).map((h) => ({ at: h.at, who: h.user_email, what: `${h.action} · ${h.after?.status || h.after?.document_type || ""}`, ip: h.ip }))].sort((a, b) => (a.at < b.at ? -1 : 1));
-  const info = [["ec_type", t(saas ? "ec_finora_contract" : "ec_client_contract")], [saas ? "tenants" : "client", saas ? d.tenant_name : d.client_name], ["ec_service", d.terms.service_name],
+  const info = [["ec_type", t(saas ? "ec_finora_contract" : "ec_client_contract")], [saas ? "tenants" : "client", saas ? d.tenant_name : d.client_name], ["ec_service", ecDefaultText(d.terms.service_name, "s", lang)],
     ["ec_fee", saas ? yen(d.fee_amount) : `${yen(d.terms.fee)} / ${t(`cyc_${d.terms.fee_type}`)}`], ["ec_start", fmtDate(d.terms.start_date)], ["ec_end", fmtDate(d.end_date || d.terms.end_date)],
     ["ec_renew_on", fmtDate(d.renew_on)], ["ec_next_invoice", fmtDate(d.next_invoice_date)], ["ec_activated", fmtDateTime(d.activated_at)]];
   const renewSoon = d.renew_on && d.renew_days <= 30;

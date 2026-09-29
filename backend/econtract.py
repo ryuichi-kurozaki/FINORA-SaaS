@@ -132,6 +132,19 @@ async def _site_issuer(lang, i):
     return name, "\n".join(x for x in block if x), contact
 
 
+DEF_SVC = ["コンサルティングサービス", "Consulting service", "Serviço de consultoria"]
+DEF_DESC = [
+    "月次の資産運用に関するコンサルティングおよび助言業務。詳細は別途協議のうえ定めるものとする。（仮入力：後で編集してください）",
+    "Monthly asset management consulting and advisory services. Details to be agreed separately. (draft — edit later)",
+    "Consultoria e assessoria mensal de gestão de ativos. Detalhes a combinar separadamente. (rascunho — edite depois)",
+]
+
+
+def _defv(val, defs, i):
+    v = val or ""
+    return defs[i] if v in defs else v
+
+
 async def _ctx(c):
     tm, i = c["terms"], LANGS[c["lang"]]
     pay_method = None
@@ -169,14 +182,16 @@ async def _ctx(c):
                 f"Transferência bancária\nBanco: {b['bank_name']}{bc}  Agência: {b['branch_name']}{brc}  Conta {atype} nº {b['account_number']}\nTitular: {b['holder_kana']}\nAs taxas de transferência são por conta do cliente. Pague até a data indicada na fatura.",
             ][i]
         tax = {"exclusive": ("税別", "excl. tax", "sem impostos"), "inclusive": ("税込", "incl. tax", "com impostos"), "exempt": ("非課税", "tax exempt", "isento")}[tm["tax_mode"]][i]
-        fee, plan_name = f"¥{tm['fee']:,.0f}（{CYCLE[tm['fee_type']][i]}・{tax}）", None
+        sep = ("（", "・", "）") if i == 0 else (" (", ", ", ")")
+        fee, plan_name = f"¥{tm['fee']:,.0f}{sep[0]}{CYCLE[tm['fee_type']][i]}{sep[1]}{tax}{sep[2]}", None
     issuer = bp.get("company_name") or "FINORA"
     block, contact = "\n".join(x for x in (issuer, bp.get("representative"), bp.get("address")) if x), " / ".join(x for x in (bp.get("phone"), bp.get("email")) if x) or "-"
     if c["contract_type"] == "FINORA_SAAS" and (site := await _site_issuer(c["lang"], i)):
         issuer, block, contact = site
     open_end = ("期間の定めなし", "no fixed end", "sem prazo final")[i]
+    svc, desc = _defv(tm.get("service_name"), DEF_SVC, i), _defv(tm.get("description"), DEF_DESC, i)
     return {"issuer_name": issuer, "issuer_block": block, "issuer_contact": contact, "recipient_name": recipient,
-            "consultant_name": consultant, "service": tm["service_name"], "description": tm.get("description") or "", "plan": plan_name,
+            "consultant_name": consultant, "service": svc, "description": desc, "plan": plan_name,
             "fee_text": fee, "cycle": tm["fee_type"], "start_date": tm["start_date"], "term_text": f"{tm['start_date']} 〜 {tm.get('end_date') or open_end}",
             "renewal": (("期間満了時に同一条件で自動更新します。", "Renews automatically on the same terms.", "Renova-se automaticamente nas mesmas condições.")
                         if tm.get("auto_renew") else ("自動更新しません。", "Does not renew automatically.", "Não se renova automaticamente."))[i],

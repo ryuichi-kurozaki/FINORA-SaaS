@@ -7,9 +7,15 @@ import { api, errMsg, useApi } from "@/lib/api";
 
 const inp = "mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm";
 const today = () => new Date().toISOString().slice(0, 10);
-const DEF = { ja: { s: "コンサルティングサービス", d: "月次の資産運用に関するコンサルティングおよび助言業務。詳細は別途協議のうえ定めるものとする。（仮入力：後で編集してください）" },
+export const DEF = { ja: { s: "コンサルティングサービス", d: "月次の資産運用に関するコンサルティングおよび助言業務。詳細は別途協議のうえ定めるものとする。（仮入力：後で編集してください）" },
   en: { s: "Consulting service", d: "Monthly asset management consulting and advisory services. Details to be agreed separately. (draft — edit later)" },
   pt: { s: "Serviço de consultoria", d: "Consultoria e assessoria mensal de gestão de ativos. Detalhes a combinar separadamente. (rascunho — edite depois)" } };
+
+export const ecDefaultText = (val, field, lang) => {
+  const v = val || "";
+  const isDefault = ["ja", "en", "pt"].some((l) => (DEF[l] || {})[field] === v);
+  return isDefault ? (DEF[lang] || DEF.ja)[field] : v;
+};
 
 export default function EContractForm({ type, clientId, prefill, requestId, onClose, onDone }) {
   const { t, lang, clients } = useApp();
