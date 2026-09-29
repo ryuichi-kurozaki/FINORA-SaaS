@@ -8,12 +8,19 @@ import { api, errMsg } from "@/lib/api";
 import LineLink from "@/components/LineLink";
 
 export default function NotifyPrefs() {
-  const { t, user } = useApp();
+  const { t, user, setUser } = useApp();
   const [phone, setPhone] = useState(user.whatsapp_phone ? `+${user.whatsapp_phone}` : "");
   const [optIn, setOptIn] = useState(!!user.whatsapp_opt_in);
   const [line, setLine] = useState(user.line_id || "");
   const save = async () => {
-    try { await api.put("/auth/preferences", { whatsapp_phone: phone, whatsapp_opt_in: optIn, ...(user.role !== "client" ? { line_id: line } : {}) }); toast.success(t("saved")); } catch (e) { toast.error(errMsg(e)); }
+    try {
+      const { data } = await api.put("/auth/preferences", { whatsapp_phone: phone, whatsapp_opt_in: optIn, ...(user.role !== "client" ? { line_id: line } : {}) });
+      setUser({ ...user, whatsapp_phone: data.whatsapp_phone, whatsapp_opt_in: data.whatsapp_opt_in, line_id: data.line_id });
+      setPhone(data.whatsapp_phone ? `+${data.whatsapp_phone}` : "");
+      setOptIn(!!data.whatsapp_opt_in);
+      setLine(data.line_id || "");
+      toast.success(t("saved"));
+    } catch (e) { toast.error(errMsg(e)); }
   };
   return (
     <div className="space-y-6">

@@ -199,10 +199,13 @@ async def prefs(body: UserIn, user=Depends(current)):
         p = re.sub(r"[\s\-()]", "", body.whatsapp_phone)
         if p and not re.fullmatch(r"\+?[1-9]\d{7,14}", p):
             raise HTTPException(422, "WhatsApp number must include the country code, e.g. +81 90 1234 5678")
-        await db.users.update_one({"id": user["id"]}, {"$set": {"whatsapp_phone": p.lstrip("+"), "whatsapp_opt_in": bool(body.whatsapp_opt_in) and bool(p)}})
+        if body.whatsapp_opt_in and not p:
+            raise HTTPException(422, "Enter your WhatsApp number to turn on WhatsApp notifications")
+        await db.users.update_one({"id": user["id"]}, {"$set": {"whatsapp_phone": p.lstrip("+"), "whatsapp_opt_in": bool(body.whatsapp_opt_in)}})
     if body.line_id is not None:
         await db.users.update_one({"id": user["id"]}, {"$set": {"line_id": body.line_id.strip()}})
-    return {"ok": True}
+    u = await db.users.find_one({"id": user["id"]})
+    return {"ok": True, "lang": u.get("lang"), "whatsapp_phone": u.get("whatsapp_phone"), "whatsapp_opt_in": bool(u.get("whatsapp_opt_in")), "line_id": u.get("line_id")}
 
 
 @router.get("/users")

@@ -23,6 +23,7 @@ M = {
     "Too many attempts. Please log in again later.": ("試行回数が多すぎます。しばらくしてから再度ログインしてください。", "Muitas tentativas. Entre novamente mais tarde."),
     "WhatsApp number is required": ("WhatsApp番号を入力してください", "Informe o número do WhatsApp"),
     "WhatsApp number must include the country code, e.g. +81 90 1234 5678": ("WhatsApp番号は国番号から入力してください（例：+81 90 1234 5678）", "Informe o número do WhatsApp com o código do país, ex.: +55 11 91234-5678"),
+    "Enter your WhatsApp number to turn on WhatsApp notifications": ("WhatsApp通知を有効にするには、WhatsApp番号を入力してください", "Informe seu número do WhatsApp para ativar as notificações pelo WhatsApp"),
     "email, password and valid role are required": ("メールアドレス・パスワード・権限は必須です", "E-mail, senha e perfil válido são obrigatórios"),
     "client_id is required": ("顧客を選択してください", "Selecione um cliente"),
     "Invalid target": ("対象が正しくありません", "Destino inválido"),
