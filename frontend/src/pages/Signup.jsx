@@ -44,7 +44,7 @@ export function Signup() {
   const login = useAutoLogin();
   const { data: plans } = useApi("/public/plans");
   const [sp] = useSearchParams();
-  const [f, setF] = useState({ name: "", company_name: "", entity_type: "individual", email: "", phone: "", address: "", profile: "", qualifications: "", plan_code: sp.get("plan") || "TRIAL", password: "" });
+  const [f, setF] = useState({ name: "", company_name: "", entity_type: "individual", email: "", phone: "", whatsapp: "", line_id: "", address: "", profile: "", qualifications: "", plan_code: sp.get("plan") || "TRIAL", password: "" });
   const [busy, setBusy] = useState(false);
   useEffect(() => { if (plans && !plans.some((p) => p.code === f.plan_code)) setF((x) => ({ ...x, plan_code: "TRIAL" })); }, [plans]); // eslint-disable-line react-hooks/exhaustive-deps
   if (user) return <Navigate to="/" replace />;
@@ -59,7 +59,10 @@ export function Signup() {
       <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2" data-testid="signup-form">
         {field("name", "name", "text", true)}{field("company_name", "company_name")}
         <label className="text-xs text-slate-600">{t("entity_type")}<select value={f.entity_type} onChange={set("entity_type")} className={inp} data-testid="signup-entity_type"><option value="individual">{t("individual")}</option><option value="corporate">{t("corporate")}</option></select></label>
-        {field("email", "email", "email", true)}{field("phone", "phone")}{field("address", "address")}
+        {field("email", "email", "email", true)}{field("phone", "phone")}
+        <label className="text-xs text-slate-600">{t("signup_whatsapp")}<input value={f.whatsapp} onChange={set("whatsapp")} placeholder="+81 90 1234 5678" className={inp} data-testid="signup-whatsapp" /></label>
+        <label className="text-xs text-slate-600">{t("line_id")}<input value={f.line_id} onChange={set("line_id")} placeholder="@finora123" className={inp} data-testid="signup-line_id" /></label>
+        {field("address", "address")}
         {field("qualifications", "qualifications")}
         <label className="text-xs text-slate-600">{t("plan")}<select value={f.plan_code} onChange={set("plan_code")} className={inp} data-testid="signup-plan">{(plans || []).map((p) => <option key={p.code} value={p.code}>{p.name}</option>)}</select></label>
         <label className="text-xs text-slate-600 sm:col-span-2">{t("profile_text")}<textarea value={f.profile} onChange={set("profile")} rows={3} className="mt-1 w-full rounded-lg border border-slate-200 p-3 text-sm" data-testid="signup-profile" /></label>

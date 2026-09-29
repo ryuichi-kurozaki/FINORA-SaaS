@@ -61,7 +61,7 @@ function Tenants() {
           <thead><tr>{["name", "owner", "status", "plan", "payment_status", "amount", "renewal_date", "members", "customers", "last_activity", ""].map((h) => <th key={h}>{h && t(h)}</th>)}</tr></thead>
           <tbody>{data.map((r) => (
             <tr key={r.id} data-testid={`platform-tenant-${r.id}`}>
-              <td className="font-medium">{r.name}</td><td className="text-xs">{r.owner_name}<div className="text-slate-400">{r.owner_email}</div></td>
+              <td className="font-medium">{r.name}</td><td className="text-xs">{r.owner_name}<div className="text-slate-400">{r.owner_email}</div>{r.owner_whatsapp && <div className="text-slate-400" data-testid={`tenant-wa-${r.id}`}>WhatsApp: +{r.owner_whatsapp}</div>}{r.owner_line && <div className="text-slate-400" data-testid={`tenant-line-${r.id}`}>LINE: {r.owner_line}</div>}</td>
               <td><span className={`rounded-md px-2 py-0.5 text-xs ${r.status === "SUSPENDED" || r.status === "CANCELLED" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>{t(r.status)}</span></td>
               <td>{r.plan_code || "—"}</td><td className="text-xs">{r.payment_status || "—"}</td><td className="font-num" data-testid={`tenant-fee-${r.id}`}>{yen(r.amount || 0)}<div className="text-[10px] text-slate-400">{t("peak_customers")} {r.peak_customers ?? 0}</div></td>
               <td className="font-num text-xs">{r.renewal_date || "—"}</td><td className="text-center">{r.members}</td><td className="text-center">{r.customers}</td>

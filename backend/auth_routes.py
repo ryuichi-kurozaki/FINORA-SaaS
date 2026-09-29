@@ -36,6 +36,7 @@ class UserIn(BaseModel):
     lang: Optional[str] = None
     whatsapp_phone: Optional[str] = None
     whatsapp_opt_in: Optional[bool] = None
+    line_id: Optional[str] = Field(None, max_length=60)
 
 
 def set_cookies(resp, access, refresh=None):
@@ -199,6 +200,8 @@ async def prefs(body: UserIn, user=Depends(current)):
         if p and not re.fullmatch(r"\+?[1-9]\d{7,14}", p):
             raise HTTPException(422, "WhatsApp number must include the country code, e.g. +81 90 1234 5678")
         await db.users.update_one({"id": user["id"]}, {"$set": {"whatsapp_phone": p.lstrip("+"), "whatsapp_opt_in": bool(body.whatsapp_opt_in) and bool(p)}})
+    if body.line_id is not None:
+        await db.users.update_one({"id": user["id"]}, {"$set": {"line_id": body.line_id.strip()}})
     return {"ok": True}
 
 

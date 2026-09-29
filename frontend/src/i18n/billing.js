@@ -83,6 +83,8 @@ export const B = {
   mt_note: ["映像は相手と直接つながります。録画は低画質で保存され、3年後に自動削除されます。議事録はAIが音声から自動作成します。", "Video connects directly between participants. Recordings are saved in low quality and deleted after 3 years. Minutes are created by AI from the audio.", "O vídeo conecta diretamente os participantes. Gravações em baixa qualidade são excluídas após 3 anos. A ata é gerada por IA a partir do áudio."],
   ntf_meeting_new: ["テレビ電話が予約されました", "Video call scheduled", "Videochamada agendada"], ntf_meeting_soon: ["まもなくテレビ電話が始まります", "Video call starts soon", "Videochamada em breve"], ntf_meeting_cancel: ["テレビ電話がキャンセルされました", "Video call cancelled", "Videochamada cancelada"],
   el_kind_meeting: ["テレビ電話", "Video call", "Videochamada"],
+  signup_whatsapp: ["WhatsApp番号（任意・国番号から）", "WhatsApp number (optional, with country code)", "WhatsApp (opcional, com código do país)"],
+  line_id: ["LINE ID（任意）", "LINE ID (optional)", "LINE ID (opcional)"],
   occ_employee: ["会社員", "Employee", "Empregado"], occ_executive: ["会社役員・経営者", "Executive / owner", "Executivo / empresário"], occ_public_servant: ["公務員", "Public servant", "Servidor público"],
   occ_self_employed: ["自営業・個人事業主", "Self-employed", "Autônomo"], occ_professional: ["医師・士業", "Doctor / licensed professional", "Médico / profissional liberal"], occ_pensioner: ["年金受給者", "Pensioner", "Aposentado"],
   occ_homemaker: ["専業主婦・主夫", "Homemaker", "Do lar"], occ_student: ["学生", "Student", "Estudante"], occ_unemployed: ["無職", "Unemployed", "Sem ocupação"], occ_other: ["その他", "Other", "Outro"],

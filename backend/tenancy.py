@@ -1,5 +1,6 @@
 """Tenancy: consultant signup (own tenant), customer invitations, FINORA SaaS plans/subscriptions (separate ledger), platform admin."""
 import hashlib
+import re
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
@@ -37,6 +38,8 @@ class SignupIn(BaseModel):
     entity_type: str = "individual"
     email: str = Field(min_length=5, max_length=200)
     phone: str = Field("", max_length=40)
+    whatsapp: str = Field("", max_length=30)
+    line_id: str = Field("", max_length=60)
     address: str = Field("", max_length=300)
     profile: str = Field("", max_length=2000)
     qualifications: str = Field("", max_length=500)
@@ -54,6 +57,9 @@ async def signup(body: SignupIn, request: Request):
         raise HTTPException(429, "Too many signups. Please try again later.")
     if await db.users.find_one({"email": email}):
         raise HTTPException(409, "This email is already registered")
+    wa = re.sub(r"[\s\-()]", "", body.whatsapp)
+    if wa and not re.fullmatch(r"\+?[1-9]\d{7,14}", wa):
+        raise HTTPException(422, "WhatsApp number must include the country code, e.g. +81 90 1234 5678")
     plan = await db.plans.find_one({"code": body.plan_code, "active": True}) or await db.plans.find_one({"code": "TRIAL"})
     tid, uid = new_id(), new_id()
     status = "TRIAL" if plan["code"] in ("TRIAL", "FREE") else "ACTIVE"
@@ -63,7 +69,8 @@ async def signup(body: SignupIn, request: Request):
                                                      "address": body.address, "phone": body.phone, "email": email}})
     user = {"id": uid, "tenant_id": tid, "email": email, "name": body.name, "role": "admin", "is_consultant": True, "active": True,
             "password_hash": hash_password(body.password), "phone": encrypt(body.phone), "address": encrypt(body.address),
-            "profile": body.profile, "qualifications": body.qualifications, "created_at": now_iso()}
+            "profile": body.profile, "qualifications": body.qualifications, "whatsapp_phone": wa.lstrip("+"), "whatsapp_opt_in": False,
+            "line_id": body.line_id.strip(), "created_at": now_iso()}
     await db.users.insert_one(user)
     start = datetime.now().date()
     await db.saas_subscriptions.insert_one({"id": new_id(), "tenant_id": tid, "plan_code": plan["code"], "start_date": start.isoformat(),
@@ -285,9 +292,10 @@ async def platform_tenants(user=Depends(platform_admin)):
     out = []
     for t in await db.tenants.find().sort("created_at", -1).to_list(2000):
         s = await db.saas_subscriptions.find_one({"tenant_id": t["id"]}) or {}
-        owner = await db.users.find_one({"id": t.get("owner_user_id")}, {"name": 1, "email": 1}) or {}
+        owner = await db.users.find_one({"id": t.get("owner_user_id")}, {"name": 1, "email": 1, "whatsapp_phone": 1, "line_id": 1}) or {}
         last = await db.audit_logs.find_one({"tenant_id": t["id"]}, sort=[("at", -1)])
         out.append({"id": t["id"], "name": t.get("name"), "status": t.get("status", "ACTIVE"), "owner_name": owner.get("name"), "owner_email": owner.get("email"),
+                    "owner_whatsapp": owner.get("whatsapp_phone"), "owner_line": owner.get("line_id"),
                     "plan_code": s.get("plan_code"), "subscription_status": s.get("status"), "payment_status": s.get("payment_status"),
                     "amount": s.get("amount"), "billing_period": s.get("billing_period"), "renewal_date": s.get("renewal_date"),
                     "members": await db.users.count_documents({"tenant_id": t["id"], "role": {"$ne": "client"}}),
