@@ -487,6 +487,22 @@ async def send_important(cid: str, request: Request, user=Depends(current)):
     return {"status": c["status"]}
 
 
+REMIND = {"IMPORTANT_INFO_SENT": "econtract_important_sent", "CONTRACT_SENT": "econtract_agreement_sent"}
+
+
+@router.post("/{cid}/remind")
+async def remind(cid: str, request: Request, user=Depends(current)):
+    """Re-send the pending review/sign request to the recipient without changing the contract state."""
+    c = await load(user, cid)
+    _need(is_issuer(user, c))
+    kind = REMIND.get(c["status"])
+    if not kind:
+        raise HTTPException(409, "Nothing to remind at this stage")
+    await _tell(c, "RECIPIENT", kind, user)
+    await audit(user, "remind", "econtracts", cid, after={"kind": kind, "status": c["status"]}, request=request, client_id=c.get("client_id"), label=f"{c['number']} v{c['version']}")
+    return {"ok": True, "kind": kind}
+
+
 REISSUE = {"IMPORTANT_INFO_SENT": "important", "CONTRACT_SENT": "agreement"}
 
 
@@ -545,9 +561,8 @@ async def confirm(cid: str, request: Request, user=Depends(current)):
     await _act(c, d, "CONFIRM", "RECIPIENT", user, request, confirmed_at=now, agreed_at=now)
     c = await _move(c, ["IMPORTANT_INFO_SENT"], "IMPORTANT_INFO_CONFIRMED", user, request, "confirm_important", doc=d)
     await _tell(c, "ISSUER", "econtract_important_confirmed", user)
-    if c["contract_type"] == "FINORA_SAAS":
-        doc = await _issue(c, "agreement", "system")
-        c = await _move(c, ["IMPORTANT_INFO_CONFIRMED"], "CONTRACT_SENT", user, request, "send_agreement", doc=doc)
+    doc = await _issue(c, "agreement", "system")
+    c = await _move(c, ["IMPORTANT_INFO_CONFIRMED"], "CONTRACT_SENT", user, request, "send_agreement", doc=doc)
     return {"status": c["status"]}
 
 

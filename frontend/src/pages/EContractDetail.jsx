@@ -64,7 +64,8 @@ function IssuerTools({ d, act, t }) {
           <label key={s.key} className="mt-2 block text-xs text-slate-600">{s.title}<textarea className={`${inp} h-16 py-1`} defaultValue={s.body} onChange={(e) => setFields({ ...fields, [s.key]: e.target.value })} data-testid={`ec-field-${s.key}`} /></label>))}
         <Button variant="outline" className="mt-2" onClick={saveDraft} data-testid="ec-save-draft">{t("save")}</Button></details>}
       <div className="flex flex-wrap gap-2">
-        {d.status === "DRAFT" && <Button className="btn-emerald" onClick={() => act("send-important")} data-testid="ec-send-important">{t("ec_send_important")}</Button>}
+        {d.status === "DRAFT" && <Button className="btn-emerald" onClick={() => act("send-important")} data-testid="ec-send-important">{t(saas ? "ec_send_important" : "ec_request_signature")}</Button>}
+        {["IMPORTANT_INFO_SENT", "CONTRACT_SENT"].includes(d.status) && <Button className="btn-emerald" onClick={() => act("remind")} data-testid="ec-remind"><Send className="mr-1 h-4 w-4" />{t("ec_remind")}</Button>}
         {d.status === "IMPORTANT_INFO_CONFIRMED" && <Button className="btn-emerald" onClick={() => act("send-agreement")} data-testid="ec-send-agreement">{t("ec_send_agreement")}</Button>}
         {["IMPORTANT_INFO_SENT", "CONTRACT_SENT"].includes(d.status) && <Button variant="outline" onClick={() => window.confirm(t("ec_reissue_confirm")) && act("reissue")} data-testid="ec-reissue">{t("ec_reissue")}</Button>}
         {["ACTIVE", "ENDED"].includes(d.status) && <Button className="btn-emerald" onClick={() => act("send-proof")} data-testid="ec-send-proof"><Send className="mr-1 h-4 w-4" />{t("ec_send_proof")}</Button>}

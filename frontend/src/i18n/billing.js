@@ -160,6 +160,8 @@ export const B = {
   ec_actions: ["契約の操作", "Contract actions", "Ações"], ec_reissue: ["最新の情報で書類を再発行", "Re-issue with latest info", "Reemitir com dados atuais"],
   ec_reissue_confirm: ["送付済みの書類を、最新の事業者情報・契約条件で作り直して差し替えます。旧書類は履歴に残ります。よろしいですか？", "The sent document will be rebuilt with the latest provider info and terms and replace the current one. The old document stays in the history. Continue?", "O documento enviado será refeito com os dados atuais e substituirá o atual. O antigo fica no histórico. Continuar?"],
   co_corporate_number: ["法人番号", "Corporate number", "Nº corporativo"], ec_send_important: ["重要事項説明書を送信", "Send statement", "Enviar declaração"], ec_send_agreement: ["契約書を送信", "Send agreement", "Enviar contrato"],
+  ec_request_signature: ["顧客に署名を依頼", "Request signature", "Solicitar assinatura"], ec_remind: ["リマインド（再送）", "Send reminder", "Lembrar"],
+  ec_sign_requested: ["顧客に署名を依頼しました", "Signature requested", "Assinatura solicitada"], ec_reminded: ["リマインドを送信しました", "Reminder sent", "Lembrete enviado"],
   ec_amend: ["更新・変更契約を作成", "Renew / amend", "Renovar / alterar"], ec_pause: ["一時停止", "Pause", "Pausar"], ec_resume: ["再開", "Resume", "Retomar"], ec_end_contract: ["契約を終了", "End contract", "Encerrar"],
   ec_cancel: ["取消", "Cancel", "Cancelar"], ec_end_reason: ["終了理由", "Reason", "Motivo"], ec_consultant_login: ["コンサルタントのログイン", "Consultant login", "Login do consultor"],
   ec_client_access: ["顧客のアクセス", "Client access", "Acesso de clientes"], ec_read_only: ["閲覧のみ", "Read-only", "Somente leitura"], ec_blocked: ["不可", "Blocked", "Bloqueado"],
