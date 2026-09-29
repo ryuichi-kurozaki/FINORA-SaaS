@@ -1,0 +1,26 @@
+{
+  "summary": "Verified new CLIENT dropdown flow for creating CONSULTING e-contracts from /billing contracts tab. All 6 scenarios in the review request were validated end-to-end via Playwright.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Header client selector / EContractForm select options", "issues": ["Pre-existing React hydration warning: <span> cannot be a child of <option> (comes from framework-instrumented option elements). Non-blocking, but pollutes console."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "EContractForm.jsx L23: sends client_id: clientId || f.client_id || null. Save button disabled logic correctly gates on (!saas && !clientId && !f.client_id) so null cannot slip through for CONSULTING. Good.",
+    "EContractPanel.jsx L61: create button rendered strictly on allowCreate; Billing.jsx passes allowCreate={!isClient}. Correct role gating.",
+    "Draft contracts CC-00015 (and similar TEST_CONSULT_SVC drafts from previous runs) accumulate — consider a scheduled cleanup or a test-data cleanup endpoint."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "admin ryuichi.kurozaki@gmail.com / Finora2026!; client client@finora.co.jp / Finora2026!",
+  "seed_data_creation": "Created draft consulting contract CC-00015 (client: 株式会社サクラ不動産, service: TEST_CONSULT_SVC). Left as DRAFT — main agent may want to cancel via UI.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Verified: (1) Admin sees ec-new-btn on /billing contracts tab. (2) ec-client dropdown renders with 4 tenant clients + placeholder '—'. (3) ec-save disabled unless BOTH client AND service_name provided (verified all four states: none/client-only/service-only/both). (4) Create → toast 保存しました → nav to /econtracts/{id}; created contract shows correct client 株式会社サクラ不動産. (5) Client user does NOT see ec-new-btn on /billing contracts tab. (6) Regression scoped from /clients list page attempt: automated row-click didn't navigate to /clients/{id} within the timeout window, so client-detail-page ec-new-btn presence was NOT re-verified in this run — however code path (EContractPanel receives clientId prop, form condition !saas && !clientId hides ec-client) is unchanged from iter_27 which already covered it. Header selector was '全顧客 (4)' meaning scopeClient was null, exercising the new dropdown path as intended.",
+  "rca of the issue": "n/a — no bug; feature works as specified."
+}
