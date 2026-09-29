@@ -1,10 +1,12 @@
 """Two-tier e-contracts. FINORA_SAAS: FINORA (issuer) ⇄ consultant tenant owner (recipient).
 CONSULTING: consultant (issuer) ⇄ client (recipient). Order (statement → confirm → agreement → recipient sign → issuer sign) is enforced here."""
 import asyncio
+import base64
 import hashlib
 import io
 import json
 from datetime import date, datetime
+from pathlib import Path
 from typing import Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -274,6 +276,34 @@ async def start_finora_contract(tenant_id, owner, request):
     return c
 
 
+def _sig_png(name):
+    """Electronic approval stamp for FINORA's own (issuer) signature on FINORA_SAAS agreements."""
+    from PIL import Image as PImage, ImageDraw, ImageFont
+    img = PImage.new("RGB", (560, 160), "white")
+    d = ImageDraw.Draw(img)
+    f1 = ImageFont.truetype(str(Path(__file__).parent / "fonts" / "ipag.ttf"), 44)
+    f2 = ImageFont.truetype(str(Path(__file__).parent / "fonts" / "ipag.ttf"), 20)
+    d.text((24, 26), name, font=f1, fill="#071A2B")
+    d.text((24, 96), "FINORA 電子承認 / Electronic approval", font=f2, fill="#0B6E4F")
+    d.rectangle([(8, 8), (551, 151)], outline="#0B6E4F", width=3)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+async def _auto_issuer_sign(c, request):
+    """FINORA's counter-signature is applied automatically so a consultant can start using the service right after signing."""
+    pa = await db.users.find_one({"platform_admin": True, "active": True})
+    if not pa:
+        return c
+    t = await db.tenants.find_one({"id": pa["tenant_id"]}) or {}
+    name = (t.get("billing_profile") or {}).get("company_name") or t.get("name") or "FINORA"
+    d = await _doc(c, "agreement", verify=True)
+    await _act(c, d, "SIGN", "ISSUER", pa, request, signer_name=name, signature_png=_sig_png(name), agreed_at=now_iso(), auto_signed=True)
+    c = await _move(c, ["FIRST_PARTY_SIGNED"], "BOTH_SIGNED", pa, request, "sign", doc=d)
+    return await _activate(c, pa, request)
+
+
 async def _activate(c, user, request):
     c = await _move(c, ["BOTH_SIGNED"], "ACTIVE", user, request, "activate", extra={"activated_at": now_iso()})
     acts = await db.econtract_acts.find({"contract_id": c["id"], "act": {"$in": ["CONFIRM", "SIGN"]}}).to_list(20)
@@ -520,6 +550,8 @@ async def sign(cid: str, body: SignIn, request: Request, user=Depends(current)):
         await _act(c, d, "SIGN", "RECIPIENT", user, request, signer_name=body.name, signature_png=body.signature_png, agreed_at=now_iso())
         c = await _move(c, ["CONTRACT_SENT"], "FIRST_PARTY_SIGNED", user, request, "sign", doc=d)
         await _tell(c, "ISSUER", "econtract_recipient_signed", user)
+        if c["contract_type"] == "FINORA_SAAS":
+            c = await _auto_issuer_sign(c, request)
     elif is_issuer(user, c) and c["status"] == "FIRST_PARTY_SIGNED":
         await _act(c, d, "SIGN", "ISSUER", user, request, signer_name=body.name, signature_png=body.signature_png, agreed_at=now_iso())
         c = await _move(c, ["FIRST_PARTY_SIGNED"], "BOTH_SIGNED", user, request, "sign", doc=d)

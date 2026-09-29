@@ -69,7 +69,7 @@ M = {
     "Only the client can upload their own documents": ("書類をアップロードできるのは顧客本人のみです", "Somente o cliente pode enviar seus documentos"),
     "Only the client can mark a correction as fixed": ("修正完了にできるのは顧客本人のみです", "Somente o cliente pode marcar a correção como concluída"),
     "Only clients can create consulting requests": ("相談依頼を作成できるのは顧客のみです", "Somente clientes podem criar solicitações de consultoria"),
-    "Available after the FINORA service agreement is executed": ("FINORA利用契約の成立後に利用できます", "Disponível após a assinatura do contrato de serviço FINORA"),
+    "Available after the FINORA service agreement is executed": ("FINORA利用契約がまだ成立していません。設定 → FINORA契約 で重要事項説明書を確認し、契約書に署名すると利用できます。", "O contrato de serviço FINORA ainda não foi celebrado. Em Configurações → Contrato FINORA, confirme a declaração e assine o contrato."),
     "The FINORA service agreement has ended": ("FINORA利用契約が終了しています", "O contrato de serviço FINORA foi encerrado"),
     "FINORA platform admin only": ("FINORA運営者のみ利用できます", "Somente para administradores da FINORA"),
     "Contracts are created and changed only through the e-contract flow": ("契約の作成・変更は電子契約の手続きからのみ行えます", "Contratos só podem ser criados e alterados pelo fluxo de contrato eletrônico"),
