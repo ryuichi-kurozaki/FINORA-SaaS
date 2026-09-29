@@ -1,0 +1,28 @@
+{
+  "summary": "Verified new contract-create icon button on /clients CRM overview table. All 4 scenarios in the review request passed end-to-end.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Header client selector", "issues": ["Pre-existing React hydration warning: <span> cannot be a child of <option> (framework-instrumented option). Non-blocking; reported previously in iter_28."]},
+      {"screen": "EContractForm / InviteDialog", "issues": ["Radix warning: Missing Description or aria-describedby for DialogContent. Minor a11y."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ClientOverviewTable.jsx L125-127: new client-new-contract-<id> button is correctly ordered BEFORE the email and WhatsApp invite buttons in the actions <td>. Good.",
+    "ClientOverviewTable.jsx L135: EContractForm invoked with type='CONSULTING' + clientId + onDone navigating to /econtracts/{id}. Matches spec.",
+    "EContractForm.jsx L33: ec-client only renders when !saas && !clientId, so dropdown is correctly hidden. Save disabled logic also gates on clientId presence. Good.",
+    "Draft contracts continue to accumulate (edf25a0f... created and cancelled during this run). Cleanup done via ec-cancel in UI."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "admin ryuichi.kurozaki@gmail.com / Finora2026!",
+  "seed_data_creation": "Created draft CONSULTING contract (id edf25a0f-97dd-4fe3-9259-5c06141caadf) for 株式会社サクラ不動産 with service TEST_CONSULT_FROM_CLIENTS_LIST, then cancelled via ec-cancel button.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Verified on /clients as admin ryuichi (4 tenant clients rendered in client-overview-table): (1) Each row's actions column shows client-new-contract-<id> (FileText icon) BEFORE client-invite-<id> and client-invite-wa-<id>. (2) Clicking client-new-contract for first row (株式会社サクラ不動産) opens econtract-form dialog and ec-client dropdown is ABSENT (as expected because clientId is pre-selected). (3) Entered service name and clicked ec-save → navigated to /econtracts/edf25a0f-97dd-4fe3-9259-5c06141caadf and 株式会社サクラ不動産 appears in contract detail. (4) Regression: email invite and WhatsApp invite buttons on the same row still open invite-dialog. Attempted cleanup via ec-cancel.",
+  "rca of the issue": "n/a — feature works exactly as specified."
+}
