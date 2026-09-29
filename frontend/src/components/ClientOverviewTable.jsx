@@ -122,7 +122,7 @@ export default function ClientOverviewTable() {
                 <td className="font-num text-xs">{r.next_meeting || "—"}</td><td className="text-center">{r.open_requests || "—"}</td>
                 <td>{r.unpaid > 0 ? <span className={`font-num text-xs font-semibold ${r.overdue ? "text-red-600" : "text-[#8a6d12]"}`}>{yen(r.unpaid)}</span> : "—"}</td>
                 <td><span className={`rounded-md px-2 py-0.5 text-xs ${HC[r.health]}`}>{t(`health_${r.health}`)} {r.health_score}</span></td>
-                <td className="whitespace-nowrap"><button className="icon-btn text-[#071A2B]" onClick={() => setEc(r)} title={t("ec_new")} data-testid={`client-new-contract-${r.id}`}><FileText className="h-4 w-4" /></button>
+                <td className="whitespace-nowrap"><button className="mr-1.5 inline-flex items-center gap-1 rounded-md bg-[#071A2B] px-2 py-1 text-[11px] font-medium text-white hover:bg-[#0B2942]" onClick={() => setEc(r)} data-testid={`client-new-contract-${r.id}`}><FileText className="h-3.5 w-3.5" />{t("ec_new")}</button>
                   <button className="icon-btn text-[#00A878]" onClick={() => setInv({ c: r, mode: "email" })} title={t("invite_client")} data-testid={`client-invite-${r.id}`}><MailPlus className="h-4 w-4" /></button>
                   <button className="icon-btn !text-[#25D366]" onClick={() => setInv({ c: r, mode: "whatsapp" })} title={t("invite_by_whatsapp")} data-testid={`client-invite-wa-${r.id}`}><WhatsAppIcon /></button></td>
               </tr>
