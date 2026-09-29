@@ -371,6 +371,8 @@ async def platform_update_tenant(tid: str, body: TenantUpd, request: Request, us
     await audit(user, "update", "saas_subscriptions", tid, before=before, after=body.model_dump(exclude_none=True), request=request, label=t.get("name"))
     fee = await customer_fee(tid)
     if (body.fixed_fee is not None and before.get("fixed_fee") != body.fixed_fee) or (body.clear_fixed_fee and before.get("fixed_fee") is not None):
+        from econtract import refresh_saas_doc
+        await refresh_saas_doc(tid, user)
         await send_fee_change_notice(tid, fee["amount"], fee["months"] > 1)
     return {"ok": True, "pricing": fee}
 

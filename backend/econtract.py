@@ -140,8 +140,13 @@ async def _ctx(c):
         owner = await db.users.find_one({"id": tenant.get("owner_user_id")}) or {}
         recipient, consultant = f"{tenant.get('name')}（{owner.get('name', '')}）", owner.get("name")
         plan = await db.plans.find_one({"code": tm.get("plan_code")}) or {}
-        fee = ("基本料金 ¥{b:,.0f} ＋ 顧客1人あたり ¥{p:,.0f} × 当月の最大顧客数（月額・税別）", "Base ¥{b:,.0f} + ¥{p:,.0f} per customer × monthly peak customers (monthly, excl. tax)",
-               "Base ¥{b:,.0f} + ¥{p:,.0f} por cliente × pico mensal de clientes (mensal, sem impostos)")[i].format(b=plan.get("base_fee") or 0, p=plan.get("per_customer_fee") or 0)
+        pr = await customer_fee(c["tenant_id"])
+        if pr.get("fixed_fee") is not None:
+            fee = ("月額 ¥{f:,.0f}（税別・顧客数に関係なく固定／個別料金）", "¥{f:,.0f} per month (excl. tax, fixed regardless of the number of customers)",
+                   "¥{f:,.0f} por mês (sem impostos, fixo independentemente do número de clientes)")[i].format(f=pr["fixed_fee"])
+        else:
+            fee = ("基本料金 ¥{b:,.0f} ＋ 顧客1人あたり ¥{p:,.0f} × 当月の最大顧客数（月額・税別）", "Base ¥{b:,.0f} + ¥{p:,.0f} per customer × monthly peak customers (monthly, excl. tax)",
+                   "Base ¥{b:,.0f} + ¥{p:,.0f} por cliente × pico mensal de clientes (mensal, sem impostos)")[i].format(b=plan.get("base_fee") or 0, p=plan.get("per_customer_fee") or 0)
         plan_name = plan.get("name") or tm.get("plan_code")
     else:
         bp = tenant.get("billing_profile") or {}
@@ -495,6 +500,21 @@ async def reissue(cid: str, request: Request, user=Depends(current)):
                 after={"document_id": doc["id"], "number": doc["number"], "document_type": doc["document_type"], "hash": doc["hash"]},
                 request=request, client_id=c.get("client_id"), label=f"{c['number']} v{c['version']} {c['contract_type']}")
     return {"status": c["status"], "document_id": doc["id"], "number": doc["number"]}
+
+
+async def refresh_saas_doc(tenant_id, actor):
+    """Re-issue the not-yet-confirmed/signed FINORA document so it shows the tenant's current fee."""
+    c = await db.econtracts.find_one({"contract_type": "FINORA_SAAS", "tenant_id": tenant_id, "status": {"$in": list(REISSUE)}})
+    if not c:
+        return None
+    which = REISSUE[c["status"]]
+    old = await _doc(c, which)
+    doc = await _issue(c, which, actor["id"])
+    await db.econtract_docs.update_one({"id": old["id"]}, {"$set": {"superseded_by": doc["id"], "superseded_at": now_iso()}})
+    await audit(actor, "reissue", "econtracts", c["id"], before={"document_id": old["id"], "hash": old["hash"]},
+                after={"document_id": doc["id"], "number": doc["number"], "document_type": doc["document_type"], "hash": doc["hash"], "reason": "fee_change"},
+                label=f"{c['number']} v{c['version']} FINORA_SAAS")
+    return doc["number"]
 
 
 @router.post("/{cid}/view/{doc_id}")
