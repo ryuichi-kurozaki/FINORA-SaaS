@@ -1,0 +1,40 @@
+{
+  "summary": "Full backend + frontend testing of the new consultant→client e-contract signature-request flow. Verified: (1) '署名を依頼' button on client Contracts list posts /send-important and moves DRAFT→IMPORTANT_INFO_SENT; (2) 'リマインド' button on list & detail posts /remind, returns {ok:true, kind:...}, status unchanged for both IMPORTANT_INFO_SENT and CONTRACT_SENT; (3) client confirm() auto-issues agreement in a single step (IMPORTANT_INFO_SENT → CONTRACT_SENT) and the recipient sign card is immediately shown; (4) full happy-path CONSULTING flow reaches ACTIVE. All 10 new backend pytest cases PASS. Frontend UI actions verified via Playwright (real API calls to backend, correct toast messages, correct data-testids present).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "N/A - pre-existing", "issue": "In backend/tests/test_econtracts_flow.py TestAFlow test_05/test_06 assert FIRST_PARTY_SIGNED after FINORA_SAAS consultant sign but backend has always executed _auto_issuer_sign() (line 593-594 of econtract.py) that jumps to ACTIVE. This is a stale assertion in the older test — NOT related to this feature. Pre-existing bug in the test, not the code."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Layout header (all pages)", "issues": ["React hydration warning: <span> is not a valid child of <option> in header-client-select (Layout.jsx line 95). Non-blocking but pollutes console."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_econtract_signreq_flow.py",
+    "/app/test_reports/pytest/econtract_signreq.xml"
+  ],
+  "action_items": [
+    "(optional) Update backend/tests/test_econtracts_flow.py TestAFlow test_05/test_06 assertions from FIRST_PARTY_SIGNED to ACTIVE to reflect FINORA_SAAS _auto_issuer_sign behavior (pre-existing, not caused by this feature).",
+    "(optional cosmetic) Fix Layout.jsx header-client-select <option> children to plain strings to remove React hydration warning."
+  ],
+  "critical_code_review_comments": [
+    "econtract.py confirm() correctly auto-issues the agreement for BOTH contract types and moves to CONTRACT_SENT in one atomic-looking sequence. Good.",
+    "New /remind endpoint is properly gated by is_issuer, rejects unsupported statuses with 409, and includes audit logging. Correct.",
+    "EContractPanel.jsx correctly hides sign-request button for client role and for FINORA_SAAS type (onSignReq is null). Correct.",
+    "EContractDetail.jsx IssuerTools shows ec-send-important with label ec_request_signature for CONSULTING and ec_send_important for FINORA_SAAS — matches spec.",
+    "Row button label switches DRAFT→'ec_request_signature' vs otherwise→'ec_remind' as required."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_econtract_signreq_flow.py (new)"
+  ],
+  "success_rate": {"backend": "100% (10/10 new tests pass)", "frontend": "100% (all UI checkpoints verified: ec-req buttons, remind API call, toast, ec-confirm-card, auto-advance to ec-recipient-sign-card)"},
+  "test_credentials": "consultant@finora.co.jp / Finora2026! and client@finora.co.jp / Finora2026! (from /app/memory/test_credentials.md pattern)",
+  "seed_data_creation": "Test contracts CC-* were created via consultant API for 佐藤 健一 and left cancelled/completed. No production data modified.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "New pytest file /app/backend/tests/test_econtract_signreq_flow.py covers: send-important (DRAFT→IMPORTANT_INFO_SENT), remind (both stages + 409 at DRAFT/ACTIVE + 403 for client role), auto-agreement on client confirm (CONSULTING type), and full happy-path to ACTIVE for CONSULTING. To run: `cd /app && python -m pytest backend/tests/test_econtract_signreq_flow.py -v -p no:xdist -o addopts=''`. FINORA_SAAS regression (auto-agreement + auto-counter-signature) is covered by pre-existing test_econtracts_flow.py::TestAFlow (2 stale asserts about intermediate FIRST_PARTY_SIGNED are unrelated to this feature)."
+}
