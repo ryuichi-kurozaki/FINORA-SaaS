@@ -51,6 +51,7 @@ class ECIn(BaseModel):
     lang: str = Field("ja", pattern="^(ja|en|pt)$")
     terms: TermsIn
     fields: Dict[str, str] = {}
+    request_id: Optional[str] = None
 
 
 class SignIn(BaseModel):
@@ -462,7 +463,11 @@ async def update_draft(cid: str, body: ECIn, request: Request, user=Depends(curr
 
 @router.post("")
 async def create(body: ECIn, request: Request, user=Depends(current)):
-    return clean(await create_contract(user, body, request))
+    c = await create_contract(user, body, request)
+    if body.request_id:
+        from contract_requests import mark_approved
+        await mark_approved(body.request_id, user, c)
+    return clean(c)
 
 
 def _need(ok, msg="Forbidden"):

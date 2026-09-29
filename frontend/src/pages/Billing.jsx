@@ -11,6 +11,7 @@ import { yen } from "@/lib/format";
 import { Card, CardTitle, Empty, PageHeader, Spinner } from "@/components/common";
 import { useScopeLabel } from "@/lib/useDashboard";
 import EContractPanel from "@/components/econtract/EContractPanel";
+import ContractRequests from "@/components/econtract/ContractRequests";
 import InvoiceDoc from "@/components/InvoiceDoc";
 import { RevenuePanel } from "@/components/BusinessOverview";
 
@@ -199,7 +200,7 @@ export default function Billing() {
       <Tabs defaultValue="invoices" key={k}>
         <TabsList className="bg-white/70">{tabs.map((x) => <TabsTrigger key={x} value={x} data-testid={`billing-tab-${x}`} className="data-[state=active]:bg-[#071A2B] data-[state=active]:text-white">{t(x)}</TabsTrigger>)}</TabsList>
         <TabsContent value="invoices" className="mt-5"><InvoiceList clientId={scopeClient} /></TabsContent>
-        <TabsContent value="contracts" className="mt-5"><EContractPanel key={scopeClient} clientId={scopeClient} grouped={isClient} /></TabsContent>
+        <TabsContent value="contracts" className="mt-5"><div className="space-y-6"><ContractRequests /><EContractPanel key={scopeClient} clientId={scopeClient} grouped={isClient} /></div></TabsContent>
         <TabsContent value="payments" className="mt-5"><PaymentsList clientId={scopeClient} /></TabsContent>
         {!isClient && <TabsContent value="revenue" className="mt-5"><RevenuePanel /></TabsContent>}
       </Tabs>
