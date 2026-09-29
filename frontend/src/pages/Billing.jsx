@@ -14,6 +14,7 @@ import EContractPanel from "@/components/econtract/EContractPanel";
 import ContractRequests from "@/components/econtract/ContractRequests";
 import InvoiceDoc from "@/components/InvoiceDoc";
 import { RevenuePanel } from "@/components/BusinessOverview";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 
 export const ST = { DRAFT: "bg-slate-100 text-slate-600", ISSUED: "bg-sky-50 text-sky-700", PAID: "bg-emerald-50 text-emerald-700", PARTIALLY_PAID: "bg-amber-50 text-amber-700", OVERDUE: "bg-red-50 text-red-700", CANCELLED: "bg-slate-100 text-slate-400" };
 const inp = "mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm";
@@ -131,6 +132,7 @@ export function InvoiceList({ clientId }) {
   const [nw, setNw] = useState(false);
   const [refund, setRefund] = useState(null);
   const act = async (path) => { try { await api.post(path); toast.success(t("saved")); reload(); } catch (e) { toast.error(errMsg(e)); } };
+  const sendWa = async (i) => { try { const { data } = await api.post(`/invoices/${i.id}/send-whatsapp`); toast.success(`${t("inv_wa_sent")}（${t(`dlv_${data.status}`)}）`); reload(); } catch (e) { toast.error(errMsg(e)); } };
   return (
     <Card>
       <div className="mb-3 flex items-center justify-between"><CardTitle>{t("invoices")}</CardTitle>{owner && <Button size="sm" className="btn-emerald" onClick={() => setNw(true)} data-testid="new-invoice-btn"><Plus className="mr-1 h-4 w-4" />{t("new_invoice")}</Button>}</div>
@@ -147,6 +149,7 @@ export function InvoiceList({ clientId }) {
                   <td className="whitespace-nowrap">
                     <button className="icon-btn" onClick={() => setView(i.id)} data-testid={`invoice-view-${i.id}`}><Eye className="h-4 w-4" /></button>
                     {owner && i.status === "DRAFT" && <button className="icon-btn text-sky-600" onClick={() => act(`/invoices/${i.id}/issue`)} title={t("inv_issue")} data-testid={`invoice-issue-${i.id}`}><Send className="h-4 w-4" /></button>}
+                    {owner && ["ISSUED", "PARTIALLY_PAID", "OVERDUE"].includes(i.status) && <button className="icon-btn !text-[#25D366]" onClick={() => sendWa(i)} title={t("inv_send_wa")} data-testid={`invoice-wa-${i.id}`}><WhatsAppIcon className="h-4 w-4" /></button>}
                     {owner && ["ISSUED", "PARTIALLY_PAID", "OVERDUE"].includes(i.status) && <button className="icon-btn text-[#00A878]" onClick={() => setPay(i)} title={t("record_payment")} data-testid={`invoice-pay-${i.id}`}><Wallet className="h-4 w-4" /></button>}
                     {isClient && i.card_enabled && ["ISSUED", "PARTIALLY_PAID", "OVERDUE"].includes(i.status) && i.balance > 0 && <button className="ml-1 inline-flex items-center gap-1 rounded-lg bg-[#071A2B] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#00A878]" onClick={() => payCard(i)} data-testid={`invoice-card-pay-${i.id}`}><CreditCard className="h-3.5 w-3.5" />{t("pay_by_card")}</button>}
                     {owner && i.card_refundable && <button className="icon-btn text-amber-600 hover:text-red-600" onClick={() => setRefund(i)} title={t("refund")} aria-label={t("refund")} data-testid={`invoice-refund-${i.id}`}><RotateCcw className="h-4 w-4" /></button>}

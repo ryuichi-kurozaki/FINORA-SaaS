@@ -49,6 +49,8 @@ M = {
     "Payments can only be recorded for issued invoices": ("入金は発行済みの請求書にのみ記録できます", "Pagamentos só podem ser registrados para faturas emitidas"),
     "Only drafts can be edited by the issuer": ("発行者が編集できるのは下書きのみです", "O emissor só pode editar rascunhos"),
     "Only draft invoices can be issued": ("発行できるのは下書きの請求書のみです", "Somente faturas em rascunho podem ser emitidas"),
+    "Only issued invoices can be sent": ("送信できるのは発行済みの請求書のみです", "Somente faturas emitidas podem ser enviadas"),
+    "No WhatsApp number registered for this client": ("この顧客のWhatsApp番号が未登録です", "Nenhum número de WhatsApp cadastrado para este cliente"),
     "Only draft invoices can be edited": ("編集できるのは下書きの請求書のみです", "Somente faturas em rascunho podem ser editadas"),
     "Only active contracts without an open amendment can be amended": ("変更できるのは、変更手続き中でない有効な契約のみです", "Somente contratos ativos sem alteração em aberto podem ser alterados"),
     "No clients to hand over": ("引き継ぐ顧客がいません", "Não há clientes para transferir"),

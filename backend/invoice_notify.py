@@ -18,6 +18,29 @@ def _merge(a, b):
     return "SENT" if "SENT" in (a, b) else "FAILED" if "FAILED" in (a, b) else "SKIPPED"
 
 
+async def send_invoice_whatsapp(inv, tenant_id):
+    """Re-send an issued invoice to the client via WhatsApp only. Returns SENT/FAILED/SKIPPED."""
+    t = await db.tenants.find_one({"id": tenant_id}, {"name": 1}) or {}
+    cl = await db.clients.find_one({"id": inv["client_id"]}, {"name": 1, "whatsapp": 1}) or {}
+    client_wa = decrypt(cl["whatsapp"]) if cl.get("whatsapp") else None
+    card = inv["client_id"] in await card_clients(tenant_id)
+    users = await db.users.find({"tenant_id": tenant_id, "client_id": inv["client_id"], "role": "client", "active": True}).to_list(20)
+    targets = [(u.get("lang"), u.get("name") or cl.get("name"), u.get("whatsapp_phone") if u.get("whatsapp_opt_in") and u.get("whatsapp_phone") else client_wa) for u in users] \
+        or [(None, cl.get("name"), client_wa)]
+    status, sent = "SKIPPED", set()
+    for lang, name, phone in targets:
+        if not phone or phone in sent:
+            continue
+        sent.add(phone)
+        lang = lang if lang in INV else "ja"
+        subj, body, card_txt, bank_txt, cta, hello = INV[lang]
+        fmt = {"tenant": t.get("name") or "FINORA", "number": inv["number"], "amount": f"¥{inv['total']:,.0f}", "due": inv.get("due_date") or "—"}
+        subject, msg = subj.format(**fmt), body.format(**fmt) + "\n\n" + (card_txt if card else bank_txt)
+        link = f"{APP_URL}/billing"
+        status = _merge(status, await wa_send(phone, f"{subject}\n\n{hello.format(name=name or '')}\n{msg}\n\n{cta}: {link}"))
+    return status
+
+
 async def send_invoice_issued(inv, tenant_id):
     t = await db.tenants.find_one({"id": tenant_id}, {"name": 1}) or {}
     cl = await db.clients.find_one({"id": inv["client_id"]}, {"name": 1, "email": 1, "whatsapp": 1}) or {}

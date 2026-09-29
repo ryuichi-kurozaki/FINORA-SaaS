@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from pymongo import ReturnDocument
 
 from payouts import card_clients
-from invoice_notify import send_invoice_issued
+from invoice_notify import send_invoice_issued, send_invoice_whatsapp
 from core import (forbid_demo, db, new_id, now_iso, clean, current, staff, admin_only, scope, audit, accessible_ids,
                   notify, client_user_ids, consultant_ids)
 
@@ -176,6 +176,19 @@ async def issue_invoice(iid: str, request: Request, user=Depends(admin_only)):
     d = await send_invoice_issued(inv, user["tenant_id"]) | {"at": now_iso()}
     await db.invoices.update_one({"id": iid}, {"$set": {"issue_delivery": d}})
     return clean(await recompute(iid))
+
+
+@router.post("/invoices/{iid}/send-whatsapp")
+async def send_invoice_wa(iid: str, request: Request, user=Depends(admin_only)):
+    inv = await get_invoice(user, iid)
+    if inv["status"] not in ("ISSUED", "PARTIALLY_PAID", "OVERDUE"):
+        raise HTTPException(409, "Only issued invoices can be sent")
+    st = await send_invoice_whatsapp(inv, user["tenant_id"])
+    if st == "SKIPPED":
+        raise HTTPException(409, "No WhatsApp number registered for this client")
+    await db.invoices.update_one({"id": iid}, {"$set": {"whatsapp_sent_at": now_iso(), "whatsapp_status": st}})
+    await audit(user, "resend", "invoices", iid, after={"channel": "whatsapp", "status": st}, request=request, client_id=inv["client_id"], label=inv["number"])
+    return {"status": st}
 
 
 @router.post("/invoices/{iid}/cancel")

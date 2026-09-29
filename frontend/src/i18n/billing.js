@@ -17,7 +17,7 @@ export const B = {
   invoice_no: ["請求番号", "Invoice no.", "Nº da fatura"], issue_date: ["発行日", "Issue date", "Emissão"], due_date_inv: ["支払期限", "Due date", "Vencimento"],
   subtotal: ["税抜金額", "Subtotal", "Subtotal"], tax_amount: ["消費税", "Tax", "Imposto"], total_amount: ["税込合計", "Total", "Total"],
   paid_amount: ["入金済", "Paid", "Pago"], inv_balance: ["未入金", "Outstanding", "Em aberto"], new_invoice: ["請求書を作成", "New invoice", "Nova fatura"],
-  inv_issue: ["発行", "Issue", "Emitir"], record_payment: ["入金登録", "Record payment", "Registrar pagamento"], payment_date: ["入金日", "Payment date", "Data"],
+  inv_issue: ["発行", "Issue", "Emitir"], inv_send_wa: ["WhatsAppで送信", "Send via WhatsApp", "Enviar por WhatsApp"], inv_wa_sent: ["WhatsAppで送信しました", "Sent via WhatsApp", "Enviado por WhatsApp"], record_payment: ["入金登録", "Record payment", "Registrar pagamento"], payment_date: ["入金日", "Payment date", "Data"],
   method: ["支払方法", "Method", "Método"], reference: ["取引番号", "Reference", "Referência"], generate_recurring: ["定期請求を生成", "Generate recurring", "Gerar recorrentes"],
   item_desc: ["請求内容", "Description", "Descrição"], unit_price_inv: ["単価", "Unit price", "Preço unitário"], invoice_title: ["請 求 書", "INVOICE", "FATURA"],
   bill_to: ["御中 / 様", "Bill to", "Cliente"], bank_info: ["振込先", "Bank details", "Dados bancários"], registration_no: ["登録番号", "Registration no.", "Registro"],
