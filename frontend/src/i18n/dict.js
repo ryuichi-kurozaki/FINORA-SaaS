@@ -110,6 +110,9 @@ const D = {
   data_flow: ["データフロー", "Data Flow", "Fluxo de Dados"], modules: ["モジュール", "Modules", "Módulos"], permissions: ["権限マトリクス", "Permission Matrix", "Matriz de Permissões"], import_hint: ["CSV / Excel(.xlsx) の1行目は項目コード（例: name, asset_class）", "First row of CSV / Excel must contain field codes (e.g. name, asset_class)", "A primeira linha deve conter os códigos dos campos (ex.: name, asset_class)"],
   target: ["対象", "Target", "Alvo"], months_short: ["ヶ月", "mo", "meses"], score: ["スコア", "Score", "Pontuação"], engine: ["エンジン", "Engine", "Motor"], net_worth_trend: ["純資産推移", "Net Worth Trend", "Evolução do Patrimônio"],
   consulting_history: ["コンサルティング履歴", "Consulting History", "Histórico de Consultoria"], key_metrics: ["主要指標", "Key Metrics", "Métricas-chave"], page_not_found: ["ページが見つかりません", "Page not found", "Página não encontrada"],
+  cashflows: ["キャッシュフロー", "Cash Flow", "Fluxo de Caixa"], consents: ["同意", "Consents", "Consentimentos"], contract_requests: ["契約申込", "Contract request", "Solicitação de contrato"],
+  econtracts: ["電子契約", "E-contract", "Contrato eletrônico"], meetings: ["面談", "Meeting", "Reunião"], requests: ["相談・依頼", "Requests", "Solicitações"],
+  saas_subscriptions: ["利用契約", "Subscription", "Assinatura"], saved_snapshots: ["スナップショット", "Snapshot", "Instantâneo"], site_items: ["サイト項目", "Site item", "Item do site"], site_settings: ["サイト設定", "Site settings", "Configurações do site"],
 };
 
 export const LANGS = [{ code: "ja", label: "日本語", short: "JA" }, { code: "en", label: "English", short: "EN" }, { code: "pt", label: "Português", short: "PT" }];
