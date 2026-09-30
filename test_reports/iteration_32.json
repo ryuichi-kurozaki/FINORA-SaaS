@@ -1,0 +1,29 @@
+{
+  "summary": "Verified Rakuten CSV import fix on Portfolio holdings entry (client role). Both bugs are resolved: (1) CSV import now reads the file (12 tradehistory + 11 assetbalance funds created); (2) account selection in the dialog is honored end-to-end. Backend confirms all 12 assets landed under the chosen SBI証券 account and all 11 under 三菱UFJ銀行, source=IMPORT, value_jpy populated. Cleanup performed - all 23 imported assets deleted, portfolio restored to 12 baseline demo assets.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Portfolio asset import dialog", "issues": ["React hydration warning in console: '<span> cannot be a child of <option>' inside asset-import-account select — non-blocking but should be cleaned up (put icons/spans outside <option> or use plain text).", "DialogContent missing aria-describedby/Description for asset-import-dialog — a11y warning."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Low) Remove <span> child from <option> elements in the asset-import-account <select> to silence React hydration error.",
+    "(Low) Add DialogDescription/aria-describedby to asset-import-dialog to satisfy Radix a11y warning."
+  ],
+  "critical_code_review_comments": [
+    "impAcctRef pattern is a valid workaround; still, storing the chosen account in imp state and only clearing after doImport finishes would be cleaner and avoid the ref+setTimeout dance.",
+    "doImport concatenates toast strings with i18n; consider using template keys with variables so translators don't have to preserve ordering.",
+    "The choose-file button uses setTimeout(80ms) to click the hidden file input after modal close; brittle timing — safer to close via onAnimationEnd or move the <input type=file> outside the Dialog subtree so the browser file picker isn't blocked."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "client@finora.co.jp / Finora2026! (JWT field: access_token)",
+  "seed_data_creation": "Imported 23 test assets during verification (12 tradehistory→SBI, 11 assetbalance→UFJ). All deleted after verification; demo data restored to 12 baseline assets.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Import flow test path: /portfolio → scroll to portfolio-holdings-entry → assets-import-btn → asset-import-dialog opens → select asset-import-account → asset-import-choose-file (this closes dialog + opens native file picker via 80ms setTimeout). For Playwright automation, after clicking choose-file, use page.set_input_files on [data-testid=assets-import-input] directly. account_id is stored in impAcctRef.current (set on choose-file click) and read inside doImport. Toast is sonner-based; asserting toast text is flaky because it auto-dismisses — prefer verifying via GET /api/data/assets (source=IMPORT + account_id).",
+  "rca of the issue": "Original bugs were frontend-only: (a) chosen account lived in React state imp.acct but the dialog's choose-file handler ran setImp(null) BEFORE doImport() executed, so account_id was never appended to FormData; (b) file picker opened while the modal overlay was still mounted, resulting in the picker appearing dead/unread. Fix: choose-file handler now writes imp.acct into impAcctRef.current (a ref that survives state resets), closes the dialog, then schedules fileRef.current.click() via setTimeout(80) so the overlay is torn down first. doImport reads impAcctRef.current for account_id. Verified: 12 tradehistory funds → SBI account, 11 assetbalance funds → UFJ account, all with populated value_jpy."
+}
