@@ -122,7 +122,7 @@ async def export(entity: str, request: Request, fmt: str = "csv", client_id: Opt
 
 @router.post("/io/import/{entity}")
 async def import_data(entity: str, request: Request, file: UploadFile = File(...), client_id: Optional[str] = Form(None),
-                      user=Depends(current)):
+                      account_id: Optional[str] = Form(None), user=Depends(current)):
     forbid_demo(user)
     if entity not in ENTITIES:
         raise HTTPException(404, "Unknown entity")
@@ -143,6 +143,8 @@ async def import_data(entity: str, request: Request, file: UploadFile = File(...
                 try:
                     data = sanitize("assets", item)
                     data["client_id"] = client_id
+                    if account_id:
+                        data["account_id"] = account_id
                     await check_write(user, "assets", data)
                     doc = to_store("assets", {"id": new_id(), "tenant_id": user["tenant_id"], **data, "created_at": now_iso(),
                                               "updated_at": now_iso(), "created_by": user["id"], "updated_by": user["id"],
@@ -166,6 +168,8 @@ async def import_data(entity: str, request: Request, file: UploadFile = File(...
             data = sanitize(entity, {k: v for k, v in row.items() if v is not None})
             if client_id and entity != "clients":
                 data["client_id"] = client_id
+            if account_id and entity == "assets" and not data.get("account_id"):
+                data["account_id"] = account_id
             if entity == "clients" and user["role"] == "consultant":
                 data["consultant_id"] = user["id"]
             await check_write(user, entity, data)

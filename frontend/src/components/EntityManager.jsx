@@ -80,6 +80,7 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
   const [detail, setDetail] = useState(null);
   const [corr, setCorr] = useState(null);
   const fileRef = useRef(null);
+  const [imp, setImp] = useState(null);
   const canWrite = canEdit(entity);
   const owned = OWNED.includes(entity);
   const fields = ENTITIES[entity].filter((f) => !(f.adminOnly && user.role !== "admin"));
@@ -127,12 +128,14 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
     const fd = new FormData();
     fd.append("file", file);
     if (cid && entity !== "clients") fd.append("client_id", cid);
+    if (imp?.acct) fd.append("account_id", imp.acct);
     try {
       const r = await api.post(`/io/import/${entity}`, fd);
       toast.success(`${r.data.created} ${t("import_done")}${r.data.errors.length ? ` / ${t("import_errors")}: ${r.data.errors.length}` : ""}`);
       after();
     } catch (err) { toast.error(errMsg(err)); }
     e.target.value = "";
+    setImp(null);
   };
 
   const exp = (fmt) => downloadFile(`/io/export/${entity}?fmt=${fmt}${cid ? `&client_id=${cid}` : ""}`, `finora_${entity}.${fmt}`).catch((e) => toast.error(errMsg(e)));
@@ -154,7 +157,7 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
             <Button variant="outline" size="sm" onClick={() => exp("xlsx")} data-testid={`${entity}-export-xlsx`}><FileSpreadsheet className="mr-1 h-4 w-4" />Excel</Button></>}
           {canWrite && (
             <>
-              <Button variant="outline" size="sm" onClick={() => fileRef.current.click()} data-testid={`${entity}-import-btn`}><Upload className="mr-1 h-4 w-4" />{t("import")}</Button>
+              <Button variant="outline" size="sm" onClick={() => (entity === "assets" ? setImp({ open: true, acct: "" }) : fileRef.current.click())} data-testid={`${entity}-import-btn`}><Upload className="mr-1 h-4 w-4" />{t("import")}</Button>
               <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" hidden onChange={doImport} data-testid={`${entity}-import-input`} />
               <Button size="sm" className="btn-emerald" onClick={openNew} data-testid={`${entity}-add-btn`}><Plus className="mr-1 h-4 w-4" />{t("add")}</Button>
             </>
@@ -207,6 +210,24 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" hidden onChange={doImport} data-testid={`${entity}-import-input-global`} />
+      <Dialog open={!!imp?.open} onOpenChange={(o) => !o && setImp(null)}>
+        <DialogContent data-testid="asset-import-dialog">
+          <DialogHeader><DialogTitle className="font-display">{t("import")} — {t(entity)}</DialogTitle></DialogHeader>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-slate-600">{t("account_id")}</span>
+            <select className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm" value={imp?.acct || ""} onChange={(e) => setImp((v) => ({ ...v, acct: e.target.value }))} data-testid="asset-import-account">
+              <option value="">{t("import_account_none")}</option>
+              {accounts.filter((a) => !cid || a.client_id === cid).map((a) => <option key={a.id} value={a.id}>{a.institution} ({a.currency})</option>)}
+            </select>
+          </label>
+          <p className="text-xs text-slate-500">{t("import_account_hint")}</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImp(null)} data-testid="asset-import-cancel">{t("cancel")}</Button>
+            <Button className="btn-emerald" onClick={() => { setImp((v) => ({ ...v, open: false })); fileRef.current.click(); }} data-testid="asset-import-choose-file"><Upload className="mr-1 h-4 w-4" />{t("import_choose_file")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
