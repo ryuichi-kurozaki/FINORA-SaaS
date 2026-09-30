@@ -211,7 +211,7 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
           {canWrite && (
             <>
               <Button variant="outline" size="sm" onClick={() => (entity === "assets" ? setImp({ open: true, acct: "", dup: "update" }) : fileRef.current.click())} data-testid={`${entity}-import-btn`}><Upload className="mr-1 h-4 w-4" />{t("import")}</Button>
-              <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" hidden onChange={doImport} data-testid={`${entity}-import-input`} />
+              <input ref={fileRef} id={`${entity}-import-file`} type="file" accept=".csv,.xlsx,.xls" className="sr-only" onChange={doImport} data-testid={`${entity}-import-input`} />
               <Button size="sm" className="btn-emerald" onClick={openNew} data-testid={`${entity}-add-btn`}><Plus className="mr-1 h-4 w-4" />{t("add")}</Button>
             </>
           )}
@@ -285,7 +285,7 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
           </label>
           <DialogFooter>
             <Button variant="outline" onClick={() => setImp(null)} data-testid="asset-import-cancel">{t("cancel")}</Button>
-            <Button className="btn-emerald" onClick={() => { impAcctRef.current = imp?.acct || ""; impDupRef.current = imp?.dup || "update"; setImp(null); setTimeout(() => fileRef.current && fileRef.current.click(), 80); }} data-testid="asset-import-choose-file"><Upload className="mr-1 h-4 w-4" />{t("import_choose_file")}</Button>
+            <label htmlFor={`${entity}-import-file`} onClick={() => { impAcctRef.current = imp?.acct || ""; impDupRef.current = imp?.dup || "update"; }} className="btn-emerald inline-flex h-9 cursor-pointer items-center justify-center rounded-md px-4 py-2 text-sm font-medium text-white" data-testid="asset-import-choose-file"><Upload className="mr-1 h-4 w-4" />{t("import_choose_file")}</label>
           </DialogFooter>
         </DialogContent>
       </Dialog>
