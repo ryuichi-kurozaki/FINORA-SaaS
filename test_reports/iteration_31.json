@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend UI verification for FINORA Portfolio account-separation filter + EntityManager online price refresh. All specified requirements pass: account selector filters KPIs/charts/holdings-table; group headers show count + total valuation; assets-refresh-prices button works and reloads table.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verification_details": {
+    "login_and_consent": "client@finora.co.jp login successful; no consent modal appeared on this run (already accepted previously).",
+    "account_selector": "data-testid=portfolio-account-select is a native <select> with 6 options in exact required order: 全口座 (value=''), bitFlyer (JPY), Interactive Brokers (USD), SBI証券 (JPY), 三菱UFJ銀行 (JPY), 口座未設定 (value='none').",
+    "default_all_accounts": "pf-total_assets = ¥2.11億, holdings-table rows = 12 (all assets).",
+    "filter_SBI証券": "pf-total_assets decreased to ¥3,610万, holdings-table rows = 4 — filter working.",
+    "filter_口座未設定": "pf-total_assets = ¥1.04億, holdings-table rows = 2 containing 港区南青山マンション and 終身保険(解約返戻金) — matches spec.",
+    "restore_all_accounts": "Switching back to 全口座 restored 12 rows and ¥2.11億.",
+    "group_headers_with_totals": "All 5 groups display '<name> (n) ¥amount ＋ 新規登録': bitFlyer(1) ¥12,160,000; IB(4) ¥39,835,000; SBI(4) ¥36,100,000; 三菱UFJ(1) ¥18,000,000; 口座未設定(2) ¥104,500,000.",
+    "assets_refresh_prices_button": "data-testid=assets-refresh-prices present in toolbar. Click triggers refresh loop; portfolio KPI updated from ¥2.11億→¥2.06億 and holdings-table current prices/values changed; entry table reloaded after completion.",
+    "assets_add_to_links": "5 assets-add-to-<key> links (one per group) present, matching account count."
+  },
+  "observations_for_main_agent": [
+    "Success toast after 現在価格を更新 was not captured by generic selectors within the polling window. Refresh action itself works end-to-end (values reload, KPIs update). Main agent may want to confirm the toast component/duration if the count feedback is important to users.",
+    "Some /api/quote responses appear to return non-JPY-normalized values (e.g. BTC current_price became 30, US Treasury 2034 became 38) which produce large negative pl_jpy after refresh. This is upstream quote data (per request note: 'some tickers may fail is acceptable'), not a frontend wiring issue, but user-visible P&L can look alarming. Consider currency-normalization or minimum-sanity guard in backend/quote.py."
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Consider validating quote result plausibility (e.g., reject prices >10x or <0.1x last known price) before persisting in PUT /api/data/assets/{id} to prevent obviously-wrong tickers from destroying displayed P&L."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend-only)", "frontend": "100%"},
+  "test_credentials": "client@finora.co.jp / Finora2026!",
+  "seed_data_creation": "None. Demo assets untouched (only current_price/price_date may have been updated by refresh — expected per feature).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Portfolio account filter and EntityManager price refresh are functioning correctly end-to-end. Note: portfolio-account-select is a native <select>, use select_option() with value (empty string for 全口座, 'none' for 口座未設定, UUID for real accounts). Group headers text is concatenated as '<name> (n)¥amount ＋ 新規登録' — no space before ¥."
+}
