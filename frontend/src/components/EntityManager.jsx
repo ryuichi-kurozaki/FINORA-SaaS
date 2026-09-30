@@ -233,7 +233,6 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" hidden onChange={doImport} data-testid={`${entity}-import-input-global`} />
       <Dialog open={!!imp?.open} onOpenChange={(o) => !o && setImp(null)}>
         <DialogContent data-testid="asset-import-dialog">
           <DialogHeader><DialogTitle className="font-display">{t("import")} — {t(entity)}</DialogTitle></DialogHeader>
