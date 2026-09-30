@@ -5,6 +5,10 @@
 ## Original Problem Statement
 FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人・法人の資産／投資／負債／キャッシュフロー／金融口座を一元管理し、AI分析・リスク管理・将来シミュレーション・コンサルティング支援を行う。デザイン「Premium FinTech × Near Future」、ブランドカラー Midnight Navy #071A2B / Emerald #00A878 / Gold #C9A227。ロール：管理者・コンサルタント・顧客。Phase 1〜8 の順で開発。
 
+## 変更履歴（最新）
+- 2026-06: 【修正】楽天証券CSVインポート（取引履歴・保有残高の両方）がコンサル/管理者で全行「Client-owned data is read-only for staff」で失敗する不具合を修正。原因＝UI上インポートボタンはスタッフ(canWrite=非顧客)に表示されるが、`io_routes.import_data` が `check_write` でOWNED(assets)へのスタッフ書き込みを拒否していた設計矛盾。修正＝インポート経路では `scope(user, client_id)` によるアクセス検証に切替（担当外/他テナントは403維持、非資産エンティティは従来通り`check_write`）。実データ th1.csv(取引履歴12件)/ab.csv(残高11件) をコンサル・管理者でインポート成功、テナント分離も維持を確認。`/app/backend/io_routes.py`。
+
+
 ## User Choices
 - 【重要】ユーザーとのやり取りは必ず日本語で行うこと（ユーザー指定・全エージェント共通）
 - 全Phaseを最後まで実装

@@ -218,6 +218,7 @@ async def import_data(entity: str, request: Request, file: UploadFile = File(...
                 raise HTTPException(422, "No open fund positions found in the Rakuten file")
             if not client_id:
                 raise HTTPException(422, "Select a client before importing")
+            await scope(user, client_id)
             created = updated = skipped = 0
             errors = []
             for n, item in enumerate(rk, start=1):
@@ -226,7 +227,6 @@ async def import_data(entity: str, request: Request, file: UploadFile = File(...
                     data["client_id"] = client_id
                     if account_id:
                         data["account_id"] = account_id
-                    await check_write(user, "assets", data)
                     res = await _apply_asset(user, data, on_dup)
                     if res == "created":
                         created += 1
@@ -256,8 +256,8 @@ async def import_data(entity: str, request: Request, file: UploadFile = File(...
                 data["account_id"] = account_id
             if entity == "clients" and user["role"] == "consultant":
                 data["consultant_id"] = user["id"]
-            await check_write(user, entity, data)
             if entity == "assets":
+                await scope(user, data.get("client_id"))
                 res = await _apply_asset(user, data, on_dup)
                 if res == "created":
                     created += 1
@@ -266,6 +266,7 @@ async def import_data(entity: str, request: Request, file: UploadFile = File(...
                 else:
                     skipped += 1
             else:
+                await check_write(user, entity, data)
                 doc = to_store(entity, {"id": new_id(), "tenant_id": user["tenant_id"], **data, "created_at": now_iso(),
                                         "updated_at": now_iso(), "created_by": user["id"], "updated_by": user["id"],
                                         "updated_by_role": user["role"], "source": "IMPORT" if entity in OWNED else None})
