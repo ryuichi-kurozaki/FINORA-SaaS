@@ -106,15 +106,17 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const openNew = () => { setForm(cid && entity !== "clients" ? { client_id: cid } : {}); setOpen(true); };
   const openNewAcct = (aid) => { setForm({ ...(cid && entity !== "clients" ? { client_id: cid } : {}), ...(aid ? { account_id: aid } : {}) }); setOpen(true); };
+  const groupByAcct = entity === "assets" || entity === "transactions";
   const assetGroups = useMemo(() => {
-    if (entity !== "assets") return [];
+    if (!groupByAcct) return [];
     const accs = accounts.filter((a) => !cid || a.client_id === cid);
-    const gs = accs.map((a) => ({ key: a.id, acctId: a.id, label: `${a.institution || t("account_id")}${a.currency ? ` (${a.currency})` : ""}`, rows: rows.filter((r) => r.account_id === a.id) }));
+    let gs = accs.map((a) => ({ key: a.id, acctId: a.id, label: `${a.institution || t("account_id")}${a.currency ? ` (${a.currency})` : ""}`, rows: rows.filter((r) => r.account_id === a.id) }));
+    if (entity === "transactions") gs = gs.filter((g) => g.rows.length);
     const ids = new Set(accs.map((a) => a.id));
     const orphan = rows.filter((r) => !r.account_id || !ids.has(r.account_id));
     if (orphan.length) gs.push({ key: "none", acctId: "", label: t("account_unassigned"), rows: orphan });
-    return gs.map((g) => ({ ...g, total: g.rows.reduce((s, r) => s + (r.value_jpy || 0), 0) }));
-  }, [entity, accounts, rows, cid, t]);
+    return gs.map((g) => ({ ...g, total: g.rows.reduce((s, r) => s + (entity === "assets" ? (r.value_jpy || 0) : (r.amount || 0)), 0) }));
+  }, [entity, accounts, rows, cid, t, groupByAcct]);
   const renderRow = (r) => (
     <tr key={r.id} data-testid={`${entity}-row-${r.id}`}>
       {cols.map((c) => <td key={c.k}><Cell f={c} row={r} assets={assets} /></td>)}
@@ -210,7 +212,7 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
           )}
           {canWrite && (
             <>
-              <Button variant="outline" size="sm" onClick={() => (entity === "assets" ? setImp({ open: true, acct: "", dup: "update" }) : fileRef.current.click())} data-testid={`${entity}-import-btn`}><Upload className="mr-1 h-4 w-4" />{t("import")}</Button>
+              <Button variant="outline" size="sm" onClick={() => (entity === "assets" || entity === "transactions" ? setImp({ open: true, acct: "", dup: "update" }) : fileRef.current.click())} data-testid={`${entity}-import-btn`}><Upload className="mr-1 h-4 w-4" />{t("import")}</Button>
               <input ref={fileRef} id={`${entity}-import-file`} type="file" accept=".csv,.xlsx,.xls" className="sr-only" onChange={doImport} data-testid={`${entity}-import-input`} />
               <Button size="sm" className="btn-emerald" onClick={openNew} data-testid={`${entity}-add-btn`}><Plus className="mr-1 h-4 w-4" />{t("add")}</Button>
             </>
@@ -218,17 +220,17 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
         </div>
       </div>
       {owned && !isClient && <div className="mb-3 flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600" data-testid={`${entity}-readonly-note`}><Lock className="h-3.5 w-3.5 text-[#C9A227]" />{t("readonly_note")}</div>}
-      {loading ? <Spinner /> : (entity !== "assets" && !rows.length) ? <Empty text={t("no_data")} /> : (
+      {loading ? <Spinner /> : (!groupByAcct && !rows.length) ? <Empty text={t("no_data")} /> : (
         <div className="-mx-2 overflow-x-auto">
           <table className="data-table w-full min-w-[720px] text-sm" data-testid={`${entity}-table`}>
             <thead><tr>{cols.map((c) => <th key={c.k}>{t(c.label || c.k)}</th>)}{owned && <th>{t("last_updated")}</th>}<th className="text-right">{t("actions")}</th></tr></thead>
             <tbody>
-              {entity === "assets" ? assetGroups.map((g) => (
+              {groupByAcct ? assetGroups.map((g) => (
                 <Fragment key={g.key}>
                   <tr className="bg-slate-50" data-testid={`assets-group-${g.key}`}>
                     <td colSpan={cols.length + (owned ? 1 : 0) + 1} className="!py-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-[#071A2B]">{g.label} <span className="ml-1 font-num text-slate-400">({g.rows.length})</span><span className="ml-2 font-num text-[11px] text-slate-500">{yen(g.total)}</span></span>
+                        <span className="text-xs font-semibold text-[#071A2B]">{g.label} <span className="ml-1 font-num text-slate-400">({g.rows.length})</span>{entity === "assets" && <span className="ml-2 font-num text-[11px] text-slate-500">{yen(g.total)}</span>}</span>
                         {canWrite && <button className="text-xs font-medium text-[#0B6E4F] hover:underline" onClick={() => openNewAcct(g.acctId)} data-testid={`assets-add-to-${g.key}`}>＋ {t("add")}</button>}
                       </div>
                     </td>
@@ -275,14 +277,14 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
             </select>
           </label>
           <p className="text-xs text-slate-500">{t("import_account_hint")}</p>
-          <label className="mt-3 block">
+          {entity === "assets" && <label className="mt-3 block">
             <span className="mb-1.5 block text-xs font-medium text-slate-600">{t("import_on_dup")}</span>
             <select className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm" value={imp?.dup || "update"} onChange={(e) => setImp((v) => ({ ...v, dup: e.target.value }))} data-testid="asset-import-dup">
               <option value="update">{t("dup_update")}</option>
               <option value="skip">{t("dup_skip")}</option>
               <option value="create">{t("dup_create")}</option>
             </select>
-          </label>
+          </label>}
           <DialogFooter>
             <Button variant="outline" onClick={() => setImp(null)} data-testid="asset-import-cancel">{t("cancel")}</Button>
             <label htmlFor={`${entity}-import-file`} onClick={() => { impAcctRef.current = imp?.acct || ""; impDupRef.current = imp?.dup || "update"; }} className="btn-emerald inline-flex h-9 cursor-pointer items-center justify-center rounded-md px-4 py-2 text-sm font-medium text-white" data-testid="asset-import-choose-file"><Upload className="mr-1 h-4 w-4" />{t("import_choose_file")}</label>
