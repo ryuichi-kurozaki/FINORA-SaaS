@@ -235,6 +235,44 @@ def parse_okasan(raw: bytes):
     return out
 
 
+def parse_okasan_holdings(raw: bytes):
+    """岡三証券 預り資産(保有残高)CSV → holdings. Header row is not the first line. Returns list, or None."""
+    text = _okasan_decode(raw)
+    if not text:
+        return None
+    rows = list(csv.reader(text.splitlines()))
+    hi = None
+    for i, r in enumerate(rows):
+        if "銘柄名" in r and "保有数量" in r and _rk_col(r, "取得コスト", "個別元本") is not None:
+            hi = i
+            break
+    if hi is None:
+        return None
+    header = [h.strip() for h in rows[hi]]
+    c = {"name": _rk_col(header, "銘柄名"), "acct": _rk_col(header, "預り区分"), "qty": _rk_col(header, "保有数量"),
+         "acq": _rk_col(header, "取得コスト", "個別元本"), "price": _rk_col(header, "参考時価"),
+         "date": _rk_col(header, "基準日"), "cur": _rk_col(header, "通貨")}
+
+    def g(r, k):
+        j = c.get(k)
+        return r[j].strip() if j is not None and j < len(r) else ""
+
+    out = []
+    for r in rows[hi + 1:]:
+        if not any(x.strip() for x in r):
+            continue
+        name, qty = g(r, "name"), _rk_num(g(r, "qty"))
+        if not name or qty <= 0:
+            continue
+        acct = g(r, "acct")
+        out.append({"asset_class": "fund", "name": name[:200], "currency": CUR_MAP.get(g(r, "cur"), "JPY"),
+                    "acquisition_price": _rk_num(g(r, "acq")), "quantity": round(qty, 4),
+                    "current_price": _rk_num(g(r, "price")) or _rk_num(g(r, "acq")), "price_unit": 10000,
+                    "balance_date": _rk_date(g(r, "date")),
+                    "notes": "岡三証券インポート" + (f"・{acct}口座" if acct and acct != "-" else "")})
+    return out
+
+
 async def _apply_asset(user, data, on_dup):
     """Insert or update one imported asset honoring on_dup ('create'|'update'|'skip'). Returns the action taken.
     A duplicate = same tenant+client+account and same ticker (if present) else same name."""
@@ -296,10 +334,14 @@ async def import_data(entity: str, request: Request, file: UploadFile = File(...
         raise HTTPException(413, "File too large")
     if entity == "assets":
         rk = parse_rakuten_funds(raw)
+        fmt = rakuten_format(raw) if rk is not None else None
+        if rk is None:
+            ok = parse_okasan_holdings(raw)
+            if ok is not None:
+                rk, fmt = ok, "okasan_balance"
         if rk is not None:
-            fmt = rakuten_format(raw)
             if not rk:
-                raise HTTPException(422, "No open fund positions found in the Rakuten file")
+                raise HTTPException(422, "No open fund positions found in the file")
             if not client_id:
                 raise HTTPException(422, "Select a client before importing")
             created = updated = skipped = 0
