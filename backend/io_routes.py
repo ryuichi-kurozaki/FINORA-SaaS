@@ -44,35 +44,55 @@ def _rk_col(header, *subs):
     return None
 
 
-def parse_rakuten_funds(raw: bytes):
-    """Detect and aggregate a Rakuten Securities mutual-fund trade-history CSV (Shift-JIS).
-    Returns a list of holding dicts (net position per fund) or None if not this format."""
-    text = None
+CUR_MAP = {"円": "JPY", "-": "JPY", "": "JPY", "米ドル": "USD", "ドル": "USD", "ユーロ": "EUR"}
+
+
+def _rk_decode(raw):
     for enc in ("cp932", "utf-8-sig", "utf-8"):
         try:
-            text = raw.decode(enc)
-            break
+            return raw.decode(enc)
         except UnicodeDecodeError:
             continue
-    if not text:
-        return None
-    rows = list(csv.reader(text.splitlines()))
-    if not rows:
-        return None
-    header = [h.strip() for h in rows[0]]
-    if _rk_col(header, "ファンド名") is None or _rk_col(header, "約定日") is None:
-        return None
-    ci = {"name": _rk_col(header, "ファンド名"), "qty": _rk_col(header, "数量"), "amount": _rk_col(header, "受渡金額"),
-          "price": _rk_col(header, "単価"), "tx": _rk_col(header, "取引"), "date": _rk_col(header, "約定日"),
-          "cur": _rk_col(header, "決済通貨", "通貨")}
+    return None
 
-    def g(r, key):
-        j = ci.get(key)
+
+def _rk_balance(rows, header):
+    """楽天証券 保有残高(assetbalance) → holdings."""
+    c = {"name": _rk_col(header, "ファンド"), "qty": _rk_col(header, "保有数量"), "acq": _rk_col(header, "平均取得価額"),
+         "nav": _rk_col(header, "基準価額"), "cur": _rk_col(header, "通貨単位"), "acct": _rk_col(header, "口座区分")}
+
+    def g(r, k):
+        j = c.get(k)
+        return r[j].strip() if j is not None and j < len(r) else ""
+
+    out = []
+    for r in rows[1:]:
+        if not any(x.strip() for x in r):
+            continue
+        name, qty = g(r, "name"), _rk_num(g(r, "qty"))
+        if not name or qty <= 0:
+            continue
+        acct = g(r, "acct")
+        out.append({"asset_class": "fund", "name": name[:200], "currency": CUR_MAP.get(g(r, "cur"), "JPY"),
+                    "acquisition_price": _rk_num(g(r, "acq")), "quantity": round(qty, 4),
+                    "current_price": _rk_num(g(r, "nav")) or _rk_num(g(r, "acq")), "price_unit": 10000,
+                    "notes": "楽天証券インポート" + (f"・{acct}口座" if acct and acct != "-" else "")})
+    return out
+
+
+def _rk_history(rows, header):
+    """楽天証券 取引履歴(tradehistory) → aggregate net holdings per fund."""
+    c = {"name": _rk_col(header, "ファンド名"), "qty": _rk_col(header, "数量"), "amount": _rk_col(header, "受渡金額"),
+         "price": _rk_col(header, "単価"), "tx": _rk_col(header, "取引"), "date": _rk_col(header, "約定日"),
+         "cur": _rk_col(header, "決済通貨", "通貨")}
+
+    def g(r, k):
+        j = c.get(k)
         return r[j].strip() if j is not None and j < len(r) else ""
 
     funds = {}
     for r in rows[1:]:
-        if not any(c.strip() for c in r):
+        if not any(x.strip() for x in r):
             continue
         name = g(r, "name")
         if not name:
@@ -87,16 +107,32 @@ def parse_rakuten_funds(raw: bytes):
             f["last_price"] = price
         if sign > 0 and date and (f["first"] is None or date < f["first"]):
             f["first"] = date
-    cur_map = {"円": "JPY", "米ドル": "USD", "ドル": "USD"}
     out = []
     for name, f in funds.items():
         if round(f["qty"], 4) <= 0:
             continue
         acq = round(f["cost"] / f["qty"] * 10000, 2) if f["qty"] else 0.0
-        out.append({"asset_class": "fund", "name": name[:200], "currency": cur_map.get(f["cur"], "JPY"),
+        out.append({"asset_class": "fund", "name": name[:200], "currency": CUR_MAP.get(f["cur"], "JPY"),
                     "acquired_date": f["first"], "acquisition_price": acq, "quantity": round(f["qty"], 4),
                     "current_price": f["last_price"] or acq, "price_unit": 10000, "notes": "楽天証券インポート"})
     return out
+
+
+def parse_rakuten_funds(raw: bytes):
+    """Detect and parse a Rakuten Securities mutual-fund CSV (Shift-JIS): asset balance (保有残高)
+    or trade history (取引履歴). Returns a list of holding dicts, or None if not a Rakuten fund CSV."""
+    text = _rk_decode(raw)
+    if not text:
+        return None
+    rows = list(csv.reader(text.splitlines()))
+    if not rows:
+        return None
+    header = [h.strip() for h in rows[0]]
+    if _rk_col(header, "保有数量") is not None and _rk_col(header, "基準価額") is not None:
+        return _rk_balance(rows, header)
+    if _rk_col(header, "ファンド名") is not None and _rk_col(header, "約定日") is not None:
+        return _rk_history(rows, header)
+    return None
 
 
 @router.get("/io/export/{entity}")
