@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Download, Eye, FileSpreadsheet, Lock, MessageSquareWarning, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -102,6 +102,28 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const openNew = () => { setForm(cid && entity !== "clients" ? { client_id: cid } : {}); setOpen(true); };
+  const openNewAcct = (aid) => { setForm({ ...(cid && entity !== "clients" ? { client_id: cid } : {}), ...(aid ? { account_id: aid } : {}) }); setOpen(true); };
+  const assetGroups = useMemo(() => {
+    if (entity !== "assets") return [];
+    const accs = accounts.filter((a) => !cid || a.client_id === cid);
+    const gs = accs.map((a) => ({ key: a.id, acctId: a.id, label: `${a.institution || t("account_id")}${a.currency ? ` (${a.currency})` : ""}`, rows: rows.filter((r) => r.account_id === a.id) }));
+    const ids = new Set(accs.map((a) => a.id));
+    const orphan = rows.filter((r) => !r.account_id || !ids.has(r.account_id));
+    if (orphan.length) gs.push({ key: "none", acctId: "", label: t("account_unassigned"), rows: orphan });
+    return gs;
+  }, [entity, accounts, rows, cid, t]);
+  const renderRow = (r) => (
+    <tr key={r.id} data-testid={`${entity}-row-${r.id}`}>
+      {cols.map((c) => <td key={c.k}><Cell f={c} row={r} assets={assets} /></td>)}
+      {owned && <td className="whitespace-nowrap text-[11px] text-slate-500"><span className="font-num">{fmtDate(r.price_date || r.balance_date || r.updated_at)}</span> · {t(r.source || "MANUAL")}</td>}
+      <td className="whitespace-nowrap text-right">
+        {entity !== "clients" && <button className="icon-btn" onClick={() => setDetail(r)} title={t("view_detail")} data-testid={`${entity}-view-${r.id}`}><Eye className="h-4 w-4" /></button>}
+        {owned && !isClient && <button className="icon-btn hover:text-[#C9A227]" onClick={() => setCorr(r)} title={t("request_correction")} data-testid={`${entity}-correction-${r.id}`}><MessageSquareWarning className="h-4 w-4" /></button>}
+        {canEdit(entity, r) && <button className="icon-btn" onClick={() => { setForm(r); setOpen(true); }} data-testid={`${entity}-edit-${r.id}`}><Pencil className="h-4 w-4" /></button>}
+        {canEdit(entity, r) && (entity !== "clients" || user.role === "admin") && <button className="icon-btn hover:text-red-600" onClick={() => setDel(r)} data-testid={`${entity}-delete-${r.id}`}><Trash2 className="h-4 w-4" /></button>}
+      </td>
+    </tr>
+  );
   const after = () => { reload(); onChange && onChange(); if (entity === "clients") refreshClients(); };
 
   const save = async () => {
@@ -165,23 +187,24 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
         </div>
       </div>
       {owned && !isClient && <div className="mb-3 flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600" data-testid={`${entity}-readonly-note`}><Lock className="h-3.5 w-3.5 text-[#C9A227]" />{t("readonly_note")}</div>}
-      {loading ? <Spinner /> : !rows.length ? <Empty text={t("no_data")} /> : (
+      {loading ? <Spinner /> : (entity !== "assets" && !rows.length) ? <Empty text={t("no_data")} /> : (
         <div className="-mx-2 overflow-x-auto">
           <table className="data-table w-full min-w-[720px] text-sm" data-testid={`${entity}-table`}>
             <thead><tr>{cols.map((c) => <th key={c.k}>{t(c.label || c.k)}</th>)}{owned && <th>{t("last_updated")}</th>}<th className="text-right">{t("actions")}</th></tr></thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} data-testid={`${entity}-row-${r.id}`}>
-                  {cols.map((c) => <td key={c.k}><Cell f={c} row={r} assets={assets} /></td>)}
-                  {owned && <td className="whitespace-nowrap text-[11px] text-slate-500"><span className="font-num">{fmtDate(r.price_date || r.balance_date || r.updated_at)}</span> · {t(r.source || "MANUAL")}</td>}
-                  <td className="whitespace-nowrap text-right">
-                    {entity !== "clients" && <button className="icon-btn" onClick={() => setDetail(r)} title={t("view_detail")} data-testid={`${entity}-view-${r.id}`}><Eye className="h-4 w-4" /></button>}
-                    {owned && !isClient && <button className="icon-btn hover:text-[#C9A227]" onClick={() => setCorr(r)} title={t("request_correction")} data-testid={`${entity}-correction-${r.id}`}><MessageSquareWarning className="h-4 w-4" /></button>}
-                    {canEdit(entity, r) && <button className="icon-btn" onClick={() => { setForm(r); setOpen(true); }} data-testid={`${entity}-edit-${r.id}`}><Pencil className="h-4 w-4" /></button>}
-                    {canEdit(entity, r) && (entity !== "clients" || user.role === "admin") && <button className="icon-btn hover:text-red-600" onClick={() => setDel(r)} data-testid={`${entity}-delete-${r.id}`}><Trash2 className="h-4 w-4" /></button>}
-                  </td>
-                </tr>
-              ))}
+              {entity === "assets" ? assetGroups.map((g) => (
+                <Fragment key={g.key}>
+                  <tr className="bg-slate-50" data-testid={`assets-group-${g.key}`}>
+                    <td colSpan={cols.length + (owned ? 1 : 0) + 1} className="!py-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-[#071A2B]">{g.label} <span className="ml-1 font-num text-slate-400">({g.rows.length})</span></span>
+                        {canWrite && <button className="text-xs font-medium text-[#0B6E4F] hover:underline" onClick={() => openNewAcct(g.acctId)} data-testid={`assets-add-to-${g.key}`}>＋ {t("add")}</button>}
+                      </div>
+                    </td>
+                  </tr>
+                  {g.rows.length ? g.rows.map(renderRow) : <tr><td colSpan={cols.length + (owned ? 1 : 0) + 1} className="!py-2 text-center text-xs text-slate-400">{t("no_data")}</td></tr>}
+                </Fragment>
+              )) : rows.map(renderRow)}
             </tbody>
           </table>
         </div>
