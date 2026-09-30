@@ -81,6 +81,7 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
   const [corr, setCorr] = useState(null);
   const fileRef = useRef(null);
   const impAcctRef = useRef("");
+  const impDupRef = useRef("create");
   const [imp, setImp] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const canWrite = canEdit(entity);
@@ -153,9 +154,11 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
     fd.append("file", file);
     if (cid && entity !== "clients") fd.append("client_id", cid);
     if (impAcctRef.current) fd.append("account_id", impAcctRef.current);
+    if (impDupRef.current) fd.append("on_dup", impDupRef.current);
     try {
       const r = await api.post(`/io/import/${entity}`, fd);
-      toast.success(`${r.data.created} ${t("import_done")}${r.data.format ? ` · ${t("import_detected")}: ${t("rakuten_" + r.data.format)}` : ""}${r.data.errors.length ? ` / ${t("import_errors")}: ${r.data.errors.length}` : ""}`);
+      const d = r.data;
+      toast.success(`${d.created} ${t("import_done")}${d.updated ? ` · ${t("import_updated")}: ${d.updated}` : ""}${d.skipped ? ` · ${t("import_skipped")}: ${d.skipped}` : ""}${d.format ? ` · ${t("import_detected")}: ${t("rakuten_" + d.format)}` : ""}${d.errors.length ? ` / ${t("import_errors")}: ${d.errors.length}` : ""}`);
       after();
     } catch (err) { toast.error(errMsg(err)); }
     e.target.value = "";
@@ -207,7 +210,7 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
           )}
           {canWrite && (
             <>
-              <Button variant="outline" size="sm" onClick={() => (entity === "assets" ? setImp({ open: true, acct: "" }) : fileRef.current.click())} data-testid={`${entity}-import-btn`}><Upload className="mr-1 h-4 w-4" />{t("import")}</Button>
+              <Button variant="outline" size="sm" onClick={() => (entity === "assets" ? setImp({ open: true, acct: "", dup: "update" }) : fileRef.current.click())} data-testid={`${entity}-import-btn`}><Upload className="mr-1 h-4 w-4" />{t("import")}</Button>
               <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" hidden onChange={doImport} data-testid={`${entity}-import-input`} />
               <Button size="sm" className="btn-emerald" onClick={openNew} data-testid={`${entity}-add-btn`}><Plus className="mr-1 h-4 w-4" />{t("add")}</Button>
             </>
@@ -272,9 +275,17 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
             </select>
           </label>
           <p className="text-xs text-slate-500">{t("import_account_hint")}</p>
+          <label className="mt-3 block">
+            <span className="mb-1.5 block text-xs font-medium text-slate-600">{t("import_on_dup")}</span>
+            <select className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm" value={imp?.dup || "update"} onChange={(e) => setImp((v) => ({ ...v, dup: e.target.value }))} data-testid="asset-import-dup">
+              <option value="update">{t("dup_update")}</option>
+              <option value="skip">{t("dup_skip")}</option>
+              <option value="create">{t("dup_create")}</option>
+            </select>
+          </label>
           <DialogFooter>
             <Button variant="outline" onClick={() => setImp(null)} data-testid="asset-import-cancel">{t("cancel")}</Button>
-            <Button className="btn-emerald" onClick={() => { impAcctRef.current = imp?.acct || ""; setImp(null); setTimeout(() => fileRef.current && fileRef.current.click(), 80); }} data-testid="asset-import-choose-file"><Upload className="mr-1 h-4 w-4" />{t("import_choose_file")}</Button>
+            <Button className="btn-emerald" onClick={() => { impAcctRef.current = imp?.acct || ""; impDupRef.current = imp?.dup || "update"; setImp(null); setTimeout(() => fileRef.current && fileRef.current.click(), 80); }} data-testid="asset-import-choose-file"><Upload className="mr-1 h-4 w-4" />{t("import_choose_file")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

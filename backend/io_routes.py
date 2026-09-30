@@ -151,6 +151,33 @@ def parse_rakuten_funds(raw: bytes):
     return None
 
 
+async def _apply_asset(user, data, on_dup):
+    """Insert or update one imported asset honoring on_dup ('create'|'update'|'skip'). Returns the action taken.
+    A duplicate = same tenant+client+account and same ticker (if present) else same name."""
+    if on_dup in ("update", "skip"):
+        q = {"tenant_id": user["tenant_id"], "client_id": data.get("client_id")}
+        acc = data.get("account_id")
+        q["account_id"] = acc if acc else {"$in": [None, ""]}
+        tk = (data.get("ticker") or "").strip()
+        if tk:
+            q["ticker"] = tk
+        else:
+            q["name"] = data.get("name")
+        existing = await db["assets"].find_one(q)
+        if existing:
+            if on_dup == "skip":
+                return "skipped"
+            upd = to_store("assets", {**data, "updated_at": now_iso(), "updated_by": user["id"],
+                                      "updated_by_role": user["role"], "source": "IMPORT"})
+            await db["assets"].update_one({"id": existing["id"]}, {"$set": upd})
+            return "updated"
+    doc = to_store("assets", {"id": new_id(), "tenant_id": user["tenant_id"], **data, "created_at": now_iso(),
+                              "updated_at": now_iso(), "created_by": user["id"], "updated_by": user["id"],
+                              "updated_by_role": user["role"], "source": "IMPORT"})
+    await db["assets"].insert_one(doc)
+    return "created"
+
+
 @router.get("/io/export/{entity}")
 async def export(entity: str, request: Request, fmt: str = "csv", client_id: Optional[str] = None, user=Depends(current)):
     if entity not in ENTITIES:
@@ -174,7 +201,7 @@ async def export(entity: str, request: Request, fmt: str = "csv", client_id: Opt
 
 @router.post("/io/import/{entity}")
 async def import_data(entity: str, request: Request, file: UploadFile = File(...), client_id: Optional[str] = Form(None),
-                      account_id: Optional[str] = Form(None), user=Depends(current)):
+                      account_id: Optional[str] = Form(None), on_dup: Optional[str] = Form("create"), user=Depends(current)):
     forbid_demo(user)
     if entity not in ENTITIES:
         raise HTTPException(404, "Unknown entity")
@@ -191,7 +218,8 @@ async def import_data(entity: str, request: Request, file: UploadFile = File(...
                 raise HTTPException(422, "No open fund positions found in the Rakuten file")
             if not client_id:
                 raise HTTPException(422, "Select a client before importing")
-            created, errors = 0, []
+            created = updated = skipped = 0
+            errors = []
             for n, item in enumerate(rk, start=1):
                 try:
                     data = sanitize("assets", item)
@@ -199,23 +227,26 @@ async def import_data(entity: str, request: Request, file: UploadFile = File(...
                     if account_id:
                         data["account_id"] = account_id
                     await check_write(user, "assets", data)
-                    doc = to_store("assets", {"id": new_id(), "tenant_id": user["tenant_id"], **data, "created_at": now_iso(),
-                                              "updated_at": now_iso(), "created_by": user["id"], "updated_by": user["id"],
-                                              "updated_by_role": user["role"], "source": "IMPORT"})
-                    await db["assets"].insert_one(doc)
-                    created += 1
+                    res = await _apply_asset(user, data, on_dup)
+                    if res == "created":
+                        created += 1
+                    elif res == "updated":
+                        updated += 1
+                    else:
+                        skipped += 1
                 except HTTPException as e:
                     errors.append({"row": n, "error": e.detail})
                 except Exception as e:
                     errors.append({"row": n, "error": str(e)[:200]})
-            await audit(user, "import", "assets", None, after={"created": created, "errors": len(errors), "file": file.filename, "format": fmt or "rakuten"}, request=request)
-            return {"created": created, "errors": errors[:50], "format": fmt}
+            await audit(user, "import", "assets", None, after={"created": created, "updated": updated, "skipped": skipped, "errors": len(errors), "file": file.filename, "format": fmt or "rakuten"}, request=request)
+            return {"created": created, "updated": updated, "skipped": skipped, "errors": errors[:50], "format": fmt}
     try:
         df = pd.read_excel(io.BytesIO(raw)) if file.filename.lower().endswith((".xlsx", ".xls")) else pd.read_csv(io.BytesIO(raw))
     except Exception:
         raise HTTPException(422, "Could not parse file")
     df = df.where(pd.notnull(df), None)
-    created, errors = 0, []
+    created = updated = skipped = 0
+    errors = []
     for n, row in enumerate(df.to_dict("records"), start=2):
         try:
             data = sanitize(entity, {k: v for k, v in row.items() if v is not None})
@@ -226,17 +257,26 @@ async def import_data(entity: str, request: Request, file: UploadFile = File(...
             if entity == "clients" and user["role"] == "consultant":
                 data["consultant_id"] = user["id"]
             await check_write(user, entity, data)
-            doc = to_store(entity, {"id": new_id(), "tenant_id": user["tenant_id"], **data, "created_at": now_iso(),
-                                    "updated_at": now_iso(), "created_by": user["id"], "updated_by": user["id"],
-                                    "updated_by_role": user["role"], "source": "IMPORT" if entity in OWNED else None})
-            await db[entity].insert_one(doc)
-            created += 1
+            if entity == "assets":
+                res = await _apply_asset(user, data, on_dup)
+                if res == "created":
+                    created += 1
+                elif res == "updated":
+                    updated += 1
+                else:
+                    skipped += 1
+            else:
+                doc = to_store(entity, {"id": new_id(), "tenant_id": user["tenant_id"], **data, "created_at": now_iso(),
+                                        "updated_at": now_iso(), "created_by": user["id"], "updated_by": user["id"],
+                                        "updated_by_role": user["role"], "source": "IMPORT" if entity in OWNED else None})
+                await db[entity].insert_one(doc)
+                created += 1
         except HTTPException as e:
             errors.append({"row": n, "error": e.detail})
         except Exception as e:
             errors.append({"row": n, "error": str(e)[:200]})
-    await audit(user, "import", entity, None, after={"created": created, "errors": len(errors), "file": file.filename}, request=request)
-    return {"created": created, "errors": errors[:50]}
+    await audit(user, "import", entity, None, after={"created": created, "updated": updated, "skipped": skipped, "errors": len(errors), "file": file.filename}, request=request)
+    return {"created": created, "updated": updated, "skipped": skipped, "errors": errors[:50]}
 
 
 @router.get("/documents")
