@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { Download, Eye, FileSpreadsheet, Lock, MessageSquareWarning, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
+import { Download, Eye, FileSpreadsheet, Lock, MessageSquareWarning, Pencil, Plus, RefreshCw, Search, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,6 +81,7 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
   const [corr, setCorr] = useState(null);
   const fileRef = useRef(null);
   const [imp, setImp] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
   const canWrite = canEdit(entity);
   const owned = OWNED.includes(entity);
   const fields = ENTITIES[entity].filter((f) => !(f.adminOnly && user.role !== "admin"));
@@ -110,7 +111,7 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
     const ids = new Set(accs.map((a) => a.id));
     const orphan = rows.filter((r) => !r.account_id || !ids.has(r.account_id));
     if (orphan.length) gs.push({ key: "none", acctId: "", label: t("account_unassigned"), rows: orphan });
-    return gs;
+    return gs.map((g) => ({ ...g, total: g.rows.reduce((s, r) => s + (r.value_jpy || 0), 0) }));
   }, [entity, accounts, rows, cid, t]);
   const renderRow = (r) => (
     <tr key={r.id} data-testid={`${entity}-row-${r.id}`}>
@@ -160,6 +161,22 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
     setImp(null);
   };
 
+  const refreshPrices = async () => {
+    const targets = (data || []).filter((r) => (r.ticker || "").trim());
+    if (!targets.length) return toast.message(t("price_refresh_none"));
+    setRefreshing(true);
+    let ok = 0; let fail = 0;
+    for (const r of targets) {
+      try {
+        const { data: qd } = await api.get(`/quote?ticker=${encodeURIComponent(r.ticker.trim())}`);
+        if (qd?.price != null) { await api.put(`/data/assets/${r.id}`, { current_price: qd.price, price_date: qd.price_date }); ok += 1; } else fail += 1;
+      } catch { fail += 1; }
+    }
+    setRefreshing(false);
+    toast.success(`${t("price_refresh_done")}: ${ok}${fail ? ` / ${t("import_errors")}: ${fail}` : ""}`);
+    after();
+  };
+
   const exp = (fmt) => downloadFile(`/io/export/${entity}?fmt=${fmt}${cid ? `&client_id=${cid}` : ""}`, `finora_${entity}.${fmt}`).catch((e) => toast.error(errMsg(e)));
 
   return (
@@ -177,6 +194,9 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
           {user.role !== "consultant" && <>
             <Button variant="outline" size="sm" onClick={() => exp("csv")} data-testid={`${entity}-export-csv`}><Download className="mr-1 h-4 w-4" />CSV</Button>
             <Button variant="outline" size="sm" onClick={() => exp("xlsx")} data-testid={`${entity}-export-xlsx`}><FileSpreadsheet className="mr-1 h-4 w-4" />Excel</Button></>}
+          {canWrite && entity === "assets" && (
+            <Button variant="outline" size="sm" onClick={refreshPrices} disabled={refreshing} data-testid="assets-refresh-prices"><RefreshCw className={`mr-1 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />{t("price_refresh")}</Button>
+          )}
           {canWrite && (
             <>
               <Button variant="outline" size="sm" onClick={() => (entity === "assets" ? setImp({ open: true, acct: "" }) : fileRef.current.click())} data-testid={`${entity}-import-btn`}><Upload className="mr-1 h-4 w-4" />{t("import")}</Button>
@@ -197,7 +217,7 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
                   <tr className="bg-slate-50" data-testid={`assets-group-${g.key}`}>
                     <td colSpan={cols.length + (owned ? 1 : 0) + 1} className="!py-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-[#071A2B]">{g.label} <span className="ml-1 font-num text-slate-400">({g.rows.length})</span></span>
+                        <span className="text-xs font-semibold text-[#071A2B]">{g.label} <span className="ml-1 font-num text-slate-400">({g.rows.length})</span><span className="ml-2 font-num text-[11px] text-slate-500">{yen(g.total)}</span></span>
                         {canWrite && <button className="text-xs font-medium text-[#0B6E4F] hover:underline" onClick={() => openNewAcct(g.acctId)} data-testid={`assets-add-to-${g.key}`}>＋ {t("add")}</button>}
                       </div>
                     </td>

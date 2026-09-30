@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { useApi } from "@/lib/api";
 import { useDashboard, useScopeLabel } from "@/lib/useDashboard";
@@ -6,19 +7,70 @@ import { Card, CardTitle, KpiCard, PageHeader, Spinner } from "@/components/comm
 import { Donut, HBars } from "@/components/charts";
 import EntityManager from "@/components/EntityManager";
 
+const INVEST = new Set(["jp_stock", "foreign_stock", "etf", "fund", "bond", "fx", "crypto", "gold", "precious_metal", "unlisted", "real_estate"]);
+
+function bd(list, keyFn, val = "value_jpy") {
+  const agg = {};
+  list.forEach((a) => { const k = keyFn(a) || "other"; agg[k] = (agg[k] || 0) + (a[val] || 0); });
+  const tot = Object.values(agg).reduce((x, v) => x + v, 0) || 1;
+  return Object.entries(agg).filter(([, v]) => v).map(([k, v]) => ({ key: k, value: Math.round(v), pct: Math.round((v / tot) * 1000) / 10 })).sort((a, b2) => b2.value - a.value);
+}
+
+function acctSummary(list) {
+  const sum = (f) => list.reduce((x, a) => x + (a[f] || 0), 0);
+  const inv = list.filter((a) => INVEST.has(a.asset_class));
+  const ta = sum("value_jpy");
+  const principal = inv.reduce((x, a) => x + (a.cost_jpy || 0), 0);
+  const invested = inv.reduce((x, a) => x + (a.value_jpy || 0), 0);
+  return { total_assets: ta, total_liabilities: 0, net_worth: ta, principal, invested_value: invested, unrealized_pl: invested - principal, realized_pl: sum("realized_jpy"), dividends: sum("dividend_jpy"), interest: sum("interest_jpy") };
+}
+
+function acctBreakdowns(list, instMap) {
+  const inv = list.filter((a) => INVEST.has(a.asset_class));
+  return {
+    asset_class: bd(list, (a) => a.asset_class),
+    country: bd(list, (a) => a.country || "JP"),
+    currency: bd(list, (a) => a.currency || "JPY"),
+    sector: bd(inv, (a) => a.sector),
+    institution: bd(list, (a) => instMap[a.account_id] || "unassigned"),
+    owner_type: bd(list, (a) => a.owner_type || "individual"),
+  };
+}
+
 export default function Portfolio() {
   const { t, lang, scopeClient, isClient, user } = useApp();
   const { data, reload } = useDashboard();
   const { data: assets, reload: reloadAssets } = useApi(`/data/assets${scopeClient ? `?client_id=${scopeClient}` : ""}`, [scopeClient]);
+  const { data: accounts, reload: reloadAccounts } = useApi(`/data/accounts${scopeClient ? `?client_id=${scopeClient}` : ""}`, [scopeClient]);
+  const [acct, setAcct] = useState("");
   const scope = useScopeLabel();
+  const allAssets = assets || [];
+  const instMap = useMemo(() => Object.fromEntries((accounts || []).map((a) => [a.id, a.institution])), [accounts]);
+  const hasOrphan = allAssets.some((a) => !a.account_id);
+  const filtered = useMemo(() => (acct ? allAssets.filter((a) => (acct === "none" ? !a.account_id : a.account_id === acct)) : allAssets), [acct, assets]);
+  const view = useMemo(() => (acct ? { s: acctSummary(filtered), b: acctBreakdowns(filtered, instMap) } : null), [acct, filtered, instMap]);
   if (!data) return <Spinner />;
-  const s = data.summary, b = data.breakdowns, c = (v) => compact(v, lang);
+  const s = acct ? view.s : data.summary;
+  const b = acct ? view.b : data.breakdowns;
+  const holdings = acct ? filtered : allAssets;
+  const c = (v) => compact(v, lang);
   const k = [["total_assets", s.total_assets], ["total_liabilities", s.total_liabilities], ["net_worth", s.net_worth], ["principal", s.principal],
     ["invested_value", s.invested_value], ["unrealized_pl", s.unrealized_pl], ["realized_pl", s.realized_pl], ["dividends", s.dividends], ["interest", s.interest]];
   return (
     <div data-testid="portfolio-page">
-      <PageHeader eyebrow={`Portfolio · ${scope}`} title={t("portfolio")} />
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-9">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <PageHeader eyebrow={`Portfolio · ${scope}`} title={t("portfolio")} />
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-slate-500">{t("account_id")}</span>
+          <select value={acct} onChange={(e) => setAcct(e.target.value)} data-testid="portfolio-account-select"
+            className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A878]/40">
+            <option value="">{t("all_accounts")}</option>
+            {(accounts || []).map((a) => <option key={a.id} value={a.id}>{a.institution}{a.currency ? ` (${a.currency})` : ""}</option>)}
+            {hasOrphan && <option value="none">{t("account_unassigned")}</option>}
+          </select>
+        </div>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-9">
         {k.map(([key, v], i) => <KpiCard key={key} label={t(key)} value={v} format={c} accent={key === "net_worth" ? "gold" : key === "total_liabilities" ? "navy" : v < 0 ? "red" : "emerald"} testid={`pf-${key}`} delay={i * 40} />)}
       </div>
       <div className="mt-6 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -35,7 +87,7 @@ export default function Portfolio() {
           <table className="data-table w-full min-w-[900px] text-sm" data-testid="holdings-table">
             <thead><tr>{["asset_name", "asset_class", "client", "currency", "quantity", "acquisition_total", "current_value", "value_jpy", "pl_jpy", "dividend_yield"].map((h) => <th key={h}>{t(h)}</th>)}</tr></thead>
             <tbody>
-              {(assets || []).sort((a, b2) => b2.value_jpy - a.value_jpy).map((a) => (
+              {holdings.sort((a, b2) => b2.value_jpy - a.value_jpy).map((a) => (
                 <tr key={a.id}>
                   <td className="font-medium">{a.name}{a.ticker && <span className="ml-1.5 font-num text-xs text-slate-400">{a.ticker}</span>}</td>
                   <td>{t(a.asset_class)}</td><td className="text-slate-600">{a.client_name}</td><td className="font-num">{a.currency}</td>
@@ -50,7 +102,7 @@ export default function Portfolio() {
         </div>
       </Card>
       {isClient && user.client_id && <div className="mt-6" data-testid="portfolio-holdings-entry">
-        <EntityManager entity="assets" clientId={user.client_id} title={t("my_holdings_entry")} onChange={() => { reload(); reloadAssets(); }} /></div>}
+        <EntityManager entity="assets" clientId={user.client_id} title={t("my_holdings_entry")} onChange={() => { reload(); reloadAssets(); reloadAccounts(); }} /></div>}
     </div>
   );
 }
