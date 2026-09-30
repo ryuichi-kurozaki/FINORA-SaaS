@@ -118,6 +118,30 @@ def _rk_history(rows, header):
     return out
 
 
+def _rk_tx(rows, header):
+    """楽天証券 取引履歴(tradehistory) → individual transaction rows."""
+    c = {"name": _rk_col(header, "ファンド名"), "qty": _rk_col(header, "数量"), "amount": _rk_col(header, "受渡金額"),
+         "price": _rk_col(header, "単価"), "tx": _rk_col(header, "取引"), "date": _rk_col(header, "約定日"),
+         "fee": _rk_col(header, "経費"), "cur": _rk_col(header, "決済通貨", "通貨")}
+
+    def g(r, k):
+        j = c.get(k)
+        return r[j].strip() if j is not None and j < len(r) else ""
+
+    out = []
+    for r in rows[1:]:
+        if not any(x.strip() for x in r):
+            continue
+        name = g(r, "name")
+        if not name:
+            continue
+        tx_type = "sell" if "売" in g(r, "tx") else "buy"
+        out.append({"date": _rk_date(g(r, "date")), "tx_type": tx_type, "quantity": round(_rk_num(g(r, "qty")), 4),
+                    "unit_price": _rk_num(g(r, "price")), "amount": _rk_num(g(r, "amount")), "fee": _rk_num(g(r, "fee")),
+                    "currency": CUR_MAP.get(g(r, "cur"), "JPY"), "notes": name[:200]})
+    return out
+
+
 def rakuten_format(raw: bytes):
     """Return 'balance' | 'history' | None for a Rakuten fund CSV, by header."""
     text = _rk_decode(raw)
@@ -240,6 +264,34 @@ async def import_data(entity: str, request: Request, file: UploadFile = File(...
                     errors.append({"row": n, "error": str(e)[:200]})
             await audit(user, "import", "assets", None, after={"created": created, "updated": updated, "skipped": skipped, "errors": len(errors), "file": file.filename, "format": fmt or "rakuten"}, request=request)
             return {"created": created, "updated": updated, "skipped": skipped, "errors": errors[:50], "format": fmt}
+    if entity == "transactions" and rakuten_format(raw) == "history":
+        if not client_id:
+            raise HTTPException(422, "Select a client before importing")
+        text = _rk_decode(raw)
+        csv_rows = list(csv.reader(text.splitlines()))
+        txs = _rk_tx(csv_rows, [h.strip() for h in csv_rows[0]])
+        if not txs:
+            raise HTTPException(422, "No transactions found in the Rakuten file")
+        created = 0
+        errors = []
+        for n, item in enumerate(txs, start=1):
+            try:
+                data = sanitize("transactions", item)
+                data["client_id"] = client_id
+                if account_id:
+                    data["account_id"] = account_id
+                await check_write(user, "transactions", data)
+                doc = to_store("transactions", {"id": new_id(), "tenant_id": user["tenant_id"], **data, "created_at": now_iso(),
+                                                "updated_at": now_iso(), "created_by": user["id"], "updated_by": user["id"],
+                                                "updated_by_role": user["role"], "source": "IMPORT"})
+                await db["transactions"].insert_one(doc)
+                created += 1
+            except HTTPException as e:
+                errors.append({"row": n, "error": e.detail})
+            except Exception as e:
+                errors.append({"row": n, "error": str(e)[:200]})
+        await audit(user, "import", "transactions", None, after={"created": created, "errors": len(errors), "file": file.filename, "format": "history"}, request=request)
+        return {"created": created, "updated": 0, "skipped": 0, "errors": errors[:50], "format": "history"}
     try:
         df = pd.read_excel(io.BytesIO(raw)) if file.filename.lower().endswith((".xlsx", ".xls")) else pd.read_csv(io.BytesIO(raw))
     except Exception:
