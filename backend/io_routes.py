@@ -1,4 +1,6 @@
 import io
+import csv
+from datetime import datetime
 from typing import Optional
 
 import pandas as pd
@@ -13,6 +15,88 @@ router = APIRouter(prefix="/api")
 bucket = AsyncIOMotorGridFSBucket(db, bucket_name="documents")
 MAX_FILE = 15 * 1024 * 1024
 DOC_TYPES = ("application/pdf", "image/", "text/", "application/vnd", "application/msword", "application/zip")
+
+
+def _rk_num(s):
+    s = str(s or "").replace(",", "").replace("円", "").strip()
+    if s in ("", "-", "‐"):
+        return 0.0
+    try:
+        return float(s)
+    except ValueError:
+        return 0.0
+
+
+def _rk_date(s):
+    s = (s or "").strip()
+    for f in ("%Y/%m/%d", "%Y-%m-%d", "%Y/%m/%d %H:%M:%S"):
+        try:
+            return datetime.strptime(s, f).date().isoformat()
+        except ValueError:
+            continue
+    return None
+
+
+def _rk_col(header, *subs):
+    for n, h in enumerate(header):
+        if any(s in h for s in subs):
+            return n
+    return None
+
+
+def parse_rakuten_funds(raw: bytes):
+    """Detect and aggregate a Rakuten Securities mutual-fund trade-history CSV (Shift-JIS).
+    Returns a list of holding dicts (net position per fund) or None if not this format."""
+    text = None
+    for enc in ("cp932", "utf-8-sig", "utf-8"):
+        try:
+            text = raw.decode(enc)
+            break
+        except UnicodeDecodeError:
+            continue
+    if not text:
+        return None
+    rows = list(csv.reader(text.splitlines()))
+    if not rows:
+        return None
+    header = [h.strip() for h in rows[0]]
+    if _rk_col(header, "ファンド名") is None or _rk_col(header, "約定日") is None:
+        return None
+    ci = {"name": _rk_col(header, "ファンド名"), "qty": _rk_col(header, "数量"), "amount": _rk_col(header, "受渡金額"),
+          "price": _rk_col(header, "単価"), "tx": _rk_col(header, "取引"), "date": _rk_col(header, "約定日"),
+          "cur": _rk_col(header, "決済通貨", "通貨")}
+
+    def g(r, key):
+        j = ci.get(key)
+        return r[j].strip() if j is not None and j < len(r) else ""
+
+    funds = {}
+    for r in rows[1:]:
+        if not any(c.strip() for c in r):
+            continue
+        name = g(r, "name")
+        if not name:
+            continue
+        qty, amount, price = _rk_num(g(r, "qty")), _rk_num(g(r, "amount")), _rk_num(g(r, "price"))
+        sign = -1 if ("売" in g(r, "tx")) else 1
+        date = _rk_date(g(r, "date"))
+        f = funds.setdefault(name, {"qty": 0.0, "cost": 0.0, "first": None, "last_price": 0.0, "cur": g(r, "cur") or "円"})
+        f["qty"] += sign * qty
+        f["cost"] += sign * amount
+        if price:
+            f["last_price"] = price
+        if sign > 0 and date and (f["first"] is None or date < f["first"]):
+            f["first"] = date
+    cur_map = {"円": "JPY", "米ドル": "USD", "ドル": "USD"}
+    out = []
+    for name, f in funds.items():
+        if round(f["qty"], 4) <= 0:
+            continue
+        acq = round(f["cost"] / f["qty"] * 10000, 2) if f["qty"] else 0.0
+        out.append({"asset_class": "fund", "name": name[:200], "currency": cur_map.get(f["cur"], "JPY"),
+                    "acquired_date": f["first"], "acquisition_price": acq, "quantity": round(f["qty"], 4),
+                    "current_price": f["last_price"] or acq, "price_unit": 10000, "notes": "楽天証券インポート"})
+    return out
 
 
 @router.get("/io/export/{entity}")
@@ -47,6 +131,30 @@ async def import_data(entity: str, request: Request, file: UploadFile = File(...
     raw = await file.read()
     if len(raw) > MAX_FILE:
         raise HTTPException(413, "File too large")
+    if entity == "assets":
+        rk = parse_rakuten_funds(raw)
+        if rk is not None:
+            if not rk:
+                raise HTTPException(422, "No open fund positions found in the Rakuten file")
+            if not client_id:
+                raise HTTPException(422, "Select a client before importing")
+            created, errors = 0, []
+            for n, item in enumerate(rk, start=1):
+                try:
+                    data = sanitize("assets", item)
+                    data["client_id"] = client_id
+                    await check_write(user, "assets", data)
+                    doc = to_store("assets", {"id": new_id(), "tenant_id": user["tenant_id"], **data, "created_at": now_iso(),
+                                              "updated_at": now_iso(), "created_by": user["id"], "updated_by": user["id"],
+                                              "updated_by_role": user["role"], "source": "IMPORT"})
+                    await db["assets"].insert_one(doc)
+                    created += 1
+                except HTTPException as e:
+                    errors.append({"row": n, "error": e.detail})
+                except Exception as e:
+                    errors.append({"row": n, "error": str(e)[:200]})
+            await audit(user, "import", "assets", None, after={"created": created, "errors": len(errors), "file": file.filename, "format": "rakuten"}, request=request)
+            return {"created": created, "errors": errors[:50]}
     try:
         df = pd.read_excel(io.BytesIO(raw)) if file.filename.lower().endswith((".xlsx", ".xls")) else pd.read_csv(io.BytesIO(raw))
     except Exception:
