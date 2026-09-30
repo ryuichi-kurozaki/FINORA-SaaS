@@ -80,6 +80,7 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
   const [detail, setDetail] = useState(null);
   const [corr, setCorr] = useState(null);
   const fileRef = useRef(null);
+  const impAcctRef = useRef("");
   const [imp, setImp] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const canWrite = canEdit(entity);
@@ -151,13 +152,14 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
     const fd = new FormData();
     fd.append("file", file);
     if (cid && entity !== "clients") fd.append("client_id", cid);
-    if (imp?.acct) fd.append("account_id", imp.acct);
+    if (impAcctRef.current) fd.append("account_id", impAcctRef.current);
     try {
       const r = await api.post(`/io/import/${entity}`, fd);
       toast.success(`${r.data.created} ${t("import_done")}${r.data.format ? ` · ${t("import_detected")}: ${t("rakuten_" + r.data.format)}` : ""}${r.data.errors.length ? ` / ${t("import_errors")}: ${r.data.errors.length}` : ""}`);
       after();
     } catch (err) { toast.error(errMsg(err)); }
     e.target.value = "";
+    impAcctRef.current = "";
     setImp(null);
   };
 
@@ -272,7 +274,7 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
           <p className="text-xs text-slate-500">{t("import_account_hint")}</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setImp(null)} data-testid="asset-import-cancel">{t("cancel")}</Button>
-            <Button className="btn-emerald" onClick={() => { setImp((v) => ({ ...v, open: false })); fileRef.current.click(); }} data-testid="asset-import-choose-file"><Upload className="mr-1 h-4 w-4" />{t("import_choose_file")}</Button>
+            <Button className="btn-emerald" onClick={() => { impAcctRef.current = imp?.acct || ""; setImp(null); setTimeout(() => fileRef.current && fileRef.current.click(), 80); }} data-testid="asset-import-choose-file"><Upload className="mr-1 h-4 w-4" />{t("import_choose_file")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
