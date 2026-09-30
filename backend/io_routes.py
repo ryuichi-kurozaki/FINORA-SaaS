@@ -118,6 +118,22 @@ def _rk_history(rows, header):
     return out
 
 
+def rakuten_format(raw: bytes):
+    """Return 'balance' | 'history' | None for a Rakuten fund CSV, by header."""
+    text = _rk_decode(raw)
+    if not text:
+        return None
+    rows = list(csv.reader(text.splitlines()))
+    if not rows:
+        return None
+    h = [x.strip() for x in rows[0]]
+    if _rk_col(h, "保有数量") is not None and _rk_col(h, "基準価額") is not None:
+        return "balance"
+    if _rk_col(h, "ファンド名") is not None and _rk_col(h, "約定日") is not None:
+        return "history"
+    return None
+
+
 def parse_rakuten_funds(raw: bytes):
     """Detect and parse a Rakuten Securities mutual-fund CSV (Shift-JIS): asset balance (保有残高)
     or trade history (取引履歴). Returns a list of holding dicts, or None if not a Rakuten fund CSV."""
@@ -170,6 +186,7 @@ async def import_data(entity: str, request: Request, file: UploadFile = File(...
     if entity == "assets":
         rk = parse_rakuten_funds(raw)
         if rk is not None:
+            fmt = rakuten_format(raw)
             if not rk:
                 raise HTTPException(422, "No open fund positions found in the Rakuten file")
             if not client_id:
@@ -191,8 +208,8 @@ async def import_data(entity: str, request: Request, file: UploadFile = File(...
                     errors.append({"row": n, "error": e.detail})
                 except Exception as e:
                     errors.append({"row": n, "error": str(e)[:200]})
-            await audit(user, "import", "assets", None, after={"created": created, "errors": len(errors), "file": file.filename, "format": "rakuten"}, request=request)
-            return {"created": created, "errors": errors[:50]}
+            await audit(user, "import", "assets", None, after={"created": created, "errors": len(errors), "file": file.filename, "format": fmt or "rakuten"}, request=request)
+            return {"created": created, "errors": errors[:50], "format": fmt}
     try:
         df = pd.read_excel(io.BytesIO(raw)) if file.filename.lower().endswith((".xlsx", ".xls")) else pd.read_csv(io.BytesIO(raw))
     except Exception:

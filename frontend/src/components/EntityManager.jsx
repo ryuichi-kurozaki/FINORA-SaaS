@@ -153,7 +153,7 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
     if (imp?.acct) fd.append("account_id", imp.acct);
     try {
       const r = await api.post(`/io/import/${entity}`, fd);
-      toast.success(`${r.data.created} ${t("import_done")}${r.data.errors.length ? ` / ${t("import_errors")}: ${r.data.errors.length}` : ""}`);
+      toast.success(`${r.data.created} ${t("import_done")}${r.data.format ? ` · ${t("import_detected")}: ${t("rakuten_" + r.data.format)}` : ""}${r.data.errors.length ? ` / ${t("import_errors")}: ${r.data.errors.length}` : ""}`);
       after();
     } catch (err) { toast.error(errMsg(err)); }
     e.target.value = "";
