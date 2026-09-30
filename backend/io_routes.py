@@ -175,6 +175,66 @@ def parse_rakuten_funds(raw: bytes):
     return None
 
 
+OKASAN_TX = [("買付", "buy"), ("買", "buy"), ("売却", "sell"), ("売付", "sell"), ("売", "sell"),
+             ("分配金", "dividend"), ("配当", "dividend"), ("利金", "interest"), ("利息", "interest"),
+             ("出金", "withdrawal"), ("入金", "deposit_tx"), ("振替", "transfer")]
+
+
+def _okasan_decode(raw):
+    for enc in ("utf-8-sig", "utf-8", "cp932"):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return None
+
+
+def _okasan_tx_type(s):
+    for key, val in OKASAN_TX:
+        if key in s:
+            return val
+    return "other"
+
+
+def parse_okasan(raw: bytes):
+    """岡三証券 取引履歴CSV (UTF-8 BOM; header row is not the first line). Returns transaction dicts, or None."""
+    text = _okasan_decode(raw)
+    if not text:
+        return None
+    rows = list(csv.reader(text.splitlines()))
+    hi = None
+    for i, r in enumerate(rows):
+        if "約定日" in r and "銘柄名" in r and "取引区分" in r:
+            hi = i
+            break
+    if hi is None:
+        return None
+    header = [h.strip() for h in rows[hi]]
+    c = {"date": _rk_col(header, "約定日"), "name": _rk_col(header, "銘柄名"), "memo": _rk_col(header, "摘要"),
+         "prod": _rk_col(header, "商品"), "tx": _rk_col(header, "取引区分"), "qty": _rk_col(header, "数量"),
+         "price": _rk_col(header, "単価"), "amount": _rk_col(header, "受渡金額", "決済損益"), "fee": _rk_col(header, "手数料"),
+         "rate": _rk_col(header, "レート"), "cur": _rk_col(header, "決済通貨"), "cur2": _rk_col(header, "発行通貨")}
+
+    def g(r, k):
+        j = c.get(k)
+        return r[j].strip() if j is not None and j < len(r) else ""
+
+    out = []
+    for r in rows[hi + 1:]:
+        if not any(x.strip() for x in r):
+            continue
+        tx = g(r, "tx")
+        if not tx:
+            continue
+        name = g(r, "name") or g(r, "memo") or g(r, "prod")
+        cur = g(r, "cur") or g(r, "cur2")
+        out.append({"date": _rk_date(g(r, "date")), "tx_type": _okasan_tx_type(tx),
+                    "quantity": round(_rk_num(g(r, "qty")), 4), "unit_price": _rk_num(g(r, "price")),
+                    "amount": _rk_num(g(r, "amount")), "fee": _rk_num(g(r, "fee")), "fx_rate": _rk_num(g(r, "rate")),
+                    "currency": CUR_MAP.get(cur, "JPY"), "notes": (f"{name}／{tx}"[:200] if name else tx[:200])})
+    return out
+
+
 async def _apply_asset(user, data, on_dup):
     """Insert or update one imported asset honoring on_dup ('create'|'update'|'skip'). Returns the action taken.
     A duplicate = same tenant+client+account and same ticker (if present) else same name."""
@@ -264,34 +324,41 @@ async def import_data(entity: str, request: Request, file: UploadFile = File(...
                     errors.append({"row": n, "error": str(e)[:200]})
             await audit(user, "import", "assets", None, after={"created": created, "updated": updated, "skipped": skipped, "errors": len(errors), "file": file.filename, "format": fmt or "rakuten"}, request=request)
             return {"created": created, "updated": updated, "skipped": skipped, "errors": errors[:50], "format": fmt}
-    if entity == "transactions" and rakuten_format(raw) == "history":
-        if not client_id:
-            raise HTTPException(422, "Select a client before importing")
-        text = _rk_decode(raw)
-        csv_rows = list(csv.reader(text.splitlines()))
-        txs = _rk_tx(csv_rows, [h.strip() for h in csv_rows[0]])
-        if not txs:
-            raise HTTPException(422, "No transactions found in the Rakuten file")
-        created = 0
-        errors = []
-        for n, item in enumerate(txs, start=1):
-            try:
-                data = sanitize("transactions", item)
-                data["client_id"] = client_id
-                if account_id:
-                    data["account_id"] = account_id
-                await check_write(user, "transactions", data)
-                doc = to_store("transactions", {"id": new_id(), "tenant_id": user["tenant_id"], **data, "created_at": now_iso(),
-                                                "updated_at": now_iso(), "created_by": user["id"], "updated_by": user["id"],
-                                                "updated_by_role": user["role"], "source": "IMPORT"})
-                await db["transactions"].insert_one(doc)
-                created += 1
-            except HTTPException as e:
-                errors.append({"row": n, "error": e.detail})
-            except Exception as e:
-                errors.append({"row": n, "error": str(e)[:200]})
-        await audit(user, "import", "transactions", None, after={"created": created, "errors": len(errors), "file": file.filename, "format": "history"}, request=request)
-        return {"created": created, "updated": 0, "skipped": 0, "errors": errors[:50], "format": "history"}
+    if entity == "transactions":
+        txs = fmt = None
+        if rakuten_format(raw) == "history":
+            text = _rk_decode(raw)
+            csv_rows = list(csv.reader(text.splitlines()))
+            txs, fmt = _rk_tx(csv_rows, [h.strip() for h in csv_rows[0]]), "history"
+        else:
+            ok = parse_okasan(raw)
+            if ok is not None:
+                txs, fmt = ok, "okasan"
+        if txs is not None:
+            if not client_id:
+                raise HTTPException(422, "Select a client before importing")
+            if not txs:
+                raise HTTPException(422, "No transactions found in the file")
+            created = 0
+            errors = []
+            for n, item in enumerate(txs, start=1):
+                try:
+                    data = sanitize("transactions", item)
+                    data["client_id"] = client_id
+                    if account_id:
+                        data["account_id"] = account_id
+                    await check_write(user, "transactions", data)
+                    doc = to_store("transactions", {"id": new_id(), "tenant_id": user["tenant_id"], **data, "created_at": now_iso(),
+                                                    "updated_at": now_iso(), "created_by": user["id"], "updated_by": user["id"],
+                                                    "updated_by_role": user["role"], "source": "IMPORT"})
+                    await db["transactions"].insert_one(doc)
+                    created += 1
+                except HTTPException as e:
+                    errors.append({"row": n, "error": e.detail})
+                except Exception as e:
+                    errors.append({"row": n, "error": str(e)[:200]})
+            await audit(user, "import", "transactions", None, after={"created": created, "errors": len(errors), "file": file.filename, "format": fmt}, request=request)
+            return {"created": created, "updated": 0, "skipped": 0, "errors": errors[:50], "format": fmt}
     try:
         df = pd.read_excel(io.BytesIO(raw)) if file.filename.lower().endswith((".xlsx", ".xls")) else pd.read_csv(io.BytesIO(raw))
     except Exception:
