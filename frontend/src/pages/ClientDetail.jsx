@@ -55,9 +55,9 @@ export default function ClientDetail() {
       </PageHeader>
       {term && <TerminateDialog path={`/clients/${id}/terminate`} title={`${t("term_client")} — ${c.corporate_name || c.name}`} desc={t("term_client_desc")} onClose={() => setTerm(false)} onDone={() => { refreshClients(); reload(); }} testid="client-term" />}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <KpiCard label={t("total_assets")} value={s.total_assets} format={(v) => compact(v, lang)} testid="client-kpi-assets" />
-        <KpiCard label={t("total_liabilities")} value={s.total_liabilities} format={(v) => compact(v, lang)} accent="navy" testid="client-kpi-liabilities" />
-        <KpiCard label={t("net_worth")} value={s.net_worth} format={(v) => compact(v, lang)} accent="gold" testid="client-kpi-networth" />
+        <KpiCard label={t("total_assets")} value={s.total_assets} format={yen} testid="client-kpi-assets" />
+        <KpiCard label={t("total_liabilities")} value={s.total_liabilities} format={yen} accent="navy" testid="client-kpi-liabilities" />
+        <KpiCard label={t("net_worth")} value={s.net_worth} format={yen} accent="gold" testid="client-kpi-networth" />
         <KpiCard label={t("yield")} value={s.total_return_pct} format={(v) => pct(v)} testid="client-kpi-yield" />
       </div>
       {unpaid > 0 && <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-700" data-testid="client-unpaid-badge">{t("unpaid_badge")} · <span className="font-num">{yen(unpaid)}</span></div>}

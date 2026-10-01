@@ -1,7 +1,7 @@
 import { useApp } from "@/context/AppContext";
 import { useState } from "react";
 import { useDashboard, useScopeLabel } from "@/lib/useDashboard";
-import { compact, pct } from "@/lib/format";
+import { compact, pct, yen } from "@/lib/format";
 import { Card, CardTitle, KpiCard, PageHeader } from "@/components/common";
 import { HBars, IncomeExpense } from "@/components/charts";
 import EntityManager from "@/components/EntityManager";
@@ -11,10 +11,10 @@ function CashflowSummary() {
   const { t, lang } = useApp();
   const { data } = useDashboard();
   if (!data) return null;
-  const cf = data.cashflow, c = (v) => compact(v, lang);
+  const cf = data.cashflow, c = (v) => yen(v);
   return (
     <>
-      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-5">
+      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         <KpiCard label={t("income")} value={cf.income_m} format={c} sub={t("per_month")} testid="cf-income" />
         <KpiCard label={t("expense")} value={cf.expense_m} format={c} accent="navy" sub={t("per_month")} testid="cf-expense" />
         <KpiCard label={t("monthly_cf")} value={cf.cf_m} format={c} accent={cf.cf_m < 0 ? "red" : "emerald"} testid="cf-monthly" />
@@ -34,7 +34,7 @@ function LiabilitySummary() {
   const { t, lang } = useApp();
   const { data } = useDashboard();
   if (!data) return null;
-  const s = data.summary, c = (v) => compact(v, lang);
+  const s = data.summary, c = (v) => yen(v);
   const lev = data.risk.items.find((i) => i.code === "leverage");
   return (
     <div className="mb-6 grid gap-6 lg:grid-cols-3">

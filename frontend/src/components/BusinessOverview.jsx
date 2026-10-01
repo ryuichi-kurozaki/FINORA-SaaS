@@ -42,7 +42,7 @@ function Ranking({ title, rows }) {
 
 export function RevenueTiles({ s }) {
   const { t, lang } = useApp();
-  const c = (v) => compact(v, lang);
+  const c = (v) => yen(v);
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
       <Tile label={t("billed_month")} value={c(s.billed_month)} testid="rev-billed-month" />

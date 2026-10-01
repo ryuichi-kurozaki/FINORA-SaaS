@@ -2,7 +2,7 @@ import BusinessOverview from "@/components/BusinessOverview";
 import { Banknote, Coins, Landmark, Percent, PiggyBank, TrendingUp, Waves } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useDashboard, useScopeLabel } from "@/lib/useDashboard";
-import { compact, pct } from "@/lib/format";
+import { compact, pct, yen } from "@/lib/format";
 import { Card, CardTitle, KpiCard, PageHeader, Spinner } from "@/components/common";
 import { Donut, HBars, IncomeExpense, ProjectionChart, TrendChart } from "@/components/charts";
 import InsightPanel from "@/components/InsightPanel";
@@ -17,7 +17,7 @@ export default function Dashboard() {
   const scope = useScopeLabel();
   if (loading || !data) return <Spinner />;
   const s = data.summary, cf = data.cashflow, b = data.breakdowns;
-  const c = (v) => compact(v, lang);
+  const c = (v) => yen(v);
   const kpis = [
     ["total_assets", s.total_assets, c, Landmark, "emerald"], ["total_liabilities", s.total_liabilities, c, Banknote, "navy"],
     ["net_worth", s.net_worth, c, PiggyBank, "gold"], ["investment_pl", s.unrealized_pl + s.realized_pl, c, TrendingUp, s.unrealized_pl + s.realized_pl < 0 ? "red" : "emerald"],
@@ -30,7 +30,7 @@ export default function Dashboard() {
         title={user.role === "consultant" ? t("dashboard") : `${t("welcome_prefix")}${user.name}${t("welcome_suffix")}`} sub={t("tagline")} />
       {isClient && <div className="mb-6"><ActionCenter health={data.health} /></div>}
       {!isClient && !scopeClient && <BusinessOverview />}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
         {kpis.map(([k, v, f, I, a], i) => <KpiCard key={k} label={t(k)} value={v} format={f} icon={I} accent={a} testid={`kpi-${k}`} delay={i * 60} />)}
       </div>
       <div className="mt-6 grid gap-6 xl:grid-cols-3">

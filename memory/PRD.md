@@ -49,7 +49,8 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 ## Backlog
 - P0: 2FA (TOTP)
 - P1: LLM plug-in for AI engine (optional, paid), email deadline notifications (cron)
-- DONE 2026-06: 価格自動更新 — backend/pricing.py: CSV取込時にファンド名→協会コード自動ひも付け（投資信託協会API＋difflib近似一致）、毎日6:00 JSTの日次ジョブ＋画面最上部の PriceSync バー（components/PriceSync.jsx、Portfolio/Assets画面、3分ごとに自動 POST /api/assets/prices/sync、サーバ側150秒スロットル＆多重実行ガード）＋未ひも付け銘柄の手動ひも付けUI（components/LinkTickers.jsx、GET /api/assets/prices/unlinked・POST /api/assets/prices/link、候補検索は長い名称でヒットしない場合に短縮キーワードへ自動フォールバック）。本番VPS反映済み
+- DONE 2026-06: KPIカード表示 — 金額を丸め表示（¥386万）から全桁カンマ区切り（¥3,862,345）へ統一（Portfolio/Dashboard/Analytics/EntityPage/ClientDetail/BusinessOverview、KpiCardは桁数に応じて自動縮小、グリッド列数を調整）。グラフ軸・ツールチップは従来の圧縮表記のまま
+- DONE 2026-06: 価格自動更新 — backend/pricing.py: CSV取込時にファンド名→協会コード自動ひも付け（投資信託協会API＋difflib近似一致、取得NAVがCSV価格の0.5〜2倍外なら誤マッチとして保存しない）、毎日6:00 JSTの日次ジョブ＋画面最上部の PriceSync バー（components/PriceSync.jsx、Portfolio/Assets画面、3分ごとに自動 POST /api/assets/prices/sync、サーバ側150秒スロットル＆多重実行ガード）＋未ひも付け銘柄の手動ひも付けUI（components/LinkTickers.jsx、GET /api/assets/prices/unlinked・POST /api/assets/prices/link、候補検索は長い名称でヒットしない場合に短縮キーワードへ自動フォールバック）。本番VPS反映済み
 - P1: meeting-minutes AI summarization, per-tenant risk threshold settings
 - P2: accounting system / bank API integration, backup UI, multi-tenant signup
 

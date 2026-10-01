@@ -1,7 +1,7 @@
 import { Activity, ArrowDownRight, Gauge, Percent, Target, TrendingUp } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useDashboard, useScopeLabel } from "@/lib/useDashboard";
-import { compact, pct } from "@/lib/format";
+import { compact, pct, yen } from "@/lib/format";
 import { Card, CardTitle, KpiCard, PageHeader, Spinner } from "@/components/common";
 import { LinesChart, TrendChart } from "@/components/charts";
 
@@ -10,7 +10,7 @@ export default function Analytics() {
   const { data } = useDashboard();
   const scope = useScopeLabel();
   if (!data) return <Spinner />;
-  const m = data.metrics, s = data.summary, c = (v) => compact(v, lang);
+  const m = data.metrics, s = data.summary, c = (v) => yen(v);
   const cards = [
     ["unrealized_pl", s.unrealized_pl, c, TrendingUp], ["realized_pl", s.realized_pl, c, TrendingUp], ["dividends", s.dividends, c, Percent], ["interest", s.interest, c, Percent],
     ["yield", s.total_return_pct, (v) => pct(v), Target], ["dividend_yield", s.dividend_yield_pct, (v) => pct(v, false), Percent],
@@ -21,7 +21,7 @@ export default function Analytics() {
   return (
     <div data-testid="analytics-page">
       <PageHeader eyebrow={`Analytics · ${scope}`} title={t("analytics")} sub={`${t("estimate")}: ${m.months} ${t("months_short")} (snapshots)`} />
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
         {cards.map(([k, v, f, I], i) => <KpiCard key={k} label={t(k)} value={v ?? 0} format={f} icon={I} accent={k === "max_drawdown" || (v ?? 0) < 0 ? "red" : i % 3 === 2 ? "gold" : "emerald"} testid={`an-${k}`} delay={i * 40} />)}
       </div>
       <div className="mt-6 grid gap-6 xl:grid-cols-2">

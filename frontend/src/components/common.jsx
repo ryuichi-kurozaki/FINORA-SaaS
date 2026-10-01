@@ -57,7 +57,7 @@ export function KpiCard({ label, value, format, sub, icon: Icon, accent = "emera
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</span>
         {Icon && <Icon className="kpi-icon h-4 w-4" strokeWidth={1.8} />}
       </div>
-      <div className="mt-3 font-num text-[22px] font-semibold tracking-tight text-[#071A2B] sm:text-2xl" data-testid={testid ? `${testid}-value` : undefined}>
+      <div className={`mt-3 font-num font-semibold tracking-tight text-[#071A2B] ${String(format ? format(value) : value).length > 12 ? "text-[17px] sm:text-[19px]" : String(format ? format(value) : value).length > 9 ? "text-[19px] sm:text-[21px]" : "text-[22px] sm:text-2xl"}`} data-testid={testid ? `${testid}-value` : undefined}>
         {format ? format(v) : Math.round(v)}
       </div>
       {sub && <div className="mt-1.5 text-xs text-slate-500">{sub}</div>}

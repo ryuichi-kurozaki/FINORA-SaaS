@@ -54,7 +54,7 @@ export default function Portfolio() {
   const s = acct ? view.s : data.summary;
   const b = acct ? view.b : data.breakdowns;
   const holdings = acct ? filtered : allAssets;
-  const c = (v) => compact(v, lang);
+  const c = (v) => yen(v);
   const k = [["total_assets", s.total_assets], ["total_liabilities", s.total_liabilities], ["net_worth", s.net_worth], ["principal", s.principal],
     ["invested_value", s.invested_value], ["unrealized_pl", s.unrealized_pl], ["realized_pl", s.realized_pl], ["dividends", s.dividends], ["interest", s.interest]];
   return (
@@ -72,7 +72,7 @@ export default function Portfolio() {
           </select>
         </div>
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-9">
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         {k.map(([key, v], i) => <KpiCard key={key} label={t(key)} value={v} format={c} accent={key === "net_worth" ? "gold" : key === "total_liabilities" ? "navy" : v < 0 ? "red" : "emerald"} testid={`pf-${key}`} delay={i * 40} />)}
       </div>
       <div className="mt-6 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
