@@ -26,6 +26,7 @@ import { InvoiceList, PaymentsList } from "@/pages/Billing";
 import { InvitationsList } from "@/components/ClientOverviewTable";
 import { useApi } from "@/lib/api";
 import CorrectionDialog from "@/components/CorrectionDialog";
+import PriceSync from "@/components/PriceSync";
 
 const PROFILE = ["client_type", "email", "phone", "address", "occupation", "business", "family", "related_corps", "annual_income", "income", "investment_experience", "investment_purpose", "risk_tolerance", "status", "notes"];
 const SELECTS = ["client_type", "risk_tolerance", "status"];
@@ -61,6 +62,7 @@ export default function ClientDetail() {
         <KpiCard label={t("yield")} value={s.total_return_pct} format={(v) => pct(v)} testid="client-kpi-yield" />
       </div>
       {unpaid > 0 && <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-700" data-testid="client-unpaid-badge">{t("unpaid_badge")} · <span className="font-num">{yen(unpaid)}</span></div>}
+      <div className="mt-4"><PriceSync clientId={id} onChange={reload} /></div>
       <Tabs defaultValue="overview" className="mt-6">
         <TabsList className="h-auto flex-wrap justify-start bg-white/70 p-1">
           {tabs.map((k) => <TabsTrigger key={k} value={k} data-testid={`client-tab-${k}`} className="data-[state=active]:bg-[#071A2B] data-[state=active]:text-white">{t(k === "cashflows" ? "cashflow" : k === "overview" ? "overview" : k)}</TabsTrigger>)}

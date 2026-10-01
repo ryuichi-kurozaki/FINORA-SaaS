@@ -4,10 +4,11 @@ import { useDashboard, useScopeLabel } from "@/lib/useDashboard";
 import { compact, pct, yen } from "@/lib/format";
 import { Card, CardTitle, KpiCard, PageHeader, Spinner } from "@/components/common";
 import { LinesChart, TrendChart } from "@/components/charts";
+import PriceSync from "@/components/PriceSync";
 
 export default function Analytics() {
-  const { t, lang } = useApp();
-  const { data } = useDashboard();
+  const { t, lang, user, isClient, scopeClient } = useApp();
+  const { data, reload } = useDashboard();
   const scope = useScopeLabel();
   if (!data) return <Spinner />;
   const m = data.metrics, s = data.summary, c = (v) => yen(v);
@@ -21,6 +22,7 @@ export default function Analytics() {
   return (
     <div data-testid="analytics-page">
       <PageHeader eyebrow={`Analytics · ${scope}`} title={t("analytics")} sub={`${t("estimate")}: ${m.months} ${t("months_short")} (snapshots)`} />
+      <div className="mb-4"><PriceSync clientId={isClient ? user.client_id : scopeClient} onChange={reload} /></div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
         {cards.map(([k, v, f, I], i) => <KpiCard key={k} label={t(k)} value={v ?? 0} format={f} icon={I} accent={k === "max_drawdown" || (v ?? 0) < 0 ? "red" : i % 3 === 2 ? "gold" : "emerald"} testid={`an-${k}`} delay={i * 40} />)}
       </div>

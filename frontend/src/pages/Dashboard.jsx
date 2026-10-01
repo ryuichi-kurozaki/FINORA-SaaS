@@ -10,10 +10,11 @@ import NetWorthHistory from "@/components/NetWorthHistory";
 import GoalsPanel from "@/components/GoalsPanel";
 import HealthPanel from "@/components/HealthPanel";
 import ActionCenter from "@/components/ActionCenter";
+import PriceSync from "@/components/PriceSync";
 
 export default function Dashboard() {
   const { t, lang, user, isClient, scopeClient } = useApp();
-  const { data, loading } = useDashboard();
+  const { data, loading, reload } = useDashboard();
   const scope = useScopeLabel();
   if (loading || !data) return <Spinner />;
   const s = data.summary, cf = data.cashflow, b = data.breakdowns;
@@ -28,6 +29,7 @@ export default function Dashboard() {
     <div data-testid="dashboard-page">
       <PageHeader eyebrowCls="text-[22px]" eyebrow={user.role === "consultant" ? scope : `${t("dashboard")} · ${scope}`}
         title={user.role === "consultant" ? t("dashboard") : `${t("welcome_prefix")}${user.name}${t("welcome_suffix")}`} sub={t("tagline")} />
+      <div className="mb-4"><PriceSync clientId={isClient ? user.client_id : scopeClient} onChange={reload} /></div>
       {isClient && <div className="mb-6"><ActionCenter health={data.health} /></div>}
       {!isClient && !scopeClient && <BusinessOverview />}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
