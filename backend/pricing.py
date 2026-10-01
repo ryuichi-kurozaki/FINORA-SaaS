@@ -121,18 +121,17 @@ async def sync(tenant_id=None, client_id=None, link=True):
     if client_id:
         q["client_id"] = client_id
     assets = await db.assets.find(q).to_list(5000)
-    linked = updated = skipped = failed = 0
+    linked = updated = skipped = failed = unmatched = 0
     cache = {}
     for a in assets:
         tk = (a.get("ticker") or "").strip()
+        new_link = False
         if not tk and link and a.get("asset_class") == "fund" and a.get("name"):
             key = _norm(a["name"])
             if key not in cache:
                 cache[key] = await match_ticker(a["name"])
             tk = cache[key] or ""
-            if tk:
-                await db.assets.update_one({"id": a["id"]}, {"$set": {"ticker": tk, "updated_at": now_iso()}})
-                linked += 1
+            new_link = bool(tk)
         if not tk:
             continue
         price, pdate = await fetch_price(tk, a.get("name"))
@@ -140,6 +139,13 @@ async def sync(tenant_id=None, client_id=None, link=True):
             failed += 1
             continue
         cur = a.get("current_price") or 0
+        if new_link:
+            # A wrong same-family match shows up as a NAV far from the imported one: leave it unlinked for manual review.
+            if cur and not 0.5 <= price / cur <= 2:
+                unmatched += 1
+                continue
+            await db.assets.update_one({"id": a["id"]}, {"$set": {"ticker": tk, "updated_at": now_iso()}})
+            linked += 1
         if cur and not 0.1 <= price / cur <= 10:
             skipped += 1
             continue
@@ -147,7 +153,7 @@ async def sync(tenant_id=None, client_id=None, link=True):
             continue
         await db.assets.update_one({"id": a["id"]}, {"$set": {"current_price": round(price, 4), "price_date": pdate, "updated_at": now_iso()}})
         updated += 1
-    return {"assets": len(assets), "linked": linked, "updated": updated, "skipped": skipped, "failed": failed}
+    return {"assets": len(assets), "linked": linked, "updated": updated, "skipped": skipped, "failed": failed, "unmatched": unmatched}
 
 
 async def loop():
