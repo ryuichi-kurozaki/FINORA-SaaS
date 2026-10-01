@@ -18,14 +18,24 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/assets/prices")
 JST = timezone(timedelta(hours=9))
 RUN_HOUR = 6
-MIN_RATIO = 0.74
+MIN_RATIO = 0.85
+MIN_MARGIN = 0.04
 _NOISE = re.compile(r"[\s　・/／\-－‐（）()＜＞<>\[\]「」【】,，.。]+")
+_ALIAS = re.compile(r"《.*?》|〈.*?〉|【.*?】|愛称[:：].*$")
 _SUFFIX = re.compile(r"(ファンド|投信|愛称[:：].*|年\d+月決算型|\(.*?\))$")
+CYCLES = ("毎月分配", "毎月決算", "隔月分配", "隔月決算", "奇数月決算", "偶数月決算", "年2回決算", "年4回決算", "年1回決算", "1年決算", "3ヶ月決算")
 
 
 def _norm(s):
     s = unicodedata.normalize("NFKC", s or "").upper()
+    s = _ALIAS.sub("", s).replace("ファンド", "F")
     return _NOISE.sub("", s)
+
+
+def _cycle(s):
+    """決算・分配周期タグ（毎月分配型/年2回決算型など）。シリーズ違いの誤ひも付けを防ぐための必須一致キー。"""
+    n = _NOISE.sub("", unicodedata.normalize("NFKC", s or ""))
+    return next((c for c in CYCLES if c in n), "")
 
 
 def _prefix_len(a, b):
@@ -38,8 +48,9 @@ def _prefix_len(a, b):
 
 
 async def match_ticker(name):
-    """Fund name (as printed on a brokerage CSV) → 協会コード, or None when no confident match."""
-    target = _norm(name)
+    """Fund name (as printed on a brokerage CSV) → 協会コード, or None when no confident match.
+    Strict by design: the 決算周期 must match and the runner-up must be clearly worse, otherwise we leave it for manual linking."""
+    target, tcycle = _norm(name), _cycle(name)
     if len(target) < 3:
         return None
     seen = {}
@@ -55,17 +66,21 @@ async def match_ticker(name):
             seen[r["ticker"]] = r
         if not rows:
             continue
-        best, ratio = None, 0.0
+        scored = []
         for r in seen.values():
+            if _cycle(r["name"]) != tcycle:
+                continue
             cand = _norm(r["name"])
+            if not cand:
+                continue
             sc = SequenceMatcher(None, target, cand).ratio()
             pre = _prefix_len(target, cand)
-            if cand and (pre >= 8 or pre >= 0.6 * min(len(target), len(cand))):
+            if pre >= 10 and pre >= 0.8 * min(len(target), len(cand)):
                 sc = max(sc, 0.95)
-            if sc > ratio:
-                best, ratio = r, sc
-        if best and ratio >= MIN_RATIO:
-            return best["ticker"]
+            scored.append((sc, r["ticker"]))
+        scored.sort(reverse=True)
+        if scored and scored[0][0] >= MIN_RATIO and (len(scored) == 1 or scored[0][0] - scored[1][0] >= MIN_MARGIN):
+            return scored[0][1]
     return None
 
 
