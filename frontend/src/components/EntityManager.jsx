@@ -169,25 +169,13 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
   };
 
   const refreshPrices = async () => {
-    const targets = (data || []).filter((r) => (r.ticker || "").trim());
-    if (!targets.length) return toast.message(t("price_refresh_none"));
     setRefreshing(true);
-    let ok = 0; let fail = 0; let skip = 0;
-    for (const r of targets) {
-      try {
-        const { data: qd } = await api.get(`/quote?ticker=${encodeURIComponent(r.ticker.trim())}`);
-        if (qd?.price == null) { fail += 1; continue; }
-        const curCur = r.currency || "JPY";
-        const cur = r.current_price || 0;
-        const ratio = cur ? qd.price / cur : 1;
-        if ((qd.currency && qd.currency !== curCur) || ratio > 10 || ratio < 0.1) { skip += 1; continue; }
-        await api.put(`/data/assets/${r.id}`, { current_price: qd.price, price_date: qd.price_date });
-        ok += 1;
-      } catch { fail += 1; }
-    }
+    try {
+      const { data: r } = await api.post(`/assets/prices/sync${cid ? `?client_id=${cid}` : ""}`);
+      toast.success(`${t("price_refresh_done")}: ${r.updated}${r.linked ? ` / ${t("price_linked")}: ${r.linked}` : ""}${r.skipped ? ` / ${t("price_refresh_skipped")}: ${r.skipped}` : ""}${r.failed ? ` / ${t("import_errors")}: ${r.failed}` : ""}`);
+      after();
+    } catch (err) { toast.error(errMsg(err)); }
     setRefreshing(false);
-    toast.success(`${t("price_refresh_done")}: ${ok}${skip ? ` / ${t("price_refresh_skipped")}: ${skip}` : ""}${fail ? ` / ${t("import_errors")}: ${fail}` : ""}`);
-    after();
   };
 
   const exp = (fmt) => downloadFile(`/io/export/${entity}?fmt=${fmt}${cid ? `&client_id=${cid}` : ""}`, `finora_${entity}.${fmt}`).catch((e) => toast.error(errMsg(e)));

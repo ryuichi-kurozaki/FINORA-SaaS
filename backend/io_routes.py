@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Request, UploadFile, File, Form, HTTPExc
 from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorGridFSBucket
 
+import pricing
 from core import forbid_demo, db, new_id, now_iso, clean, current, scope, audit, notify_other_side
 from crud import ENTITIES, OWNED, sanitize, to_store, list_items, check_write
 
@@ -346,12 +347,22 @@ async def import_data(entity: str, request: Request, file: UploadFile = File(...
                 raise HTTPException(422, "Select a client before importing")
             created = updated = skipped = 0
             errors = []
+            tk_cache = {}
             for n, item in enumerate(rk, start=1):
                 try:
                     data = sanitize("assets", item)
                     data["client_id"] = client_id
                     if account_id:
                         data["account_id"] = account_id
+                    if not data.get("ticker") and data.get("asset_class") == "fund" and data.get("name"):
+                        nm = data["name"]
+                        if nm not in tk_cache:
+                            tk_cache[nm] = await pricing.match_ticker(nm)
+                        if tk_cache[nm]:
+                            data["ticker"] = tk_cache[nm]
+                            price, pdate = await pricing.fetch_price(tk_cache[nm], nm)
+                            if price:
+                                data["current_price"], data["price_date"] = round(price, 4), pdate
                     await check_write(user, "assets", data)
                     res = await _apply_asset(user, data, on_dup)
                     if res == "created":

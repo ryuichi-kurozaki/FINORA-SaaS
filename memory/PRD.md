@@ -48,7 +48,8 @@ FINORA 投資管理コンサルティングSaaS（www.finora.co.jp）。個人�
 
 ## Backlog
 - P0: 2FA (TOTP)
-- P1: LLM plug-in for AI engine (optional, paid), market price / FX API sync, email deadline notifications (cron)
+- P1: LLM plug-in for AI engine (optional, paid), email deadline notifications (cron)
+- DONE 2026-06: 価格自動更新 — backend/pricing.py: CSV取込時にファンド名→協会コード自動ひも付け（投資信託協会API＋difflib近似一致）、毎日6:00 JSTの日次ジョブ（server.py startup task）で current_price/price_date 更新、手動は POST /api/assets/prices/sync（ポートフォリオ「現在価格を更新」ボタン）。本番VPS反映済み
 - P1: meeting-minutes AI summarization, per-tenant risk threshold settings
 - P2: accounting system / bank API integration, backup UI, multi-tenant signup
 
