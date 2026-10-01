@@ -66,7 +66,7 @@ function Field({ f, form, set, users, accounts, assets }) {
   );
 }
 
-export default function EntityManager({ entity, clientId, title, onChange, compact }) {
+export default function EntityManager({ entity, clientId, title, onChange, compact, accountFilter }) {
   const { t, user, canEdit, isClient, scopeClient, refreshClients } = useApp();
   const cid = clientId ?? scopeClient;
   const { data, loading, reload } = useApi(`/data/${entity}${cid ? `?client_id=${cid}` : ""}`, [cid]);
@@ -114,8 +114,9 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
     const ids = new Set(accs.map((a) => a.id));
     const orphan = rows.filter((r) => !r.account_id || !ids.has(r.account_id));
     if (orphan.length) gs.push({ key: "none", acctId: "", label: t("account_unassigned"), rows: orphan });
+    if (accountFilter) gs = gs.filter((g) => g.key === accountFilter);
     return gs.map((g) => ({ ...g, total: g.rows.reduce((s, r) => s + (entity === "assets" ? (r.value_jpy || 0) : (r.amount || 0)), 0) }));
-  }, [entity, accounts, rows, cid, t, groupByAcct]);
+  }, [entity, accounts, rows, cid, t, groupByAcct, accountFilter]);
   const renderRow = (r) => (
     <tr key={r.id} data-testid={`${entity}-row-${r.id}`}>
       {cols.map((c) => <td key={c.k}><Cell f={c} row={r} assets={assets} /></td>)}
