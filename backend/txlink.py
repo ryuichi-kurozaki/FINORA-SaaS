@@ -6,7 +6,6 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from calc import positions
 from core import db, new_id, now_iso, current
 from pricing import _scoped, match_ticker
 
@@ -59,18 +58,9 @@ async def rebuild(tenant_id=None, client_id=None):
         await db.transactions.update_one({"id": tx["id"]}, {"$set": {"asset_id": a["id"], "updated_at": now_iso()}})
         tx["asset_id"] = a["id"]
         linked += 1
-    amap = {a["id"]: a for a in assets}
-    for p in positions(txs, assets):
-        a = amap.get(p["asset_id"])
-        if not a or p["qty"] <= 0:
-            continue
-        unit = a.get("price_unit") or 1
-        upd = {"quantity": round(p["qty"], 4), "acquisition_price": round(p["avg_cost"] * unit, 4), "updated_at": now_iso()}
-        if abs((a.get("quantity") or 0) - upd["quantity"]) < 1e-6 and abs((a.get("acquisition_price") or 0) - upd["acquisition_price"]) < 1e-4:
-            continue
-        await db.assets.update_one({"id": a["id"]}, {"$set": upd})
-        rebuilt += 1
-    return {"transactions": len(txs), "linked": linked, "created_assets": created, "rebuilt": rebuilt}
+    # NOTE: holdings quantity/acquisition_price are the broker-registered values and are NOT overwritten here.
+    # Transaction-derived quantities are shown separately in the "取引履歴からの保有状況" panel (calc.positions).
+    return {"transactions": len(txs), "linked": linked, "created_assets": created, "rebuilt": 0}
 
 
 @router.post("/rebuild")

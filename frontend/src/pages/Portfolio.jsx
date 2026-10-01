@@ -7,6 +7,7 @@ import { Card, CardTitle, KpiCard, PageHeader, Spinner } from "@/components/comm
 import { Donut, HBars } from "@/components/charts";
 import EntityManager from "@/components/EntityManager";
 import PriceSync from "@/components/PriceSync";
+import TxHistoryDialog from "@/components/TxHistoryDialog";
 
 const INVEST = new Set(["jp_stock", "foreign_stock", "etf", "fund", "bond", "fx", "crypto", "gold", "precious_metal", "unlisted", "real_estate"]);
 
@@ -44,8 +45,10 @@ export default function Portfolio() {
   const { data: assets, reload: reloadAssets } = useApi(`/data/assets${scopeClient ? `?client_id=${scopeClient}` : ""}`, [scopeClient]);
   const { data: accounts, reload: reloadAccounts } = useApi(`/data/accounts${scopeClient ? `?client_id=${scopeClient}` : ""}`, [scopeClient]);
   const { data: pos } = useApi(`/positions${scopeClient ? `?client_id=${scopeClient}` : ""}`, [scopeClient]);
+  const { data: txData } = useApi(`/data/transactions${scopeClient ? `?client_id=${scopeClient}` : ""}`, [scopeClient]);
   const posMap = useMemo(() => Object.fromEntries((pos || []).map((p) => [p.asset_id, p])), [pos]);
   const [acct, setAcct] = useState("");
+  const [sel, setSel] = useState(null);
   const scope = useScopeLabel();
   const allAssets = assets || [];
   const instMap = useMemo(() => Object.fromEntries((accounts || []).map((a) => [a.id, a.institution])), [accounts]);
@@ -86,7 +89,7 @@ export default function Portfolio() {
         <Card><CardTitle>{t("by_owner")}</CardTitle><Donut data={b.owner_type} /></Card>
       </div>
       <Card className="mt-6">
-        <CardTitle>{t("holdings")}</CardTitle>
+        <CardTitle right={<span className="text-[11px] font-normal text-slate-400">{t("view_tx_hint")}</span>}>{t("holdings")}</CardTitle>
         <div className="-mx-2 overflow-x-auto">
           <table className="data-table w-full min-w-[900px] text-sm" data-testid="holdings-table">
             <thead><tr>{["asset_name", "asset_class", "client", "currency", "quantity", "acquisition_total", "current_value", "value_jpy", "pl_jpy", "tx_count", "realized_pl", "dividends", "dividend_yield"].map((h) => <th key={h}>{t(h)}</th>)}</tr></thead>
@@ -94,8 +97,8 @@ export default function Portfolio() {
               {holdings.sort((a, b2) => b2.value_jpy - a.value_jpy).map((a) => {
                 const p = posMap[a.id];
                 return (
-                <tr key={a.id}>
-                  <td className="font-medium">{a.name}{a.ticker && <span className="ml-1.5 font-num text-xs text-slate-400">{a.ticker}</span>}
+                <tr key={a.id} onClick={() => setSel(a)} className="cursor-pointer transition-colors hover:bg-emerald-50/60">
+                  <td className="font-medium text-[#0B6E4F] hover:underline">{a.name}{a.ticker && <span className="ml-1.5 font-num text-xs text-slate-400">{a.ticker}</span>}
                     {p?.qty_mismatch && <span className="ml-1.5 text-xs text-amber-600" title={`${t("qty_from_tx")}: ${num(p.qty, 4)}`} data-testid={`qty-mismatch-${a.id}`}>⚠</span>}</td>
                   <td>{t(a.asset_class)}</td><td className="text-slate-600">{a.client_name}</td><td className="font-num">{a.currency}</td>
                   <td className="font-num">{num(a.quantity, 4)}</td><td className="font-num">{num(a.acquisition_total)}</td><td className="font-num">{num(a.current_value)}</td>
@@ -114,6 +117,7 @@ export default function Portfolio() {
       </Card>
       {isClient && user.client_id && <div className="mt-6" data-testid="portfolio-holdings-entry">
         <EntityManager entity="assets" clientId={user.client_id} title={t("my_holdings_entry")} onChange={() => { reload(); reloadAssets(); reloadAccounts(); }} /></div>}
+      <TxHistoryDialog assetId={sel?.id} assetName={sel?.name} txs={txData} onClose={() => setSel(null)} />
     </div>
   );
 }

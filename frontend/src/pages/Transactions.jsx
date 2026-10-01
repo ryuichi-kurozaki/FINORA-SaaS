@@ -1,43 +1,12 @@
 import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { useApi } from "@/lib/api";
-import { fmtDate, num } from "@/lib/format";
-import { Card, CardTitle, Empty, PageHeader } from "@/components/common";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { num } from "@/lib/format";
+import { Card, CardTitle, PageHeader } from "@/components/common";
 import { useScopeLabel } from "@/lib/useDashboard";
 import EntityManager from "@/components/EntityManager";
 import TxSync from "@/components/TxSync";
-
-function TxHistoryDialog({ position, txs, onClose }) {
-  const { t } = useApp();
-  const rows = (txs || []).filter((x) => x.asset_id === position?.asset_id)
-    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
-  return (
-    <Dialog open={!!position} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto" data-testid="tx-history-dialog">
-        <DialogHeader><DialogTitle className="font-display">{t("tx_history")} — {position?.asset_name}</DialogTitle></DialogHeader>
-        {rows.length === 0 ? <Empty text={t("tx_history_empty")} /> : (
-          <div className="-mx-2 overflow-x-auto">
-            <table className="data-table w-full min-w-[520px] text-sm">
-              <thead><tr>{["date", "tx_type", "quantity", "unit_price", "amount"].map((c) => <th key={c}>{t(c)}</th>)}</tr></thead>
-              <tbody>
-                {rows.map((x) => (
-                  <tr key={x.id} data-testid={`tx-history-row-${x.id}`}>
-                    <td className="font-num text-slate-600">{fmtDate(x.date)}</td>
-                    <td><span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{t(x.tx_type)}</span></td>
-                    <td className="font-num">{num(x.quantity, 4)}</td>
-                    <td className="font-num">{num(x.unit_price, 2)}</td>
-                    <td className="font-num font-medium">{num(x.amount, 2)} <span className="text-[11px] text-slate-400">{x.currency}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
+import TxHistoryDialog from "@/components/TxHistoryDialog";
 
 export function PositionsTable({ clientId, accountId, assetAcct }) {
   const { t } = useApp();
@@ -66,7 +35,7 @@ export function PositionsTable({ clientId, accountId, assetAcct }) {
         </table>
       </div>
       <p className="mt-2 text-[10px] text-slate-400">CALCULATION · {t("avg_cost")} = {t("cost_basis")} ÷ {t("holding_qty")}</p>
-      <TxHistoryDialog position={sel} txs={txData} onClose={() => setSel(null)} />
+      <TxHistoryDialog assetId={sel?.asset_id} assetName={sel?.asset_name} txs={txData} onClose={() => setSel(null)} />
     </Card>
   );
 }
