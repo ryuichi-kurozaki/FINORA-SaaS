@@ -60,10 +60,14 @@ function Row({ row, onLinked }) {
           {items.map((it) => (
             <li key={it.ticker}>
               <button type="button" disabled={busy} onClick={() => pick(it.ticker)} data-testid={`unlinked-pick-${row.id}-${it.ticker}`}
-                className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-emerald-50 disabled:opacity-50">
-                <span className="w-20 shrink-0 font-num text-xs font-semibold text-[#071A2B]">{it.ticker}</span>
-                <span className="min-w-0 flex-1 truncate text-slate-700">{it.name}</span>
-                <span className="shrink-0 text-[10px] text-slate-400">{it.exchange}</span>
+                className="flex w-full flex-col items-start gap-1 px-3 py-2 text-left text-sm hover:bg-emerald-50 disabled:opacity-50">
+                <span className="w-full whitespace-normal break-words leading-snug text-slate-800">{it.name}</span>
+                <span className="flex w-full flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                  <span className="font-num font-semibold text-[#071A2B]">{it.ticker}</span>
+                  {it.exchange && <span>{it.exchange}</span>}
+                  {it.price != null && <span className="font-num">{it.price.toLocaleString("ja-JP")}{it.price_unit > 1 ? ` / ${it.price_unit.toLocaleString("ja-JP")}口` : ""}</span>}
+                  {it.price_date && <span className="font-num text-slate-400">{it.price_date}</span>}
+                </span>
               </button>
             </li>
           ))}
