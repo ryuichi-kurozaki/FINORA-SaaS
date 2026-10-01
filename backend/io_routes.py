@@ -279,9 +279,9 @@ async def _apply_asset(user, data, on_dup):
     """Insert or update one imported asset honoring on_dup ('create'|'update'|'skip'). Returns the action taken.
     A duplicate = same tenant+client+account and same ticker (if present) else same name."""
     if on_dup in ("update", "skip"):
+        # One holding per fund per client: match by ticker (else name) across ALL accounts,
+        # so re-importing into another account updates/moves the existing record instead of duplicating.
         q = {"tenant_id": user["tenant_id"], "client_id": data.get("client_id")}
-        acc = data.get("account_id")
-        q["account_id"] = acc if acc else {"$in": [None, ""]}
         tk = (data.get("ticker") or "").strip()
         if tk:
             q["ticker"] = tk
