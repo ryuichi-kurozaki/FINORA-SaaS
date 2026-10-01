@@ -101,7 +101,7 @@ export default function ClientDetail() {
           {!isClient && <button onClick={() => setCorr(true)} className="rounded-xl border border-[#C9A227]/50 bg-[#C9A227]/10 px-4 py-2 text-sm font-semibold text-[#8a6d12]" data-testid="portfolio-correction-btn">{t("request_correction")}</button>}
         </TabsContent>
         <TabsContent value="goals" className="mt-5 space-y-6"><GoalsPanel goals={data.goals} /><EntityManager entity="goals" clientId={id} title={t("goals")} onChange={reload} /></TabsContent>
-        <TabsContent value="data_health" className="mt-5"><HealthPanel health={data.health} clientId={id} /></TabsContent>
+        <TabsContent value="data_health" className="mt-5"><HealthPanel health={data.health} clientId={id} onChange={reload} /></TabsContent>
         <TabsContent value="ai_insight" className="mt-5 space-y-6"><InsightPanel insights={data.insights} /><Card className="h-[560px]"><AIAssistant clientId={id} /></Card></TabsContent>
         <TabsContent value="consulting" className="mt-5"><ConsultingPanels clientId={id} /></TabsContent>
         <TabsContent value="timeline" className="mt-5"><Card><TimelineList clientId={id} /></Card></TabsContent>

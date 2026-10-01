@@ -27,6 +27,7 @@ export const F = {
   hc_cashflow_insufficient: ["キャッシュフロー情報不足", "Insufficient cash flow data", "Fluxo de caixa insuficiente"], hc_docs_missing: ["必要書類不足", "Required documents missing", "Documentos ausentes"],
   hc_docs_expired: ["有効期限切れ書類", "Expired documents", "Documentos vencidos"], hc_tx_missing: ["取引履歴不足", "Missing transaction history", "Transações ausentes"],
   hc_anomaly: ["異常値の可能性", "Possible anomalies", "Possíveis anomalias"],
+  health_mute: ["確認済みにする", "Mark reviewed", "Marcar revisado"], health_unmute: ["解除", "Restore", "Restaurar"], health_muted_section: ["確認済み（ミュート中）", "Reviewed (muted)", "Revisados (silenciados)"],
   health_ok: ["良好", "Good", "Bom"], health_review: ["確認推奨", "Review recommended", "Revisão recomendada"], health_attention: ["要確認", "Needs attention", "Requer atenção"],
   health_note: ["FINORAとAIは顧客データを自動修正しません。問題は「確認が必要」として提示されます。", "FINORA and the AI never auto-correct client data — issues are shown as 'needs review'.", "O FINORA e a IA nunca corrigem dados automaticamente — problemas aparecem como 'requer revisão'."],
   health_score: ["ヘルススコア", "Health score", "Pontuação"],

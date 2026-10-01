@@ -21,11 +21,11 @@ export function GoalsPage() {
 export function DataHealthPage() {
   const { t, scopeClient } = useApp();
   const scope = useScopeLabel();
-  const { data } = useDashboard();
+  const { data, reload } = useDashboard();
   return (
     <div data-testid="data-health-page">
       <PageHeader eyebrow={`Data Health · ${scope}`} title={t("data_health")} />
-      {data ? <HealthPanel health={data.health} clientId={scopeClient} /> : <Spinner />}
+      {data ? <HealthPanel health={data.health} clientId={scopeClient} onChange={reload} /> : <Spinner />}
     </div>
   );
 }

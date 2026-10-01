@@ -42,7 +42,7 @@ export default function Dashboard() {
       <div className="mt-6"><InsightPanel insights={data.insights} /></div>
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
         <GoalsPanel goals={data.goals} />
-        <HealthPanel health={data.health} compact clientId={scopeClient} />
+        <HealthPanel health={data.health} compact clientId={scopeClient} onChange={reload} />
       </div>
       <div className="mt-6 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         <Card className="md:col-span-2 xl:col-span-3"><CardTitle>{t("asset_trend")}</CardTitle><TrendChart data={data.trend} keys={["total_assets", "net_worth", "total_liabilities"]} testid="chart-asset-trend" /></Card>

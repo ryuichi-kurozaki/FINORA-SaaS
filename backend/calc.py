@@ -59,11 +59,14 @@ def positions(txs, assets):
     return out
 
 
-def data_health(data, txs, docs, pos):
+def data_health(data, txs, docs, pos, muted=frozenset()):
     checks = []
+    stats = {"muted": 0}
 
     def add(code, level, items):
-        checks.append({"code": code, "level": level if items else "ok", "count": len(items), "items": items[:30]})
+        kept = [it for it in items if f"{code}:{it['id']}" not in muted]
+        stats["muted"] += len(items) - len(kept)
+        checks.append({"code": code, "level": level if kept else "ok", "count": len(kept), "items": kept[:30]})
 
     ref = lambda e, x: {"entity": e, "id": x["id"], "label": x.get("name") or x.get("institution") or x.get("title"), "client_id": x.get("client_id")}  # noqa: E731
     assets, liabs, cfs = data["assets"], data["liabilities"], data["cashflows"]
@@ -93,7 +96,7 @@ def data_health(data, txs, docs, pos):
     att = sum(c["level"] == "attention" for c in checks)
     rev = sum(c["level"] == "review" for c in checks)
     return {"score": max(0, 100 - att * 12 - rev * 5), "status": "attention" if att else "review" if rev else "ok",
-            "checks": checks, "note": "FINORA never modifies source data automatically."}
+            "checks": checks, "muted_count": stats["muted"], "note": "FINORA never modifies source data automatically."}
 
 
 def goals_progress(goals, summ, cf, liabs, risk_items):

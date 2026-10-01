@@ -23,9 +23,13 @@ async def context(user, client_id=None):
     rk = risk(summ, data["assets"], data["liabilities"], cf)
     docs = [clean(d) for d in await db.documents.find(await scope(user, client_id)).to_list(2000)]
     pos = positions(data["transactions"], data["assets"])
+    mutes = await db.health_mutes.find(await scope(user, client_id)).to_list(1000)
+    muted_keys = {f"{m['code']}:{m['item_id']}" for m in mutes}
+    h = data_health(data, data["transactions"], docs, pos, muted_keys)
+    h["muted_items"] = [{"code": m["code"], "item_id": m["item_id"], "label": m.get("label"), "client_id": m.get("client_id")} for m in mutes]
     return {"data": data, "summary": summ, "cashflow": cf, "trend": series, "metrics": metrics(series),
             "risk": rk, "breakdowns": build_breakdowns(data), "positions": pos,
-            "health": data_health(data, data["transactions"], docs, pos),
+            "health": h,
             "goals": goals_progress(data["goals"], summ, cf, data["liabilities"], rk["items"]),
             "last_meeting": meetings[-1] if meetings else None}
 
@@ -50,6 +54,28 @@ async def get_positions(client_id: Optional[str] = None, user=Depends(current)):
 @router.get("/data-health")
 async def get_health(client_id: Optional[str] = None, user=Depends(current)):
     return (await context(user, client_id))["health"]
+
+
+class MuteIn(BaseModel):
+    client_id: Optional[str] = None
+    code: str
+    item_id: str
+    label: Optional[str] = ""
+
+
+@router.post("/health/mute")
+async def mute_health(body: MuteIn, user=Depends(current)):
+    await scope(user, body.client_id)
+    key = {"tenant_id": user["tenant_id"], "client_id": body.client_id, "code": body.code, "item_id": body.item_id}
+    await db.health_mutes.update_one(key, {"$set": {**key, "id": new_id(), "label": body.label or "", "muted_by": user["id"], "muted_at": now_iso()}}, upsert=True)
+    return {"ok": True}
+
+
+@router.post("/health/unmute")
+async def unmute_health(body: MuteIn, user=Depends(current)):
+    await scope(user, body.client_id)
+    await db.health_mutes.delete_one({"tenant_id": user["tenant_id"], "client_id": body.client_id, "code": body.code, "item_id": body.item_id})
+    return {"ok": True}
 
 
 @router.get("/goals/progress")
