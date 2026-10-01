@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/context/AppContext";
 import { api, errMsg } from "@/lib/api";
+import LinkTickers from "@/components/LinkTickers";
 
 const EVERY_MS = 3 * 60 * 1000;
 
@@ -44,9 +45,12 @@ export default function PriceSync({ clientId, onChange }) {
         {busy ? t("price_refreshing") : at ? `${t("price_last_sync")}: ${at.toLocaleTimeString()}` : t("price_auto_on")}
       </span>
       <span className="hidden text-[11px] text-slate-400 sm:inline">{t("price_auto_every")}</span>
-      <Button variant="outline" size="sm" className="ml-auto h-8" onClick={() => run(true)} disabled={busy} data-testid="assets-refresh-prices">
-        <RefreshCw className={`mr-1 h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} />{t("price_refresh")}
-      </Button>
+      <div className="ml-auto flex items-center gap-2">
+        <LinkTickers clientId={clientId} onChange={() => cbRef.current && cbRef.current()} />
+        <Button variant="outline" size="sm" className="h-8" onClick={() => run(true)} disabled={busy} data-testid="assets-refresh-prices">
+          <RefreshCw className={`mr-1 h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} />{t("price_refresh")}
+        </Button>
+      </div>
     </div>
   );
 }

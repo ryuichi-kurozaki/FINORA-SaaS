@@ -165,6 +165,58 @@ async def loop():
             logger.exception("daily price sync failed")
 
 
+LINKABLE = ["fund", "jp_stock", "foreign_stock", "etf"]
+
+
+async def _scoped(user, client_id):
+    """Resolve the client scope for a price action, raising when the caller has no access."""
+    if user["role"] == "client":
+        return user.get("client_id")
+    if client_id:
+        c = await db.clients.find_one({"id": client_id, "tenant_id": user["tenant_id"]}, {"consultant_id": 1})
+        if not c:
+            raise HTTPException(404, "Client not found")
+        if user["role"] == "consultant" and c.get("consultant_id") != user["id"]:
+            raise HTTPException(403, "No access to this client")
+        return client_id
+    if user["role"] == "consultant":
+        raise HTTPException(422, "Select a client before refreshing prices")
+    return None
+
+
+@router.get("/unlinked")
+async def unlinked(client_id: Optional[str] = None, user=Depends(current)):
+    """Assets whose 協会コード/ティッカー could not be matched automatically — shown for manual linking."""
+    cid = await _scoped(user, client_id)
+    q = {"tenant_id": user["tenant_id"], "asset_class": {"$in": LINKABLE}, "$or": [{"ticker": None}, {"ticker": ""}, {"ticker": {"$exists": False}}]}
+    if cid:
+        q["client_id"] = cid
+    rows = await db.assets.find(q, {"_id": 0, "id": 1, "name": 1, "asset_class": 1, "client_id": 1, "currency": 1,
+                                    "current_price": 1, "quantity": 1, "account_id": 1}).to_list(500)
+    names = {c["id"]: c.get("corporate_name") or c.get("name")
+             for c in await db.clients.find({"tenant_id": user["tenant_id"]}, {"id": 1, "name": 1, "corporate_name": 1}).to_list(5000)}
+    for r in rows:
+        r["client_name"] = names.get(r.get("client_id"))
+    return rows
+
+
+@router.post("/link")
+async def link(asset_id: str, ticker: str, user=Depends(current)):
+    tk = (ticker or "").strip().upper()[:20]
+    if not tk:
+        raise HTTPException(422, "Ticker required")
+    a = await db.assets.find_one({"id": asset_id, "tenant_id": user["tenant_id"]})
+    if not a:
+        raise HTTPException(404, "Asset not found")
+    await _scoped(user, a.get("client_id"))
+    upd = {"ticker": tk, "updated_at": now_iso()}
+    price, pdate = await fetch_price(tk, a.get("name"))
+    if price:
+        upd["current_price"], upd["price_date"] = round(price, 4), pdate
+    await db.assets.update_one({"id": a["id"]}, {"$set": upd})
+    return {"id": a["id"], "ticker": tk, "current_price": upd.get("current_price"), "price_date": upd.get("price_date")}
+
+
 _RUNNING = {}
 _LAST = {}
 MIN_GAP = 150
