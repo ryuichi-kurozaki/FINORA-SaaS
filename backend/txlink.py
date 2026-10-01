@@ -34,9 +34,11 @@ async def rebuild(tenant_id=None, client_id=None):
         q["client_id"] = client_id
     txs = await db.transactions.find(q).to_list(20000)
     assets = await db.assets.find(q).to_list(5000)
-    by_key = {}
+    by_key, by_name = {}, {}
     for a in assets:
-        by_key.setdefault((a.get("client_id"), _key(a.get("name"))), a)
+        nk = _key(a.get("name"))
+        by_key.setdefault((a.get("client_id"), a.get("account_id") or "", nk), a)
+        by_name.setdefault((a.get("client_id"), nk), a)
     linked = created = rebuilt = 0
     for tx in txs:
         if tx.get("asset_id") or tx.get("tx_type") not in LINKED_TYPES:
@@ -44,15 +46,21 @@ async def rebuild(tenant_id=None, client_id=None):
         name = _tx_name(tx)
         if not name:
             continue
-        k = (tx.get("client_id"), _key(name))
-        a = by_key.get(k)
+        client = tx.get("client_id")
+        acct = tx.get("account_id") or ""
+        nk = _key(name)
+        # Link to the holding in the SAME account; only fall back across accounts when the tx has no account.
+        a = by_key.get((client, acct, nk))
+        if not a and not acct:
+            a = by_name.get((client, nk))
         if not a:
-            a = {"id": new_id(), "tenant_id": tx["tenant_id"], "client_id": tx.get("client_id"), "account_id": tx.get("account_id"),
+            a = {"id": new_id(), "tenant_id": tx["tenant_id"], "client_id": client, "account_id": tx.get("account_id"),
                  "asset_class": "fund", "name": name[:200], "ticker": await match_ticker(name) or "", "currency": tx.get("currency") or "JPY",
                  "quantity": 0.0, "acquisition_price": 0.0, "current_price": 0.0, "price_unit": 10000,
                  "notes": "取引履歴から自動作成", "source": "IMPORT", "created_at": now_iso(), "updated_at": now_iso()}
             await db.assets.insert_one(dict(a))
-            by_key[k] = a
+            by_key[(client, acct, nk)] = a
+            by_name.setdefault((client, nk), a)
             assets.append(a)
             created += 1
         await db.transactions.update_one({"id": tx["id"]}, {"$set": {"asset_id": a["id"], "updated_at": now_iso()}})
