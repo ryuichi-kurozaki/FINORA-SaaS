@@ -4,6 +4,7 @@ import { num } from "@/lib/format";
 import { Card, CardTitle, PageHeader } from "@/components/common";
 import { useScopeLabel } from "@/lib/useDashboard";
 import EntityManager from "@/components/EntityManager";
+import TxSync from "@/components/TxSync";
 
 export function PositionsTable({ clientId }) {
   const { t } = useApp();
@@ -37,7 +38,10 @@ export default function Transactions() {
   const scope = useScopeLabel();
   return (
     <div className="space-y-6" data-testid="transactions-page">
-      <PageHeader eyebrow={`Transactions · ${scope}`} title={t("transactions")} />
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <PageHeader eyebrow={`Transactions · ${scope}`} title={t("transactions")} />
+        <TxSync clientId={scopeClient} />
+      </div>
       <PositionsTable clientId={scopeClient} />
       <EntityManager key={scopeClient} entity="transactions" />
     </div>

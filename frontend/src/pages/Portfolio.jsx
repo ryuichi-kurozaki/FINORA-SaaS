@@ -43,6 +43,8 @@ export default function Portfolio() {
   const { data, reload } = useDashboard();
   const { data: assets, reload: reloadAssets } = useApi(`/data/assets${scopeClient ? `?client_id=${scopeClient}` : ""}`, [scopeClient]);
   const { data: accounts, reload: reloadAccounts } = useApi(`/data/accounts${scopeClient ? `?client_id=${scopeClient}` : ""}`, [scopeClient]);
+  const { data: pos } = useApi(`/positions${scopeClient ? `?client_id=${scopeClient}` : ""}`, [scopeClient]);
+  const posMap = useMemo(() => Object.fromEntries((pos || []).map((p) => [p.asset_id, p])), [pos]);
   const [acct, setAcct] = useState("");
   const scope = useScopeLabel();
   const allAssets = assets || [];
@@ -87,18 +89,25 @@ export default function Portfolio() {
         <CardTitle>{t("holdings")}</CardTitle>
         <div className="-mx-2 overflow-x-auto">
           <table className="data-table w-full min-w-[900px] text-sm" data-testid="holdings-table">
-            <thead><tr>{["asset_name", "asset_class", "client", "currency", "quantity", "acquisition_total", "current_value", "value_jpy", "pl_jpy", "dividend_yield"].map((h) => <th key={h}>{t(h)}</th>)}</tr></thead>
+            <thead><tr>{["asset_name", "asset_class", "client", "currency", "quantity", "acquisition_total", "current_value", "value_jpy", "pl_jpy", "tx_count", "realized_pl", "dividends", "dividend_yield"].map((h) => <th key={h}>{t(h)}</th>)}</tr></thead>
             <tbody>
-              {holdings.sort((a, b2) => b2.value_jpy - a.value_jpy).map((a) => (
+              {holdings.sort((a, b2) => b2.value_jpy - a.value_jpy).map((a) => {
+                const p = posMap[a.id];
+                return (
                 <tr key={a.id}>
-                  <td className="font-medium">{a.name}{a.ticker && <span className="ml-1.5 font-num text-xs text-slate-400">{a.ticker}</span>}</td>
+                  <td className="font-medium">{a.name}{a.ticker && <span className="ml-1.5 font-num text-xs text-slate-400">{a.ticker}</span>}
+                    {p?.qty_mismatch && <span className="ml-1.5 text-xs text-amber-600" title={`${t("qty_from_tx")}: ${num(p.qty, 4)}`} data-testid={`qty-mismatch-${a.id}`}>⚠</span>}</td>
                   <td>{t(a.asset_class)}</td><td className="text-slate-600">{a.client_name}</td><td className="font-num">{a.currency}</td>
                   <td className="font-num">{num(a.quantity, 4)}</td><td className="font-num">{num(a.acquisition_total)}</td><td className="font-num">{num(a.current_value)}</td>
                   <td className="font-num font-medium">{yen(a.value_jpy)}</td>
                   <td className={`font-num ${plColor(a.pl_jpy)}`}>{yen(a.pl_jpy)} <span className="text-xs">({pct(a.unrealized_pct)})</span></td>
+                  <td className="font-num text-slate-600">{p ? num(p.tx_count) : "—"}</td>
+                  <td className={`font-num ${plColor(p?.realized || 0)}`}>{p ? yen(p.realized) : "—"}</td>
+                  <td className="font-num text-slate-600">{p ? yen(p.dividends + p.interest) : "—"}</td>
                   <td className="font-num">{a.value_jpy ? pct(((a.dividend_jpy + a.interest_jpy) / a.value_jpy) * 100, false) : "—"}</td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

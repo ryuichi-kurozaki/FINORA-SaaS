@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorGridFSBucket
 
 import pricing
+import txlink
 from core import forbid_demo, db, new_id, now_iso, clean, current, scope, audit, notify_other_side
 from crud import ENTITIES, OWNED, sanitize, to_store, list_items, check_write
 
@@ -411,7 +412,8 @@ async def import_data(entity: str, request: Request, file: UploadFile = File(...
                 except Exception as e:
                     errors.append({"row": n, "error": str(e)[:200]})
             await audit(user, "import", "transactions", None, after={"created": created, "errors": len(errors), "file": file.filename, "format": fmt}, request=request)
-            return {"created": created, "updated": 0, "skipped": 0, "errors": errors[:50], "format": fmt}
+            link = await txlink.rebuild(user["tenant_id"], client_id)
+            return {"created": created, "updated": 0, "skipped": 0, "errors": errors[:50], "format": fmt, "link": link}
     try:
         df = pd.read_excel(io.BytesIO(raw)) if file.filename.lower().endswith((".xlsx", ".xls")) else pd.read_csv(io.BytesIO(raw))
     except Exception:
