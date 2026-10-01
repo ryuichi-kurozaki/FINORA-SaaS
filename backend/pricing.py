@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import re
+import time
 import unicodedata
 from datetime import date, datetime, timedelta, timezone
 from difflib import SequenceMatcher
@@ -164,16 +165,31 @@ async def loop():
             logger.exception("daily price sync failed")
 
 
+_RUNNING = {}
+_LAST = {}
+MIN_GAP = 150
+
+
 @router.post("/sync")
 async def sync_now(client_id: Optional[str] = None, user=Depends(current)):
     if user["role"] == "client":
         client_id = user.get("client_id")
-    elif not client_id:
-        raise HTTPException(422, "Select a client before refreshing prices")
-    else:
+    elif client_id:
         c = await db.clients.find_one({"id": client_id, "tenant_id": user["tenant_id"]}, {"consultant_id": 1})
         if not c:
             raise HTTPException(404, "Client not found")
         if user["role"] == "consultant" and c.get("consultant_id") != user["id"]:
             raise HTTPException(403, "No access to this client")
-    return await sync(user["tenant_id"], client_id)
+    elif user["role"] == "consultant":
+        raise HTTPException(422, "Select a client before refreshing prices")
+    key = f"{user['tenant_id']}:{client_id or ''}"
+    cached = _LAST.get(key)
+    if _RUNNING.get(key) or (cached and time.time() - cached[0] < MIN_GAP):
+        return {**(cached[1] if cached else {"assets": 0, "linked": 0, "updated": 0, "skipped": 0, "failed": 0}), "cached": True}
+    _RUNNING[key] = True
+    try:
+        res = await sync(user["tenant_id"], client_id)
+    finally:
+        _RUNNING.pop(key, None)
+    _LAST[key] = (time.time(), res)
+    return res

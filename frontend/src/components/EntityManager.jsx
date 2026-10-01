@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { Download, Eye, FileSpreadsheet, Lock, MessageSquareWarning, Pencil, Plus, RefreshCw, Search, Trash2, Upload } from "lucide-react";
+import { Download, Eye, FileSpreadsheet, Lock, MessageSquareWarning, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,7 +83,6 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
   const impAcctRef = useRef("");
   const impDupRef = useRef("create");
   const [imp, setImp] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
   const canWrite = canEdit(entity);
   const owned = OWNED.includes(entity);
   const fields = ENTITIES[entity].filter((f) => !(f.adminOnly && user.role !== "admin"));
@@ -168,16 +167,6 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
     setImp(null);
   };
 
-  const refreshPrices = async () => {
-    setRefreshing(true);
-    try {
-      const { data: r } = await api.post(`/assets/prices/sync${cid ? `?client_id=${cid}` : ""}`);
-      toast.success(`${t("price_refresh_done")}: ${r.updated}${r.linked ? ` / ${t("price_linked")}: ${r.linked}` : ""}${r.skipped ? ` / ${t("price_refresh_skipped")}: ${r.skipped}` : ""}${r.failed ? ` / ${t("import_errors")}: ${r.failed}` : ""}`);
-      after();
-    } catch (err) { toast.error(errMsg(err)); }
-    setRefreshing(false);
-  };
-
   const exp = (fmt) => downloadFile(`/io/export/${entity}?fmt=${fmt}${cid ? `&client_id=${cid}` : ""}`, `finora_${entity}.${fmt}`).catch((e) => toast.error(errMsg(e)));
 
   return (
@@ -195,9 +184,6 @@ export default function EntityManager({ entity, clientId, title, onChange, compa
           {user.role !== "consultant" && <>
             <Button variant="outline" size="sm" onClick={() => exp("csv")} data-testid={`${entity}-export-csv`}><Download className="mr-1 h-4 w-4" />CSV</Button>
             <Button variant="outline" size="sm" onClick={() => exp("xlsx")} data-testid={`${entity}-export-xlsx`}><FileSpreadsheet className="mr-1 h-4 w-4" />Excel</Button></>}
-          {canWrite && entity === "assets" && (
-            <Button variant="outline" size="sm" onClick={refreshPrices} disabled={refreshing} data-testid="assets-refresh-prices"><RefreshCw className={`mr-1 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />{t("price_refresh")}</Button>
-          )}
           {canWrite && (
             <>
               <Button variant="outline" size="sm" onClick={() => (entity === "assets" || entity === "transactions" ? setImp({ open: true, acct: "", dup: "update" }) : fileRef.current.click())} data-testid={`${entity}-import-btn`}><Upload className="mr-1 h-4 w-4" />{t("import")}</Button>

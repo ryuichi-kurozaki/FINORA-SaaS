@@ -1,9 +1,11 @@
 import { useApp } from "@/context/AppContext";
+import { useState } from "react";
 import { useDashboard, useScopeLabel } from "@/lib/useDashboard";
 import { compact, pct } from "@/lib/format";
 import { Card, CardTitle, KpiCard, PageHeader } from "@/components/common";
 import { HBars, IncomeExpense } from "@/components/charts";
 import EntityManager from "@/components/EntityManager";
+import PriceSync from "@/components/PriceSync";
 
 function CashflowSummary() {
   const { t, lang } = useApp();
@@ -51,15 +53,17 @@ const META = {
 };
 
 export default function EntityPage({ entity }) {
-  const { t } = useApp();
+  const { t, scopeClient } = useApp();
   const scope = useScopeLabel();
   const m = META[entity];
   const Summary = m.summary;
+  const [tick, setTick] = useState(0);
   return (
     <div data-testid={`${entity}-page`}>
+      {entity === "assets" && <div className="mb-4"><PriceSync clientId={scopeClient} onChange={() => setTick((n) => n + 1)} /></div>}
       <PageHeader eyebrow={`${m.eyebrow} · ${scope}`} title={t(m.title || entity)} />
       {Summary && <Summary />}
-      <EntityManager key={entity} entity={entity} />
+      <EntityManager key={`${entity}-${tick}`} entity={entity} />
     </div>
   );
 }

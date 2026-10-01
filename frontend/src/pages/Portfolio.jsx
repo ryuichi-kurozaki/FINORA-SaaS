@@ -6,6 +6,7 @@ import { compact, num, pct, plColor, yen } from "@/lib/format";
 import { Card, CardTitle, KpiCard, PageHeader, Spinner } from "@/components/common";
 import { Donut, HBars } from "@/components/charts";
 import EntityManager from "@/components/EntityManager";
+import PriceSync from "@/components/PriceSync";
 
 const INVEST = new Set(["jp_stock", "foreign_stock", "etf", "fund", "bond", "fx", "crypto", "gold", "precious_metal", "unlisted", "real_estate"]);
 
@@ -58,6 +59,7 @@ export default function Portfolio() {
     ["invested_value", s.invested_value], ["unrealized_pl", s.unrealized_pl], ["realized_pl", s.realized_pl], ["dividends", s.dividends], ["interest", s.interest]];
   return (
     <div data-testid="portfolio-page">
+      <div className="mb-4"><PriceSync clientId={isClient ? user.client_id : scopeClient} onChange={() => { reload(); reloadAssets(); }} /></div>
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <PageHeader eyebrow={`Portfolio · ${scope}`} title={t("portfolio")} />
         <div className="flex items-center gap-2">
