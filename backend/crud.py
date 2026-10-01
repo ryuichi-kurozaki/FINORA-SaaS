@@ -1,3 +1,4 @@
+import unicodedata
 from typing import Optional
 
 from fastapi import APIRouter, Request, HTTPException, Depends
@@ -64,6 +65,8 @@ def sanitize(entity, body):
         elif v is not None and not isinstance(v, (int, float, bool)):
             v = str(v)[:5000]
         out[k] = v
+    if entity in ("assets", "transactions") and isinstance(out.get("name"), str):
+        out["name"] = unicodedata.normalize("NFKC", out["name"])
     return out
 
 

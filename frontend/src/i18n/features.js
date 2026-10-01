@@ -10,6 +10,7 @@ export const F = {
   holding_qty: ["保有数量", "Holding qty", "Qtd. em carteira"], cost_basis: ["取得原価", "Cost basis", "Custo"], avg_cost: ["平均取得単価", "Avg. cost", "Custo médio"],
   dividends_cum: ["配当累計", "Dividends (cum.)", "Dividendos acum."], interest_cum: ["利息累計", "Interest (cum.)", "Juros acum."],
   qty_mismatch: ["登録数量と不一致", "Qty mismatch", "Qtd. divergente"], market_value: ["評価額", "Market value", "Valor de mercado"],
+  tx_history: ["売買取引履歴", "Transaction history", "Histórico de transações"], tx_history_empty: ["この銘柄の取引はありません", "No transactions for this holding", "Sem transações para este ativo"], view_tx_hint: ["銘柄をクリックすると取引履歴を表示", "Click a holding to see its transactions", "Clique em um ativo para ver as transações"],
   goal_name: ["目標名", "Goal name", "Nome da meta"], target_amount: ["目標値", "Target", "Meta"], goal_current_value: ["現在値（空欄で自動）", "Current value (blank = auto)", "Valor atual (vazio = auto)"],
   target_date: ["目標日", "Target date", "Data-alvo"], achievement: ["達成率", "Achievement", "Atingido"], remaining: ["残り", "Remaining", "Restante"],
   months_left: ["残り期間（月）", "Months left", "Meses restantes"], auto_value: ["自動計算", "auto", "auto"], manual_value: ["手入力", "manual", "manual"],
