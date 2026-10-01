@@ -149,6 +149,16 @@ async def list_items(user, entity, client_id=None):
         items = [enrich(i, fx) for i in items]
         for i in items:
             i["fx_date"], i["base_currency"] = s.get("fx_updated_at"), s.get("base_currency", "JPY")
+    if entity == "accounts":
+        fx = await get_fx(user["tenant_id"])
+        adocs = await db.assets.find(await list_query(user, "assets", client_id)).to_list(5000)
+        bal = {}
+        for a in adocs:
+            a = enrich(from_store("assets", a), fx)
+            if a.get("account_id"):
+                bal[a["account_id"]] = bal.get(a["account_id"], 0) + (a.get("value_jpy") or 0)
+        for i in items:
+            i["balance_jpy"] = round(bal.get(i["id"], 0))
     if entity != "clients":
         names = {c["id"]: c.get("corporate_name") or c.get("name")
                  for c in await db.clients.find({"tenant_id": user["tenant_id"]}, {"id": 1, "name": 1, "corporate_name": 1}).to_list(5000)}

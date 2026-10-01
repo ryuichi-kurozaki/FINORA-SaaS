@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { Download, Eye, FileSpreadsheet, Lock, MessageSquareWarning, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
+import { Download, Eye, FileSpreadsheet, Lock, MessageSquareWarning, Pencil, Plus, Search, Trash2, Upload, CheckCircle2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,13 @@ function Cell({ f, row, assets }) {
   const { t, clientName } = useApp();
   const v = row[f.k];
   if (f.type === "client") return <span className="text-slate-700">{row.client_name || clientName(v) || "—"}</span>;
-  if (f.type === "asset") return <span>{assets.find((a) => a.id === v)?.name || "—"}</span>;
+  if (f.type === "asset") {
+    const a = assets.find((x) => x.id === v);
+    const need = ["buy", "sell", "dividend", "interest"].includes(row.tx_type);
+    if (a) return <span className="inline-flex items-center gap-1.5" data-testid={`tx-asset-linked-${row.id}`}><CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#00A878]" /><span className="line-clamp-1 max-w-[220px]">{a.name}</span><span className="shrink-0 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-[#00A878]">{t("tx_reflected")}</span></span>;
+    if (need) return <span className="inline-flex items-center gap-1.5 text-amber-600" data-testid={`tx-asset-unlinked-${row.id}`}><AlertTriangle className="h-3.5 w-3.5 shrink-0" /><span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold">{t("tx_unreflected")}</span></span>;
+    return <span className="text-slate-400">—</span>;
+  }
   if (f.type === "money") return <span className="font-num">{yen(v)}</span>;
   if (f.type === "pl") return <span className={`font-num ${plColor(v)}`}>{yen(v)}</span>;
   if (f.type === "number") return <span className="font-num">{num(v, 4)}</span>;

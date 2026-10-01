@@ -36,6 +36,7 @@ export const ENTITIES = {
     { k: "region", type: "select", opts: ["domestic", "overseas"], table: true },
     { k: "owner_type", type: "select", opts: OWNER, table: true },
     { k: "currency", type: "select", opts: CURRENCIES, raw: true, table: true },
+    { k: "balance_jpy", type: "money", table: true, computed: true },
     { k: "branch" }, { k: "notes", type: "textarea", wide: true },
   ],
   assets: [
