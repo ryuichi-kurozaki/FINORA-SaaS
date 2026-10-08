@@ -108,7 +108,11 @@ export default function MeetingRoom() {
     return () => { alive = false; clearTimeout(timer); send("bye"); pc.current?.close(); try { pipWin.current?.close(); } catch { /* pip */ } if (comp.current) { cancelAnimationFrame(comp.current.raf); comp.current.out.getTracks().forEach((tr) => tr.stop()); } [screen.current, camStream.current, local.current?.srcObject].forEach((s) => s && s.getTracks && s.getTracks().forEach((tr) => tr.stop())); };
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const vSender = () => pc.current?.getSenders().find((s) => s.track && s.track.kind === "video");
+  const vSender = () => {
+    const p = pc.current; if (!p) return null;
+    const tc = p.getTransceivers().find((t) => ((t.sender.track && t.sender.track.kind) || (t.receiver.track && t.receiver.track.kind)) === "video");
+    return (tc && tc.sender) || p.getSenders().find((s) => s.track && s.track.kind === "video") || null;
+  };
   const stopComposite = () => {
     if (!comp.current) return;
     cancelAnimationFrame(comp.current.raf);
@@ -173,6 +177,7 @@ export default function MeetingRoom() {
   };
   const shareScreen = async () => {
     if (sharing) return stopShare();
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { toast.error(t("mt_share_unsupported")); return; }
     try {
       const ds = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false });
       screen.current = ds;
