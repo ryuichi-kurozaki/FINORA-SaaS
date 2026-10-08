@@ -26,6 +26,7 @@ export const B = {
   bank_transfer_to: ["お振込先", "Bank transfer to", "Dados para transferência"], bp_bank_name: ["金融機関名", "Bank name", "Banco"], bp_bank_branch: ["支店名", "Branch", "Agência"],
   bp_bank_account_type: ["預金種別", "Account type", "Tipo de conta"], bp_bank_account_number: ["口座番号", "Account number", "Número da conta"], bp_bank_account_holder: ["口座名義（カナ）", "Account holder", "Titular"],
   acct_ordinary: ["普通", "Ordinary", "Corrente"], acct_current: ["当座", "Checking", "Conta corrente"], acct_savings: ["貯蓄", "Savings", "Poupança"], bank_info_supp: ["補足（任意）", "Note (optional)", "Observação (opcional)"],
+  bp_import_payout: ["受取口座から読み取る", "Import from payout account", "Importar da conta de recebimento"], bp_payout_empty: ["受取口座が未登録です（カード決済の受取口座を先に登録してください）", "No payout account registered yet", "Conta de recebimento não cadastrada"], bp_payout_read: ["受取口座から読み取りました。保存してください", "Imported from payout account. Please save", "Importado. Salve para aplicar"],
   billed_month: ["今月請求額", "Billed this month", "Faturado no mês"], paid_month: ["今月入金額", "Received this month", "Recebido no mês"],
   billed_year: ["年間請求額", "Billed this year", "Faturado no ano"], paid_year: ["年間入金額", "Received this year", "Recebido no ano"],
   outstanding: ["未入金額", "Outstanding", "Em aberto"], overdue_amt: ["期限超過額", "Overdue", "Vencido"], by_client_rev: ["顧客別売上", "Revenue by client", "Receita por cliente"],

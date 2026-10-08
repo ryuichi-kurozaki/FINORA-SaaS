@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { CreditCard } from "lucide-react";
+import { CreditCard, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/context/AppContext";
 import { api, errMsg, useApi } from "@/lib/api";
@@ -18,6 +18,16 @@ function BillingProfile() {
   useEffect(() => { if (data) setF(data); }, [data]);
   const set = (k, v) => setF({ ...f, [k]: v });
   const save = async () => { try { await api.put("/billing/profile", f); toast.success(t("saved")); } catch (e) { toast.error(errMsg(e)); } };
+  const readPayout = async () => {
+    try {
+      const { data } = await api.get("/payouts/bank");
+      const b = data?.bank;
+      if (!b) return toast.error(t("bp_payout_empty"));
+      const amap = { ORDINARY: "ordinary", CHECKING: "current", SAVINGS: "savings" };
+      setF((prev) => ({ ...prev, bank_name: b.bank_name || "", bank_branch: b.branch_name || "", bank_account_type: amap[b.account_type] || "ordinary", bank_account_number: b.account_number || "", bank_account_holder: b.holder_kana || "" }));
+      toast.success(t("bp_payout_read"));
+    } catch (e) { toast.error(errMsg(e)); }
+  };
   if (!data) return <Spinner />;
   return (
     <Card><CardTitle>{t("billing_profile")}</CardTitle>
@@ -25,7 +35,10 @@ function BillingProfile() {
         {TEXT_FIELDS.map((k) => <label key={k} className="text-xs text-slate-600">{t(k)}
           <input value={f[k] || ""} onChange={(e) => set(k, e.target.value)} className={inpC} data-testid={`bp-${k}`} /></label>)}
       </div>
-      <div className="mt-5 mb-2 text-xs font-semibold text-[#071A2B]">{t("bank_transfer_to")}</div>
+      <div className="mt-5 mb-2 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold text-[#071A2B]">{t("bank_transfer_to")}</span>
+        <Button variant="outline" size="sm" className="ml-auto h-8" onClick={readPayout} data-testid="bp-read-payout"><Download className="mr-1 h-3.5 w-3.5" />{t("bp_import_payout")}</Button>
+      </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {BANK_FIELDS.map((k) => <label key={k} className={`text-xs text-slate-600 ${k === "bank_account_holder" ? "sm:col-span-2" : ""}`}>{t(`bp_${k}`)}
           <input value={f[k] || ""} onChange={(e) => set(k, e.target.value)} className={inpC} data-testid={`bp-${k}`} /></label>)}
