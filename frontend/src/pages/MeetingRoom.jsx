@@ -140,11 +140,14 @@ export default function MeetingRoom() {
     }
     setSharing(false);
     send("share", { on: false });
+    try { window.focus(); } catch { /* best-effort refocus */ }
   };
   const shareScreen = async () => {
     if (sharing) return stopShare();
     try {
-      const ds = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false });
+      const controller = ("CaptureController" in window) ? new window.CaptureController() : undefined;
+      const ds = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false, ...(controller ? { controller } : {}) });
+      try { controller && controller.setFocusBehavior && controller.setFocusBehavior("no-focus-change"); } catch { /* monitor capture: focus control N/A */ }
       screen.current = ds;
       const screenV = document.createElement("video"); screenV.srcObject = ds; screenV.muted = true; await screenV.play();
       const camV = document.createElement("video"); camV.muted = true;
