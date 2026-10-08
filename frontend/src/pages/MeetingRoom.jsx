@@ -227,8 +227,8 @@ export default function MeetingRoom() {
 
   return (
     <div className="flex h-[calc(100dvh-8rem)] min-h-0 flex-col gap-2 overflow-hidden" data-testid="meeting-room">
-      <div className="flex flex-wrap items-center gap-2">
-        <h1 className="font-display text-2xl font-extrabold text-[#071A2B]">{t("mt_room")}</h1>
+      <div className="flex items-center gap-2 overflow-x-auto flex-nowrap md:flex-wrap [&>*]:shrink-0 no-scrollbar">
+        <h1 className="font-display text-lg md:text-2xl font-extrabold text-[#071A2B]">{t("mt_room")}</h1>
         <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600" data-testid="meeting-state">{t(`mt_state_${state}`)}</span>
         {(rec || peerRec) && <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600" data-testid="meeting-rec-badge"><Circle className="h-3 w-3 fill-red-600" />{t("mt_recording")}</span>}
         {sharing && <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-[#00A878]" data-testid="meeting-share-badge"><MonitorUp className="h-3 w-3" />{t("mt_sharing")}</span>}
@@ -245,7 +245,7 @@ export default function MeetingRoom() {
         <span className="text-slate-400">·</span>
         <span>{user.name}（{t("mt_you")}）</span>
       </div>
-      <div className="relative mx-auto w-full min-h-0 flex-1 overflow-hidden rounded-2xl bg-[#071A2B] shadow-xl" data-testid="meeting-stage">
+      <div className="relative mx-auto w-full min-h-[46vh] md:min-h-0 flex-1 overflow-hidden rounded-2xl bg-[#071A2B] shadow-xl" data-testid="meeting-stage">
         <div className={sharing ? pipCls : "absolute inset-0"} data-testid="meeting-remote-wrap">
           <video ref={remote} autoPlay playsInline className={`h-full w-full ${sharing ? "object-cover" : "object-contain"} bg-[#071A2B]`} data-testid="meeting-remote-video" />
           <span className="absolute bottom-1 left-1 rounded bg-black/55 px-1.5 py-0.5 text-[11px] font-semibold text-white" data-testid="meeting-remote-name">{otherName || "—"}</span>
@@ -256,17 +256,17 @@ export default function MeetingRoom() {
           <span className="absolute bottom-1 left-1 rounded bg-black/55 px-1.5 py-0.5 text-[11px] font-semibold text-white" data-testid="meeting-local-name">{sharing ? t("mt_sharing") : `${user.name}（${t("mt_you")}）`}</span>
           {camOff && !sharing && <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-slate-900 text-slate-300" data-testid="meeting-cam-off-overlay"><VideoOff className="h-6 w-6" /><span className="text-[11px] font-semibold">{t("mt_cam_is_off")}</span></div>}
         </div>
-        <div className="absolute inset-x-0 bottom-3 z-20 flex flex-wrap justify-center gap-2 px-2" data-testid="meeting-controls">
-          <Button variant="outline" size="sm" className={camOff ? "text-slate-500" : ""} disabled={["init", "nomedia"].includes(state)} onClick={toggleCam} data-testid="meeting-cam-btn">{camOff ? <VideoOff className="mr-1 h-4 w-4" /> : <Video className="mr-1 h-4 w-4" />}{t(camOff ? "mt_cam_on" : "mt_cam_off")}</Button>
-          <Button variant="outline" size="sm" className={micOff ? "text-red-600" : ""} disabled={["init", "nomedia"].includes(state)} onClick={toggleMic} data-testid="meeting-mic-btn">{micOff ? <MicOff className="mr-1 h-4 w-4" /> : <Mic className="mr-1 h-4 w-4" />}{t(micOff ? "mt_mic_on" : "mt_mic_off")}</Button>
-          <Button variant="outline" size="sm" className={sharing ? "text-[#00A878]" : ""} disabled={state !== "connected" && !sharing} onClick={shareScreen} data-testid="meeting-share-btn"><MonitorUp className="mr-1 h-4 w-4" />{t(sharing ? "mt_share_stop" : "mt_share_start")}</Button>
-          {staff && <Button variant="outline" size="sm" className={rec ? "text-red-600" : ""} disabled={state !== "connected" && !rec} onClick={toggleRec} data-testid="meeting-rec-btn">{t(rec ? "mt_rec_stop" : "mt_rec_start")}</Button>}
+        <div className="absolute inset-x-0 bottom-3 z-20 flex flex-nowrap justify-center gap-1.5 px-2 md:flex-wrap md:gap-2" data-testid="meeting-controls">
+          <Button variant="outline" size="sm" className={camOff ? "text-slate-500" : ""} disabled={["init", "nomedia"].includes(state)} onClick={toggleCam} data-testid="meeting-cam-btn">{camOff ? <VideoOff className="h-4 w-4 md:mr-1" /> : <Video className="h-4 w-4 md:mr-1" />}<span className="hidden md:inline">{t(camOff ? "mt_cam_on" : "mt_cam_off")}</span></Button>
+          <Button variant="outline" size="sm" className={micOff ? "text-red-600" : ""} disabled={["init", "nomedia"].includes(state)} onClick={toggleMic} data-testid="meeting-mic-btn">{micOff ? <MicOff className="h-4 w-4 md:mr-1" /> : <Mic className="h-4 w-4 md:mr-1" />}<span className="hidden md:inline">{t(micOff ? "mt_mic_on" : "mt_mic_off")}</span></Button>
+          <Button variant="outline" size="sm" className={sharing ? "text-[#00A878]" : ""} disabled={state !== "connected" && !sharing} onClick={shareScreen} data-testid="meeting-share-btn"><MonitorUp className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">{t(sharing ? "mt_share_stop" : "mt_share_start")}</span></Button>
+          {staff && <Button variant="outline" size="sm" className={rec ? "text-red-600" : ""} disabled={state !== "connected" && !rec} onClick={toggleRec} data-testid="meeting-rec-btn"><Circle className={`h-4 w-4 md:mr-1 ${rec ? "fill-red-600" : ""}`} /><span className="hidden md:inline">{t(rec ? "mt_rec_stop" : "mt_rec_start")}</span></Button>}
           <Button variant="outline" size="sm" onClick={cyclePos} title={t("mt_pip_move")} data-testid="meeting-pip-move-btn"><Move className="h-4 w-4" /></Button>
           <Button variant="outline" size="sm" onClick={() => setPip((p) => ({ ...p, size: p.size === "sm" ? "lg" : "sm" }))} title={t("mt_pip_size")} data-testid="meeting-pip-size-btn"><Maximize2 className="h-4 w-4" /></Button>
-          <Button size="sm" className="bg-red-600 text-white hover:bg-red-700" onClick={leave} data-testid="meeting-leave-btn"><PhoneOff className="mr-1 h-4 w-4" />{t("mt_leave")}</Button>
+          <Button size="sm" className="bg-red-600 text-white hover:bg-red-700" onClick={leave} data-testid="meeting-leave-btn"><PhoneOff className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">{t("mt_leave")}</span></Button>
         </div>
       </div>
-      <p className="text-xs text-slate-500">{t("mt_note")}</p>
+      <p className="hidden md:block text-xs text-slate-500">{t("mt_note")}</p>
     </div>
   );
 }
