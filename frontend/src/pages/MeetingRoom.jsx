@@ -43,7 +43,7 @@ export default function MeetingRoom() {
   const nav = useNavigate();
   const staff = user.role !== "client";
   const local = useRef(null), remote = useRef(null), pc = useRef(null), since = useRef(0);
-  const camStream = useRef(null), screen = useRef(null);
+  const camStream = useRef(null), screen = useRef(null), comp = useRef(null);
   const [state, setState] = useState("init");
   const [rec, setRec] = useState(false), [peerRec, setPeerRec] = useState(false);
   const [sharing, setSharing] = useState(false), [peerShare, setPeerShare] = useState(false);
@@ -96,11 +96,20 @@ export default function MeetingRoom() {
       };
       poll();
     })().catch((e) => { setState("nomedia"); toast.error(errMsg(e)); });
-    return () => { alive = false; clearTimeout(timer); send("bye"); pc.current?.close(); [screen.current, camStream.current, local.current?.srcObject].forEach((s) => s && s.getTracks && s.getTracks().forEach((tr) => tr.stop())); };
+    return () => { alive = false; clearTimeout(timer); send("bye"); pc.current?.close(); if (comp.current) { cancelAnimationFrame(comp.current.raf); comp.current.out.getTracks().forEach((tr) => tr.stop()); } [screen.current, camStream.current, local.current?.srcObject].forEach((s) => s && s.getTracks && s.getTracks().forEach((tr) => tr.stop())); };
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const vSender = () => pc.current?.getSenders().find((s) => s.track && s.track.kind === "video");
+  const stopComposite = () => {
+    if (!comp.current) return;
+    cancelAnimationFrame(comp.current.raf);
+    comp.current.screenV.srcObject = null;
+    comp.current.camV.srcObject = null;
+    comp.current.out.getTracks().forEach((tr) => tr.stop());
+    comp.current = null;
+  };
   const stopShare = async () => {
+    stopComposite();
     const camTrack = camOff ? null : camStream.current?.getVideoTracks()[0];
     const s = vSender();
     if (s) await s.replaceTrack(camTrack || null);
@@ -113,15 +122,36 @@ export default function MeetingRoom() {
   const shareScreen = async () => {
     if (sharing) return stopShare();
     try {
-      const ds = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-      const track = ds.getVideoTracks()[0];
-      const s = vSender();
-      if (s) await s.replaceTrack(track);
+      const ds = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false });
       screen.current = ds;
+      const screenV = document.createElement("video"); screenV.srcObject = ds; screenV.muted = true; await screenV.play();
+      const camV = document.createElement("video"); camV.muted = true;
+      const camTracks = !camOff && camStream.current ? camStream.current.getVideoTracks() : [];
+      if (camTracks.length) { camV.srcObject = new MediaStream(camTracks); await camV.play().catch(() => {}); }
+      const canvas = document.createElement("canvas"); canvas.width = 1280; canvas.height = 720;
+      const ctx = canvas.getContext("2d");
+      const draw = () => {
+        ctx.fillStyle = "#071A2B"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        if (screenV.videoWidth) {
+          const r = Math.min(canvas.width / screenV.videoWidth, canvas.height / screenV.videoHeight);
+          const w = screenV.videoWidth * r, h = screenV.videoHeight * r;
+          ctx.drawImage(screenV, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+        }
+        if (camV.videoWidth) {
+          const pw = 260, ph = 146, x = canvas.width - pw - 20, y = canvas.height - ph - 20;
+          ctx.drawImage(camV, x, y, pw, ph);
+          ctx.strokeStyle = "#00A878"; ctx.lineWidth = 3; ctx.strokeRect(x, y, pw, ph);
+        }
+        comp.current.raf = requestAnimationFrame(draw);
+      };
+      const out = canvas.captureStream(15);
+      comp.current = { screenV, camV, out, raf: 0 };
+      draw();
+      const s = vSender(); if (s) await s.replaceTrack(out.getVideoTracks()[0]);
       local.current.srcObject = ds;
       setSharing(true);
       send("share", { on: true });
-      track.onended = () => stopShare();
+      ds.getVideoTracks()[0].onended = () => stopShare();
     } catch (e) { toast.error(errMsg(e)); }
   };
   const toggleRec = async () => { if (rec) { setRec(false); await recorder.stop(); toast.success(t("mt_rec_saved")); } else { recorder.start(); setRec(true); } };
@@ -181,24 +211,24 @@ export default function MeetingRoom() {
         <span className="text-slate-400">·</span>
         <span>{user.name}（{t("mt_you")}）</span>
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="relative">
-          <video ref={remote} autoPlay playsInline className="aspect-video w-full rounded-xl bg-[#071A2B]" data-testid="meeting-remote-video" />
-          <span className="absolute bottom-2 left-2 rounded-md bg-black/55 px-2 py-0.5 text-xs font-semibold text-white" data-testid="meeting-remote-name">{otherName || "—"}</span>
-          {peerCamOff && <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl bg-[#071A2B] text-slate-300" data-testid="meeting-peer-cam-off-overlay"><VideoOff className="h-8 w-8" /><span className="text-xs font-semibold">{otherName || "—"} · {t("mt_cam_is_off")}</span></div>}
+      <div className="relative mx-auto aspect-video w-full overflow-hidden rounded-2xl bg-[#071A2B] shadow-xl" data-testid="meeting-stage">
+        <div className={sharing ? "absolute top-3 right-3 z-10 aspect-video w-28 overflow-hidden rounded-lg border-2 border-white/70 bg-slate-900 shadow-lg md:w-56" : "absolute inset-0"} data-testid="meeting-remote-wrap">
+          <video ref={remote} autoPlay playsInline className={`h-full w-full ${sharing ? "object-cover" : "object-contain"} bg-[#071A2B]`} data-testid="meeting-remote-video" />
+          <span className="absolute bottom-1 left-1 rounded bg-black/55 px-1.5 py-0.5 text-[11px] font-semibold text-white" data-testid="meeting-remote-name">{otherName || "—"}</span>
+          {peerCamOff && !peerShare && <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#071A2B] text-slate-300" data-testid="meeting-peer-cam-off-overlay"><VideoOff className="h-7 w-7" /><span className="text-xs font-semibold">{otherName || "—"} · {t("mt_cam_is_off")}</span></div>}
         </div>
-        <div className="relative">
-          <video ref={local} autoPlay playsInline muted className="aspect-video w-full rounded-xl bg-slate-800" data-testid="meeting-local-video" />
-          <span className="absolute bottom-2 left-2 rounded-md bg-black/55 px-2 py-0.5 text-xs font-semibold text-white" data-testid="meeting-local-name">{user.name}（{t("mt_you")}）</span>
-          {camOff && !sharing && <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-800 text-slate-300" data-testid="meeting-cam-off-overlay"><VideoOff className="h-8 w-8" /><span className="text-xs font-semibold">{t("mt_cam_is_off")}</span></div>}
+        <div className={sharing ? "absolute inset-0" : "absolute top-3 right-3 z-10 aspect-video w-28 overflow-hidden rounded-lg border-2 border-white/70 bg-slate-900 shadow-lg md:w-56"} data-testid="meeting-local-wrap">
+          <video ref={local} autoPlay playsInline muted className={`h-full w-full ${sharing ? "object-contain" : "object-cover"} bg-slate-900`} data-testid="meeting-local-video" />
+          <span className="absolute bottom-1 left-1 rounded bg-black/55 px-1.5 py-0.5 text-[11px] font-semibold text-white" data-testid="meeting-local-name">{sharing ? t("mt_sharing") : `${user.name}（${t("mt_you")}）`}</span>
+          {camOff && !sharing && <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-slate-900 text-slate-300" data-testid="meeting-cam-off-overlay"><VideoOff className="h-6 w-6" /><span className="text-[11px] font-semibold">{t("mt_cam_is_off")}</span></div>}
         </div>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {staff && <Button variant="outline" className={rec ? "text-red-600" : ""} disabled={state !== "connected" && !rec} onClick={toggleRec} data-testid="meeting-rec-btn">{t(rec ? "mt_rec_stop" : "mt_rec_start")}</Button>}
-        <Button variant="outline" className={camOff ? "text-slate-500" : ""} disabled={["init", "nomedia"].includes(state)} onClick={toggleCam} data-testid="meeting-cam-btn">{camOff ? <VideoOff className="mr-1 h-4 w-4" /> : <Video className="mr-1 h-4 w-4" />}{t(camOff ? "mt_cam_on" : "mt_cam_off")}</Button>
-        <Button variant="outline" className={micOff ? "text-red-600" : ""} disabled={["init", "nomedia"].includes(state)} onClick={toggleMic} data-testid="meeting-mic-btn">{micOff ? <MicOff className="mr-1 h-4 w-4" /> : <Mic className="mr-1 h-4 w-4" />}{t(micOff ? "mt_mic_on" : "mt_mic_off")}</Button>
-        <Button variant="outline" className={sharing ? "text-[#00A878]" : ""} disabled={state !== "connected" && !sharing} onClick={shareScreen} data-testid="meeting-share-btn"><MonitorUp className="mr-1 h-4 w-4" />{t(sharing ? "mt_share_stop" : "mt_share_start")}</Button>
-        <Button className="bg-red-600 text-white hover:bg-red-700" onClick={leave} data-testid="meeting-leave-btn"><PhoneOff className="mr-1 h-4 w-4" />{t("mt_leave")}</Button>
+        <div className="absolute inset-x-0 bottom-3 z-20 flex flex-wrap justify-center gap-2 px-2" data-testid="meeting-controls">
+          <Button variant="outline" size="sm" className={camOff ? "text-slate-500" : ""} disabled={["init", "nomedia"].includes(state)} onClick={toggleCam} data-testid="meeting-cam-btn">{camOff ? <VideoOff className="mr-1 h-4 w-4" /> : <Video className="mr-1 h-4 w-4" />}{t(camOff ? "mt_cam_on" : "mt_cam_off")}</Button>
+          <Button variant="outline" size="sm" className={micOff ? "text-red-600" : ""} disabled={["init", "nomedia"].includes(state)} onClick={toggleMic} data-testid="meeting-mic-btn">{micOff ? <MicOff className="mr-1 h-4 w-4" /> : <Mic className="mr-1 h-4 w-4" />}{t(micOff ? "mt_mic_on" : "mt_mic_off")}</Button>
+          <Button variant="outline" size="sm" className={sharing ? "text-[#00A878]" : ""} disabled={state !== "connected" && !sharing} onClick={shareScreen} data-testid="meeting-share-btn"><MonitorUp className="mr-1 h-4 w-4" />{t(sharing ? "mt_share_stop" : "mt_share_start")}</Button>
+          {staff && <Button variant="outline" size="sm" className={rec ? "text-red-600" : ""} disabled={state !== "connected" && !rec} onClick={toggleRec} data-testid="meeting-rec-btn">{t(rec ? "mt_rec_stop" : "mt_rec_start")}</Button>}
+          <Button size="sm" className="bg-red-600 text-white hover:bg-red-700" onClick={leave} data-testid="meeting-leave-btn"><PhoneOff className="mr-1 h-4 w-4" />{t("mt_leave")}</Button>
+        </div>
       </div>
       <p className="text-xs text-slate-500">{t("mt_note")}</p>
     </div>
