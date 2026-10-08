@@ -96,7 +96,7 @@ class MeetIn(BaseModel):
 
 
 class SignalIn(BaseModel):
-    type: str = Field(pattern="^(hello|offer|answer|ice|rec|share|leave|bye)$")
+    type: str = Field(pattern="^(hello|offer|answer|ice|rec|share|cam|mic|leave|bye)$")
     data: Dict[str, Any] = {}
 
 
@@ -243,8 +243,16 @@ async def approve_minutes(mid: str, request: Request, user=Depends(current)):
 @router.post("/{mid}/end")
 async def end(mid: str, user=Depends(current)):
     _staff(user)
-    await _load(user, mid)
-    await db.meetings.update_one({"id": mid, "status": {"$in": ["SCHEDULED", "LIVE"]}}, {"$set": {"status": "ENDED", "ended_at": now_iso()}})
+    m = await _load(user, mid)
+    upd = {"status": "ENDED", "ended_at": now_iso()}
+    if m.get("started_at"):
+        try:
+            dur = (datetime.now(timezone.utc) - datetime.fromisoformat(m["started_at"])).total_seconds()
+            if dur > 0:
+                upd["call_duration_sec"] = int(dur)
+        except (ValueError, TypeError):
+            pass
+    await db.meetings.update_one({"id": mid, "status": {"$in": ["SCHEDULED", "LIVE"]}}, {"$set": upd})
     return {"status": "ENDED"}
 
 

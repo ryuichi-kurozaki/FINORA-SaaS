@@ -10,6 +10,7 @@ import { api, errMsg, useApi } from "@/lib/api";
 
 const inp = "mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A878]/40";
 const fmt = (s) => new Date(s).toLocaleString("ja-JP", { dateStyle: "medium", timeStyle: "short" });
+const durLabel = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 const joinable = (m) => ["SCHEDULED", "LIVE"].includes(m.status);
 
 export function NewMeeting({ clientId, preset, instant, onClose, onDone }) {
@@ -84,7 +85,7 @@ function Row({ m, staff, reload }) {
       <div className="flex flex-wrap items-center gap-3">
         <Video className="h-4 w-4 text-[#00A878]" />
         <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-[#071A2B]">{m.title}</div>
-          <div className="text-xs text-slate-500">{fmt(m.scheduled_at)} · {m.duration_min}{t("mt_min")} · {m.client_name} · <span data-testid={`meeting-status-${m.id}`}>{t(`mt_st_${m.status}`)}</span></div></div>
+          <div className="text-xs text-slate-500">{fmt(m.scheduled_at)} · {m.duration_min}{t("mt_min")} · {m.client_name} · <span data-testid={`meeting-status-${m.id}`}>{t(`mt_st_${m.status}`)}</span>{m.call_duration_sec ? <span data-testid={`meeting-calldur-${m.id}`}> · {t("mt_call_duration")} {durLabel(m.call_duration_sec)}</span> : null}</div></div>
         {joinable(m) && <Button size="sm" className="btn-emerald" onClick={() => nav(`/meetings/${m.id}`)} data-testid={`meeting-join-${m.id}`}>{t("mt_join")}</Button>}
         {m.recording && !m.recording_deleted && <Button size="sm" variant="outline" onClick={play} data-testid={`meeting-play-${m.id}`}>{t("mt_play")}</Button>}
         {(staff ? m.minutes_status : m.minutes_approved) && <Button size="sm" variant="outline" onClick={() => setMinutes(!minutes)} data-testid={`meeting-minutes-${m.id}`}>{t(!staff || ["DRAFT", "APPROVED"].includes(m.minutes_status) ? "mt_minutes" : `mt_minutes_${m.minutes_status}`)}</Button>}

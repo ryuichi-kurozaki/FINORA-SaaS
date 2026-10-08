@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Circle, Clock, MonitorUp, PhoneOff, User, Video, VideoOff } from "lucide-react";
+import { Circle, Clock, Mic, MicOff, MonitorUp, PhoneOff, User, Video, VideoOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/context/AppContext";
 import { api, errMsg } from "@/lib/api";
@@ -47,7 +47,8 @@ export default function MeetingRoom() {
   const [state, setState] = useState("init");
   const [rec, setRec] = useState(false), [peerRec, setPeerRec] = useState(false);
   const [sharing, setSharing] = useState(false), [peerShare, setPeerShare] = useState(false);
-  const [camOff, setCamOff] = useState(false);
+  const [camOff, setCamOff] = useState(false), [micOff, setMicOff] = useState(false);
+  const [peerCamOff, setPeerCamOff] = useState(false), [peerMicOff, setPeerMicOff] = useState(false);
   const [info, setInfo] = useState(null);
   const [elapsed, setElapsed] = useState(0);
   const connTs = useRef(0);
@@ -72,13 +73,16 @@ export default function MeetingRoom() {
       const remoteDesc = async (d) => { await p.setRemoteDescription(d); for (const c of pending) await p.addIceCandidate(c).catch(() => {}); pending = []; };
       const handle = async (m) => {
         if (m.type === "hello" && staff) { const o = await p.createOffer({ iceRestart: true }); await p.setLocalDescription(o); send("offer", { type: o.type, sdp: o.sdp }); }
+        if (m.type === "hello") toast.info(t("mt_peer_joined"));
         if (m.type === "offer" && !staff) { await remoteDesc(m.data); const a = await p.createAnswer(); await p.setLocalDescription(a); send("answer", { type: a.type, sdp: a.sdp }); }
         if (m.type === "answer" && staff) await remoteDesc(m.data);
         if (m.type === "ice") { if (p.remoteDescription) await p.addIceCandidate(m.data).catch(() => {}); else pending.push(m.data); }
         if (m.type === "rec") setPeerRec(!!m.data.on);
         if (m.type === "share") setPeerShare(!!m.data.on);
+        if (m.type === "cam") { const off = !m.data.on; setPeerCamOff(off); toast.info(t(off ? "mt_peer_cam_off" : "mt_peer_cam_on")); }
+        if (m.type === "mic") setPeerMicOff(!m.data.on);
         if (m.type === "leave") { toast.info(t("mt_peer_left")); setPeerShare(false); setState("ended"); if (staff) api.post(`/meetings/${id}/end`).catch(() => {}); if (recorder.active()) await recorder.stop(); nav("/consulting"); return; }
-        if (m.type === "bye") { setState("waiting"); setPeerShare(false); }
+        if (m.type === "bye") { setState("waiting"); setPeerShare(false); setPeerCamOff(false); toast.info(t("mt_peer_bye")); }
       };
       await send("hello");
       setState("waiting");
@@ -125,7 +129,7 @@ export default function MeetingRoom() {
     if (!camOff) {
       camStream.current?.getVideoTracks().forEach((tr) => tr.stop());
       if (!sharing) { const s = vSender(); if (s) await s.replaceTrack(null); if (local.current) local.current.srcObject = null; }
-      setCamOff(true);
+      setCamOff(true); send("cam", { on: false });
     } else {
       try {
         const ns = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 360, frameRate: 15 } });
@@ -133,9 +137,17 @@ export default function MeetingRoom() {
         const merged = new MediaStream([vtrack, ...(camStream.current?.getAudioTracks() || [])]);
         camStream.current = merged;
         if (!sharing) { const s = vSender(); if (s) await s.replaceTrack(vtrack); if (local.current) local.current.srcObject = merged; }
-        setCamOff(false);
+        setCamOff(false); send("cam", { on: true });
       } catch (e) { toast.error(errMsg(e)); }
     }
+  };
+  const toggleMic = () => {
+    const a = camStream.current?.getAudioTracks()[0];
+    if (!a) return;
+    const willOff = !micOff;
+    a.enabled = !willOff;
+    setMicOff(willOff);
+    send("mic", { on: !willOff });
   };
   const leave = async () => { if (sharing) await stopShare(); await send("leave"); if (recorder.active()) await recorder.stop(); if (staff) await api.post(`/meetings/${id}/end`).catch(() => {}); [screen.current, camStream.current, local.current?.srcObject].forEach((s) => s && s.getTracks && s.getTracks().forEach((tr) => tr.stop())); nav("/consulting"); };
 
@@ -159,6 +171,9 @@ export default function MeetingRoom() {
         {sharing && <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-[#00A878]" data-testid="meeting-share-badge"><MonitorUp className="h-3 w-3" />{t("mt_sharing")}</span>}
         {peerShare && <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-[#00A878]" data-testid="meeting-peer-share-badge"><MonitorUp className="h-3 w-3" />{t("mt_peer_sharing")}</span>}
         {state === "connected" && <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 font-num text-xs text-slate-700" data-testid="meeting-duration"><Clock className="h-3 w-3" />{t("mt_conn_time")} {fmtDur(elapsed)}</span>}
+        {micOff && <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600" data-testid="meeting-mic-badge"><MicOff className="h-3 w-3" />{t("mt_mic_is_off")}</span>}
+        {peerMicOff && <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600" data-testid="meeting-peer-mic-badge"><MicOff className="h-3 w-3" />{t("mt_peer_mic_off")}</span>}
+        {peerCamOff && <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600" data-testid="meeting-peer-cam-badge"><VideoOff className="h-3 w-3" />{t("mt_peer_cam_off")}</span>}
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600" data-testid="meeting-participants">
         <User className="h-3.5 w-3.5 text-[#00A878]" />
@@ -170,6 +185,7 @@ export default function MeetingRoom() {
         <div className="relative">
           <video ref={remote} autoPlay playsInline className="aspect-video w-full rounded-xl bg-[#071A2B]" data-testid="meeting-remote-video" />
           <span className="absolute bottom-2 left-2 rounded-md bg-black/55 px-2 py-0.5 text-xs font-semibold text-white" data-testid="meeting-remote-name">{otherName || "—"}</span>
+          {peerCamOff && <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl bg-[#071A2B] text-slate-300" data-testid="meeting-peer-cam-off-overlay"><VideoOff className="h-8 w-8" /><span className="text-xs font-semibold">{otherName || "—"} · {t("mt_cam_is_off")}</span></div>}
         </div>
         <div className="relative">
           <video ref={local} autoPlay playsInline muted className="aspect-video w-full rounded-xl bg-slate-800" data-testid="meeting-local-video" />
@@ -180,6 +196,7 @@ export default function MeetingRoom() {
       <div className="flex flex-wrap gap-2">
         {staff && <Button variant="outline" className={rec ? "text-red-600" : ""} disabled={state !== "connected" && !rec} onClick={toggleRec} data-testid="meeting-rec-btn">{t(rec ? "mt_rec_stop" : "mt_rec_start")}</Button>}
         <Button variant="outline" className={camOff ? "text-slate-500" : ""} disabled={["init", "nomedia"].includes(state)} onClick={toggleCam} data-testid="meeting-cam-btn">{camOff ? <VideoOff className="mr-1 h-4 w-4" /> : <Video className="mr-1 h-4 w-4" />}{t(camOff ? "mt_cam_on" : "mt_cam_off")}</Button>
+        <Button variant="outline" className={micOff ? "text-red-600" : ""} disabled={["init", "nomedia"].includes(state)} onClick={toggleMic} data-testid="meeting-mic-btn">{micOff ? <MicOff className="mr-1 h-4 w-4" /> : <Mic className="mr-1 h-4 w-4" />}{t(micOff ? "mt_mic_on" : "mt_mic_off")}</Button>
         <Button variant="outline" className={sharing ? "text-[#00A878]" : ""} disabled={state !== "connected" && !sharing} onClick={shareScreen} data-testid="meeting-share-btn"><MonitorUp className="mr-1 h-4 w-4" />{t(sharing ? "mt_share_stop" : "mt_share_start")}</Button>
         <Button className="bg-red-600 text-white hover:bg-red-700" onClick={leave} data-testid="meeting-leave-btn"><PhoneOff className="mr-1 h-4 w-4" />{t("mt_leave")}</Button>
       </div>
