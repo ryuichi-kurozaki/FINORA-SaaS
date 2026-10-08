@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Circle, Clock, Mic, MicOff, MonitorUp, PhoneOff, User, Video, VideoOff } from "lucide-react";
+import { Circle, Clock, Maximize2, Mic, MicOff, MonitorUp, Move, PhoneOff, SignalHigh, SignalLow, SignalMedium, User, Video, VideoOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/context/AppContext";
 import { api, errMsg } from "@/lib/api";
@@ -51,6 +51,13 @@ export default function MeetingRoom() {
   const [peerCamOff, setPeerCamOff] = useState(false), [peerMicOff, setPeerMicOff] = useState(false);
   const [info, setInfo] = useState(null);
   const [elapsed, setElapsed] = useState(0);
+  const [quality, setQuality] = useState("");
+  const [pip, setPip] = useState({ pos: "tr", size: "sm" });
+  const pipRef = useRef(pip); pipRef.current = pip;
+  const corner = { tr: "top-3 right-3", tl: "top-3 left-3", br: "bottom-16 right-3", bl: "bottom-16 left-3" };
+  const sizeW = { sm: "w-28 md:w-44", lg: "w-40 md:w-64" };
+  const pipCls = `absolute z-10 ${corner[pip.pos]} ${sizeW[pip.size]} aspect-video overflow-hidden rounded-lg border-2 border-white/70 bg-slate-900 shadow-lg`;
+  const cyclePos = () => setPip((p) => ({ ...p, pos: { tr: "br", br: "bl", bl: "tl", tl: "tr" }[p.pos] }));
   const connTs = useRef(0);
   const otherName = info ? (staff ? info.client_name : info.consultant_name) : "";
   const fmtDur = (s) => [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map((n) => String(n).padStart(2, "0")).join(":");
@@ -64,6 +71,8 @@ export default function MeetingRoom() {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 360, frameRate: 15 }, audio: true });
       if (!alive) return stream.getTracks().forEach((tr) => tr.stop());
       camStream.current = stream;
+      stream.getAudioTracks().forEach((tr) => (tr.enabled = false));
+      setMicOff(true);
       local.current.srcObject = stream;
       const p = new RTCPeerConnection(ice); pc.current = p;
       stream.getTracks().forEach((tr) => p.addTrack(tr, stream));
@@ -138,7 +147,10 @@ export default function MeetingRoom() {
           ctx.drawImage(screenV, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
         }
         if (camV.videoWidth) {
-          const pw = 260, ph = 146, x = canvas.width - pw - 20, y = canvas.height - ph - 20;
+          const cfg = pipRef.current;
+          const pw = cfg.size === "lg" ? 380 : 260, ph = Math.round(pw * 9 / 16), m = 20;
+          const x = cfg.pos[1] === "r" ? canvas.width - pw - m : m;
+          const y = cfg.pos[0] === "t" ? m : canvas.height - ph - m;
           ctx.drawImage(camV, x, y, pw, ph);
           ctx.strokeStyle = "#00A878"; ctx.lineWidth = 3; ctx.strokeRect(x, y, pw, ph);
         }
@@ -191,6 +203,27 @@ export default function MeetingRoom() {
     }, 1000);
     return () => clearInterval(iv);
   }, [state]);
+  useEffect(() => {
+    if (state !== "connected") { setQuality(""); return; }
+    let alive = true;
+    const iv = setInterval(async () => {
+      const p = pc.current; if (!p) return;
+      try {
+        const stats = await p.getStats();
+        let rtt = null, loss = 0, recv = 0;
+        stats.forEach((r) => {
+          if (r.type === "candidate-pair" && r.nominated && r.currentRoundTripTime != null) rtt = r.currentRoundTripTime;
+          if (r.type === "inbound-rtp" && r.kind === "video") { loss += r.packetsLost || 0; recv += r.packetsReceived || 0; }
+        });
+        const lr = recv ? loss / (recv + loss) : 0;
+        let q = "good";
+        if ((rtt != null && rtt > 0.4) || lr > 0.05) q = "poor";
+        else if ((rtt != null && rtt > 0.2) || lr > 0.02) q = "fair";
+        if (alive) setQuality(q);
+      } catch { /* ignore */ }
+    }, 3000);
+    return () => { alive = false; clearInterval(iv); };
+  }, [state]);
 
   return (
     <div className="space-y-4" data-testid="meeting-room">
@@ -201,6 +234,7 @@ export default function MeetingRoom() {
         {sharing && <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-[#00A878]" data-testid="meeting-share-badge"><MonitorUp className="h-3 w-3" />{t("mt_sharing")}</span>}
         {peerShare && <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-[#00A878]" data-testid="meeting-peer-share-badge"><MonitorUp className="h-3 w-3" />{t("mt_peer_sharing")}</span>}
         {state === "connected" && <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 font-num text-xs text-slate-700" data-testid="meeting-duration"><Clock className="h-3 w-3" />{t("mt_conn_time")} {fmtDur(elapsed)}</span>}
+        {quality && <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold ${quality === "good" ? "bg-emerald-50 text-[#00A878]" : quality === "fair" ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600"}`} data-testid="meeting-quality">{quality === "good" ? <SignalHigh className="h-3 w-3" /> : quality === "fair" ? <SignalMedium className="h-3 w-3" /> : <SignalLow className="h-3 w-3" />}{t(`mt_quality_${quality}`)}</span>}
         {micOff && <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600" data-testid="meeting-mic-badge"><MicOff className="h-3 w-3" />{t("mt_mic_is_off")}</span>}
         {peerMicOff && <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600" data-testid="meeting-peer-mic-badge"><MicOff className="h-3 w-3" />{t("mt_peer_mic_off")}</span>}
         {peerCamOff && <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600" data-testid="meeting-peer-cam-badge"><VideoOff className="h-3 w-3" />{t("mt_peer_cam_off")}</span>}
@@ -212,12 +246,12 @@ export default function MeetingRoom() {
         <span>{user.name}（{t("mt_you")}）</span>
       </div>
       <div className="relative mx-auto aspect-video w-full overflow-hidden rounded-2xl bg-[#071A2B] shadow-xl" data-testid="meeting-stage">
-        <div className={sharing ? "absolute top-3 right-3 z-10 aspect-video w-28 overflow-hidden rounded-lg border-2 border-white/70 bg-slate-900 shadow-lg md:w-56" : "absolute inset-0"} data-testid="meeting-remote-wrap">
+        <div className={sharing ? pipCls : "absolute inset-0"} data-testid="meeting-remote-wrap">
           <video ref={remote} autoPlay playsInline className={`h-full w-full ${sharing ? "object-cover" : "object-contain"} bg-[#071A2B]`} data-testid="meeting-remote-video" />
           <span className="absolute bottom-1 left-1 rounded bg-black/55 px-1.5 py-0.5 text-[11px] font-semibold text-white" data-testid="meeting-remote-name">{otherName || "—"}</span>
           {peerCamOff && !peerShare && <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#071A2B] text-slate-300" data-testid="meeting-peer-cam-off-overlay"><VideoOff className="h-7 w-7" /><span className="text-xs font-semibold">{otherName || "—"} · {t("mt_cam_is_off")}</span></div>}
         </div>
-        <div className={sharing ? "absolute inset-0" : "absolute top-3 right-3 z-10 aspect-video w-28 overflow-hidden rounded-lg border-2 border-white/70 bg-slate-900 shadow-lg md:w-56"} data-testid="meeting-local-wrap">
+        <div className={sharing ? "absolute inset-0" : pipCls} data-testid="meeting-local-wrap">
           <video ref={local} autoPlay playsInline muted className={`h-full w-full ${sharing ? "object-contain" : "object-cover"} bg-slate-900`} data-testid="meeting-local-video" />
           <span className="absolute bottom-1 left-1 rounded bg-black/55 px-1.5 py-0.5 text-[11px] font-semibold text-white" data-testid="meeting-local-name">{sharing ? t("mt_sharing") : `${user.name}（${t("mt_you")}）`}</span>
           {camOff && !sharing && <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-slate-900 text-slate-300" data-testid="meeting-cam-off-overlay"><VideoOff className="h-6 w-6" /><span className="text-[11px] font-semibold">{t("mt_cam_is_off")}</span></div>}
@@ -227,6 +261,8 @@ export default function MeetingRoom() {
           <Button variant="outline" size="sm" className={micOff ? "text-red-600" : ""} disabled={["init", "nomedia"].includes(state)} onClick={toggleMic} data-testid="meeting-mic-btn">{micOff ? <MicOff className="mr-1 h-4 w-4" /> : <Mic className="mr-1 h-4 w-4" />}{t(micOff ? "mt_mic_on" : "mt_mic_off")}</Button>
           <Button variant="outline" size="sm" className={sharing ? "text-[#00A878]" : ""} disabled={state !== "connected" && !sharing} onClick={shareScreen} data-testid="meeting-share-btn"><MonitorUp className="mr-1 h-4 w-4" />{t(sharing ? "mt_share_stop" : "mt_share_start")}</Button>
           {staff && <Button variant="outline" size="sm" className={rec ? "text-red-600" : ""} disabled={state !== "connected" && !rec} onClick={toggleRec} data-testid="meeting-rec-btn">{t(rec ? "mt_rec_stop" : "mt_rec_start")}</Button>}
+          <Button variant="outline" size="sm" onClick={cyclePos} title={t("mt_pip_move")} data-testid="meeting-pip-move-btn"><Move className="h-4 w-4" /></Button>
+          <Button variant="outline" size="sm" onClick={() => setPip((p) => ({ ...p, size: p.size === "sm" ? "lg" : "sm" }))} title={t("mt_pip_size")} data-testid="meeting-pip-size-btn"><Maximize2 className="h-4 w-4" /></Button>
           <Button size="sm" className="bg-red-600 text-white hover:bg-red-700" onClick={leave} data-testid="meeting-leave-btn"><PhoneOff className="mr-1 h-4 w-4" />{t("mt_leave")}</Button>
         </div>
       </div>
