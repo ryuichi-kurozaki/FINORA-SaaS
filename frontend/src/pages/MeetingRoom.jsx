@@ -226,8 +226,8 @@ export default function MeetingRoom() {
   }, [state]);
 
   return (
-    <div className="space-y-4" data-testid="meeting-room">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="flex h-[calc(100dvh-8rem)] min-h-0 flex-col gap-2 overflow-hidden" data-testid="meeting-room">
+      <div className="flex flex-wrap items-center gap-2">
         <h1 className="font-display text-2xl font-extrabold text-[#071A2B]">{t("mt_room")}</h1>
         <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600" data-testid="meeting-state">{t(`mt_state_${state}`)}</span>
         {(rec || peerRec) && <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600" data-testid="meeting-rec-badge"><Circle className="h-3 w-3 fill-red-600" />{t("mt_recording")}</span>}
@@ -245,7 +245,7 @@ export default function MeetingRoom() {
         <span className="text-slate-400">·</span>
         <span>{user.name}（{t("mt_you")}）</span>
       </div>
-      <div className="relative mx-auto aspect-video w-full overflow-hidden rounded-2xl bg-[#071A2B] shadow-xl" data-testid="meeting-stage">
+      <div className="relative mx-auto w-full min-h-0 flex-1 overflow-hidden rounded-2xl bg-[#071A2B] shadow-xl" data-testid="meeting-stage">
         <div className={sharing ? pipCls : "absolute inset-0"} data-testid="meeting-remote-wrap">
           <video ref={remote} autoPlay playsInline className={`h-full w-full ${sharing ? "object-cover" : "object-contain"} bg-[#071A2B]`} data-testid="meeting-remote-video" />
           <span className="absolute bottom-1 left-1 rounded bg-black/55 px-1.5 py-0.5 text-[11px] font-semibold text-white" data-testid="meeting-remote-name">{otherName || "—"}</span>
