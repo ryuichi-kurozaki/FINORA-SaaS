@@ -119,12 +119,25 @@ export default function MeetingRoom() {
   };
   const stopShare = async () => {
     stopComposite();
-    const camTrack = camOff ? null : camStream.current?.getVideoTracks()[0];
-    const s = vSender();
-    if (s) await s.replaceTrack(camTrack || null);
-    local.current.srcObject = camOff ? null : (camStream.current || null);
     screen.current?.getTracks().forEach((tr) => tr.stop());
     screen.current = null;
+    let camTrack = null;
+    if (!camOff) {
+      camTrack = camStream.current?.getVideoTracks()[0];
+      if (!camTrack || camTrack.readyState === "ended") {
+        try {
+          const ns = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 360, frameRate: 15 } });
+          camTrack = ns.getVideoTracks()[0];
+          camStream.current = new MediaStream([camTrack, ...(camStream.current?.getAudioTracks() || [])]);
+        } catch { camTrack = null; }
+      }
+    }
+    const s = vSender();
+    if (s) await s.replaceTrack(camTrack || null);
+    if (local.current) {
+      local.current.srcObject = camTrack ? camStream.current : null;
+      try { await local.current.play(); } catch { /* autoplay */ }
+    }
     setSharing(false);
     send("share", { on: false });
   };
