@@ -43,7 +43,7 @@ export default function MeetingRoom() {
   const nav = useNavigate();
   const staff = user.role !== "client";
   const local = useRef(null), remote = useRef(null), pc = useRef(null), since = useRef(0);
-  const camStream = useRef(null), screen = useRef(null), comp = useRef(null);
+  const camStream = useRef(null), screen = useRef(null), comp = useRef(null), pipWin = useRef(null);
   const [state, setState] = useState("init");
   const [rec, setRec] = useState(false), [peerRec, setPeerRec] = useState(false);
   const [sharing, setSharing] = useState(false), [peerShare, setPeerShare] = useState(false);
@@ -105,7 +105,7 @@ export default function MeetingRoom() {
       };
       poll();
     })().catch((e) => { setState("nomedia"); toast.error(errMsg(e)); });
-    return () => { alive = false; clearTimeout(timer); send("bye"); pc.current?.close(); if (comp.current) { cancelAnimationFrame(comp.current.raf); comp.current.out.getTracks().forEach((tr) => tr.stop()); } [screen.current, camStream.current, local.current?.srcObject].forEach((s) => s && s.getTracks && s.getTracks().forEach((tr) => tr.stop())); };
+    return () => { alive = false; clearTimeout(timer); send("bye"); pc.current?.close(); try { pipWin.current?.close(); } catch { /* pip */ } if (comp.current) { cancelAnimationFrame(comp.current.raf); comp.current.out.getTracks().forEach((tr) => tr.stop()); } [screen.current, camStream.current, local.current?.srcObject].forEach((s) => s && s.getTracks && s.getTracks().forEach((tr) => tr.stop())); };
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const vSender = () => pc.current?.getSenders().find((s) => s.track && s.track.kind === "video");
@@ -116,6 +116,35 @@ export default function MeetingRoom() {
     comp.current.camV.srcObject = null;
     comp.current.out.getTracks().forEach((tr) => tr.stop());
     comp.current = null;
+  };
+  const closeSharePiP = () => { try { pipWin.current?.close(); } catch { /* pip */ } pipWin.current = null; };
+  const openSharePiP = async () => {
+    if (!("documentPictureInPicture" in window)) return;
+    try {
+      const w = await window.documentPictureInPicture.requestWindow({ width: 340, height: 230 });
+      pipWin.current = w;
+      const doc = w.document;
+      doc.body.style.cssText = "margin:0;background:#071A2B;overflow:hidden;font-family:system-ui,sans-serif";
+      const v = doc.createElement("video");
+      v.autoplay = true; v.muted = true; v.setAttribute("playsinline", "");
+      v.srcObject = remote.current?.srcObject || null;
+      v.style.cssText = "width:100%;height:100%;object-fit:cover;background:#071A2B;display:block";
+      doc.body.appendChild(v);
+      try { await v.play(); } catch { /* autoplay */ }
+      const label = doc.createElement("div");
+      label.textContent = otherName || "";
+      label.style.cssText = "position:fixed;left:8px;top:8px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;padding:2px 8px;border-radius:6px;max-width:70%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis";
+      doc.body.appendChild(label);
+      const bar = doc.createElement("div");
+      bar.style.cssText = "position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;padding:10px;background:linear-gradient(transparent,rgba(0,0,0,.65))";
+      const stopBtn = doc.createElement("button");
+      stopBtn.textContent = t("mt_share_stop");
+      stopBtn.style.cssText = "background:#dc2626;color:#fff;border:0;border-radius:9999px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer";
+      stopBtn.onclick = () => stopShare();
+      bar.appendChild(stopBtn);
+      doc.body.appendChild(bar);
+      w.addEventListener("pagehide", () => { pipWin.current = null; });
+    } catch { /* unsupported or blocked */ }
   };
   const stopShare = async () => {
     stopComposite();
@@ -140,15 +169,14 @@ export default function MeetingRoom() {
     }
     setSharing(false);
     send("share", { on: false });
-    try { window.focus(); } catch { /* best-effort refocus */ }
+    closeSharePiP();
   };
   const shareScreen = async () => {
     if (sharing) return stopShare();
     try {
-      const controller = ("CaptureController" in window) ? new window.CaptureController() : undefined;
-      const ds = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false, ...(controller ? { controller } : {}) });
-      try { controller && controller.setFocusBehavior && controller.setFocusBehavior("no-focus-change"); } catch { /* monitor capture: focus control N/A */ }
+      const ds = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false });
       screen.current = ds;
+      await openSharePiP();
       const screenV = document.createElement("video"); screenV.srcObject = ds; screenV.muted = true; await screenV.play();
       const camV = document.createElement("video"); camV.muted = true;
       const camTracks = !camOff && camStream.current ? camStream.current.getVideoTracks() : [];
