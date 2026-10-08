@@ -42,7 +42,7 @@ export default function MeetingRoom() {
   const { t, user } = useApp();
   const nav = useNavigate();
   const staff = user.role !== "client";
-  const local = useRef(null), remote = useRef(null), pc = useRef(null), since = useRef(0);
+  const local = useRef(null), remote = useRef(null), pc = useRef(null), since = useRef(0), autoRec = useRef(false);
   const camStream = useRef(null), screen = useRef(null), comp = useRef(null), pipWin = useRef(null);
   const [state, setState] = useState("init");
   const [rec, setRec] = useState(false), [peerRec, setPeerRec] = useState(false);
@@ -238,6 +238,14 @@ export default function MeetingRoom() {
   const leave = async () => { if (sharing) await stopShare(); await send("leave"); if (recorder.active()) await recorder.stop(); if (staff) await api.post(`/meetings/${id}/end`).catch(() => {}); [screen.current, camStream.current, local.current?.srcObject].forEach((s) => s && s.getTracks && s.getTracks().forEach((tr) => tr.stop())); nav("/consulting"); };
 
   useEffect(() => { api.get(`/meetings/${id}`).then((r) => setInfo(r.data)).catch(() => {}); }, [id]);
+  useEffect(() => {
+    if (staff && state === "connected" && !autoRec.current && !recorder.active()) {
+      autoRec.current = true;
+      recorder.start();
+      setRec(true);
+      toast.info(t("mt_rec_auto"));
+    }
+  }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const iv = setInterval(() => {
       if (state === "connected") {

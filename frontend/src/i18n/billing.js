@@ -93,7 +93,7 @@ export const B = {
   mt_room: ["テレビ電話", "Video call", "Videochamada"], mt_state_init: ["準備中…", "Preparing…", "Preparando…"], mt_state_waiting: ["相手の参加を待っています", "Waiting for the other party", "Aguardando a outra parte"],
   mt_state_connected: ["接続中", "Connected", "Conectado"], mt_state_nomedia: ["カメラ・マイクを使用できません", "Camera/microphone unavailable", "Câmera/microfone indisponível"],
   mt_recording: ["録画中", "Recording", "Gravando"], mt_rec_start: ["録画を開始", "Start recording", "Iniciar gravação"], mt_rec_stop: ["録画を停止", "Stop recording", "Parar gravação"],
-  mt_rec_saved: ["録画を保存しました。議事録を作成しています", "Recording saved. Creating minutes", "Gravação salva. Gerando ata"], mt_leave: ["退出", "Leave", "Sair"],
+  mt_rec_saved: ["録画を保存しました。議事録を作成しています", "Recording saved. Creating minutes", "Gravação salva. Gerando ata"], mt_rec_auto: ["録画を自動的に開始しました", "Recording started automatically", "Gravação iniciada automaticamente"], mt_leave: ["退出", "Leave", "Sair"],
   mt_share_start: ["画面を共有", "Share screen", "Compartilhar tela"], mt_share_stop: ["共有を停止", "Stop sharing", "Parar compartilhamento"], mt_sharing: ["画面共有中", "Sharing screen", "Compartilhando tela"], mt_peer_sharing: ["相手が画面共有中", "Other party is sharing", "A outra parte está compartilhando"],
   mt_state_ended: ["会議は終了しました", "Meeting ended", "Reunião encerrada"], mt_peer_left: ["相手が退出しました。会議を終了します", "The other party left. Ending the meeting", "A outra parte saiu. Encerrando a reunião"],
   mt_cam_off: ["カメラをオフ", "Turn off camera", "Desligar câmera"], mt_cam_on: ["カメラをオン", "Turn on camera", "Ligar câmera"], mt_cam_is_off: ["カメラオフ", "Camera off", "Câmera desligada"],
