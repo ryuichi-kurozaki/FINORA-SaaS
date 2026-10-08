@@ -8,6 +8,7 @@ from pymongo import ReturnDocument
 
 from payouts import card_clients
 from invoice_notify import send_invoice_issued, send_invoice_whatsapp
+from payouts import bank_of
 from core import (forbid_demo, db, new_id, now_iso, clean, current, staff, admin_only, scope, audit, accessible_ids,
                   notify, client_user_ids, consultant_ids)
 
@@ -134,9 +135,23 @@ async def list_invoices(client_id: Optional[str] = None, status: Optional[str] =
 async def invoice_detail(iid: str, user=Depends(current)):
     inv = (await mark_overdue(user, [await get_invoice(user, iid)]))[0]
     t = await db.tenants.find_one({"id": user["tenant_id"]}) or {}
-    c = await db.clients.find_one({"id": inv["client_id"]}, {"name": 1, "corporate_name": 1, "email": 1})
+    c = await db.clients.find_one({"id": inv["client_id"]}, {"name": 1, "corporate_name": 1, "email": 1, "consultant_id": 1})
+    iss = t.get("billing_profile") or {"company_name": t.get("name")}
+    if not iss.get("bank_name") and not iss.get("bank_account_number"):
+        pu = None
+        if (c or {}).get("consultant_id"):
+            pu = await db.users.find_one({"id": c["consultant_id"], "payout_bank": {"$exists": True}})
+        if not pu:
+            pu = await db.users.find_one({"tenant_id": user["tenant_id"], "role": "admin", "payout_bank": {"$exists": True}})
+        bank = bank_of(pu) if pu else None
+        if bank:
+            amap = {"ORDINARY": "ordinary", "CHECKING": "current", "SAVINGS": "savings"}
+            iss = {**iss, "bank_name": bank.get("bank_name"), "bank_branch": bank.get("branch_name"),
+                   "bank_account_type": amap.get(bank.get("account_type"), "ordinary"),
+                   "bank_account_number": bank.get("account_number"), "bank_account_holder": bank.get("holder_kana"),
+                   "bank_from_payout": True}
     pays = await db.payments.find({"invoice_id": iid}).sort("date", 1).to_list(500)
-    return clean(inv) | {"client_name": (c or {}).get("corporate_name") or (c or {}).get("name"), "issuer": t.get("billing_profile") or {"company_name": t.get("name")},
+    return clean(inv) | {"client_name": (c or {}).get("corporate_name") or (c or {}).get("name"), "issuer": iss,
                          "payments": [clean(p) for p in pays]}
 
 
