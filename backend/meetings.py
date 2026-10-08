@@ -2,6 +2,7 @@
 import asyncio
 import hashlib
 import hmac
+import json
 import logging
 import os
 import time
@@ -23,8 +24,12 @@ router = APIRouter(prefix="/api/meetings")
 DIR = Path(os.environ["MEETING_DIR"])
 DIR.mkdir(parents=True, exist_ok=True)
 _BG = set()
-MINUTES_PROMPT = ("あなたは資産運用コンサルティング会社の議事録作成担当です。会議の文字起こしから、日本語で簡潔な議事録を作成してください。"
-                  "見出しは「概要」「話し合った内容」「決定事項」「今後の対応（担当・期限）」とし、推測で事実を補わないでください。")
+MINUTES_PROMPT = ("あなたは資産運用コンサルティング会社の議事録作成担当です。会議の文字起こしから、簡潔な議事録を作成します。"
+                  "文字起こしの言語に関わらず、同じ内容を日本語・英語・ポルトガル語の3言語で作成してください。"
+                  "各言語で、見出しは「概要」「話し合った内容」「決定事項」「今後の対応（担当・期限）」に相当する構成とし、推測で事実を補わないこと。"
+                  '出力は必ず次のJSON形式のみ（前後に説明やコードフェンスを付けない）: '
+                  '{"ja": "<日本語の議事録>", "en": "<English minutes>", "pt": "<ata em português>"}')
+LANGS = ("ja", "en", "pt")
 NOTICE = {
     "ja": {"new": ("【FINORA】テレビ電話のご予約（{when}）", "{who}とのテレビ電話「{title}」を {when} に予約しました。時間になりましたらFINORAの「通話に参加」からご参加ください。"),
            "soon": ("【FINORA】まもなくテレビ電話が始まります（{when}）", "テレビ電話「{title}」が {when} に始まります。FINORAの「通話に参加」からご参加ください。"),
@@ -40,7 +45,26 @@ NOTICE = {
            "minutes": ("[FINORA] A ata da reunião está disponível ({title})", "A ata da videochamada \"{title}\" de {when} está disponível. Confira na página de Consultoria do FINORA."), "cta": "Abrir o FINORA"},
 }
 ICS_KIND = {"new": "REQUEST", "cancel": "CANCEL"}
-STAFF_ONLY = ("minutes", "transcript", "minutes_error")
+STAFF_ONLY = ("minutes", "minutes_i18n", "transcript", "minutes_error")
+
+
+def _parse_i18n(out):
+    s = (out or "").strip()
+    i, j = s.find("{"), s.rfind("}")
+    if i >= 0 and j > i:
+        try:
+            d = json.loads(s[i:j + 1])
+            return {k: str(d[k]).strip() for k in LANGS if d.get(k)}
+        except (ValueError, TypeError):
+            pass
+    return {}
+
+
+def _i18n_of(m, field="minutes"):
+    d = m.get(f"{field}_i18n")
+    if d:
+        return dict(d)
+    return {"ja": m[field]} if m.get(field) else {}
 
 
 def _ics(m, method, email):
@@ -72,12 +96,13 @@ class MeetIn(BaseModel):
 
 
 class SignalIn(BaseModel):
-    type: str = Field(pattern="^(hello|offer|answer|ice|rec|bye)$")
+    type: str = Field(pattern="^(hello|offer|answer|ice|rec|share|leave|bye)$")
     data: Dict[str, Any] = {}
 
 
 class MinutesIn(BaseModel):
     text: str = Field(min_length=1, max_length=50000)
+    lang: str = Field("ja", pattern="^(ja|en|pt)$")
 
 
 def _staff(user):
@@ -182,7 +207,12 @@ async def edit_minutes(mid: str, body: MinutesIn, request: Request, user=Depends
     m = await _load(user, mid)
     if m.get("minutes_status") not in ("DRAFT", "APPROVED"):
         raise HTTPException(409, f"This step is not allowed in status {m.get('minutes_status')}")
-    await db.meetings.update_one({"id": mid}, {"$set": {"minutes": body.text, "minutes_status": "DRAFT", "minutes_edited_at": now_iso(), "minutes_edited_by": user["id"]}})
+    i18n = _i18n_of(m, "minutes")
+    i18n[body.lang] = body.text
+    upd = {"minutes_i18n": i18n, "minutes_status": "DRAFT", "minutes_edited_at": now_iso(), "minutes_edited_by": user["id"]}
+    if body.lang == "ja":
+        upd["minutes"] = body.text
+    await db.meetings.update_one({"id": mid}, {"$set": upd})
     await audit(user, "edit_minutes", "meetings", mid, request=request, client_id=m["client_id"], label=m["title"])
     return {"minutes_status": "DRAFT"}
 
@@ -191,10 +221,12 @@ async def edit_minutes(mid: str, body: MinutesIn, request: Request, user=Depends
 async def approve_minutes(mid: str, request: Request, user=Depends(current)):
     _staff(user)
     m = await _load(user, mid)
-    if m.get("minutes_status") != "DRAFT" or not m.get("minutes"):
+    i18n = _i18n_of(m, "minutes")
+    if m.get("minutes_status") != "DRAFT" or not i18n:
         raise HTTPException(409, f"This step is not allowed in status {m.get('minutes_status')}")
-    await db.meetings.update_one({"id": mid}, {"$set": {"minutes_approved": m["minutes"], "minutes_status": "APPROVED", "minutes_approved_at": now_iso(),
-                                                        "minutes_approved_by": user["id"], "minutes_approved_by_name": user.get("name")}})
+    primary = i18n.get("ja") or next(iter(i18n.values()))
+    await db.meetings.update_one({"id": mid}, {"$set": {"minutes_approved_i18n": i18n, "minutes_approved": primary, "minutes_status": "APPROVED",
+                                                        "minutes_approved_at": now_iso(), "minutes_approved_by": user["id"], "minutes_approved_by_name": user.get("name")}})
     await audit(user, "approve_minutes", "meetings", mid, request=request, client_id=m["client_id"], label=m["title"])
     await _tell(m, "minutes", user)
     return {"minutes_status": "APPROVED"}
@@ -288,7 +320,9 @@ async def make_minutes(mid):
                 out += ev.content
             elif isinstance(ev, StreamDone):
                 break
-        await db.meetings.update_one({"id": mid}, {"$set": {"transcript": text, "minutes": out.strip(), "minutes_status": "DRAFT", "minutes_at": now_iso()}})
+        i18n = _parse_i18n(out) or {"ja": out.strip()}
+        primary = i18n.get("ja") or next(iter(i18n.values()))
+        await db.meetings.update_one({"id": mid}, {"$set": {"transcript": text, "minutes_i18n": i18n, "minutes": primary, "minutes_status": "DRAFT", "minutes_at": now_iso()}})
     except Exception as e:  # noqa: BLE001
         logger.exception("minutes failed %s", mid)
         await db.meetings.update_one({"id": mid}, {"$set": {"minutes_status": "FAILED", "minutes_error": str(e)[:300]}})

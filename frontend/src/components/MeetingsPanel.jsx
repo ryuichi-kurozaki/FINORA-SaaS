@@ -38,20 +38,33 @@ export function NewMeeting({ clientId, preset, instant, onClose, onDone }) {
 }
 
 function MinutesBox({ m, staff, reload }) {
-  const { t } = useApp();
-  const [text, setText] = useState(m.minutes || "");
+  const { t, lang } = useApp();
+  const LANGS = ["ja", "en", "pt"];
+  const LABEL = { ja: "日本語", en: "English", pt: "Português" };
+  const pick = (map) => map && (map[lang] || map.ja || map.en || map.pt) || "";
+  const draft = m.minutes_i18n || (m.minutes ? { ja: m.minutes } : {});
+  const appr = m.minutes_approved_i18n || (m.minutes_approved ? { ja: m.minutes_approved } : {});
+  const [elang, setELang] = useState(lang);
+  const [text, setText] = useState(draft[lang] || pick(draft));
   const [tr, setTr] = useState(null);
+  useEffect(() => { setText((m.minutes_i18n || (m.minutes ? { ja: m.minutes } : {}))[elang] || ""); }, [elang]); // eslint-disable-line react-hooks/exhaustive-deps
   const run = async (fn) => { try { await fn(); toast.success(t("saved")); reload(); } catch (e) { toast.error(errMsg(e)); } };
   const box = "mt-3 whitespace-pre-wrap rounded-lg bg-slate-50 p-3 font-sans text-xs leading-relaxed text-slate-700";
-  if (!staff) return m.minutes_approved ? <pre className={box} data-testid={`meeting-minutes-text-${m.id}`}>{m.minutes_approved}</pre> : null;
-  if (!["DRAFT", "APPROVED"].includes(m.minutes_status)) return m.minutes ? <pre className={box} data-testid={`meeting-minutes-text-${m.id}`}>{m.minutes}</pre> : null;
+  if (!staff) return pick(appr) ? <pre className={box} data-testid={`meeting-minutes-text-${m.id}`}>{pick(appr)}</pre> : null;
+  if (!["DRAFT", "APPROVED"].includes(m.minutes_status)) return pick(draft) ? <pre className={box} data-testid={`meeting-minutes-text-${m.id}`}>{pick(draft)}</pre> : null;
+  const saved = draft[elang] || "";
   return (
     <div className="mt-3 space-y-2" data-testid={`meeting-minutes-editor-${m.id}`}>
-      <div className="text-xs font-semibold text-slate-500">{t(`mt_minutes_${m.minutes_status}`)}{m.minutes_approved_at && ` · ${t("mt_last_approved")} ${fmt(m.minutes_approved_at)}`}</div>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="text-xs font-semibold text-slate-500">{t(`mt_minutes_${m.minutes_status}`)}{m.minutes_approved_at && ` · ${t("mt_last_approved")} ${fmt(m.minutes_approved_at)}`}</div>
+        <div className="ml-auto flex gap-1" data-testid={`meeting-minutes-langs-${m.id}`}>
+          {LANGS.map((l) => <button key={l} onClick={() => setELang(l)} className={`rounded-md px-2 py-0.5 text-xs font-semibold ${elang === l ? "bg-[#071A2B] text-white" : "bg-slate-100 text-slate-600"}`} data-testid={`meeting-minutes-lang-${l}-${m.id}`}>{LABEL[l]}</button>)}
+        </div>
+      </div>
       <textarea rows={12} value={text} onChange={(e) => setText(e.target.value)} className="w-full rounded-lg border border-slate-200 p-3 text-xs leading-relaxed" data-testid={`meeting-minutes-input-${m.id}`} />
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" disabled={!text.trim() || text === m.minutes} onClick={() => run(() => api.put(`/meetings/${m.id}/minutes`, { text }))} data-testid={`meeting-minutes-save-${m.id}`}>{t("save")}</Button>
-        <Button size="sm" className="btn-emerald" disabled={m.minutes_status !== "DRAFT" || text !== m.minutes} onClick={() => run(() => api.post(`/meetings/${m.id}/minutes/approve`))} data-testid={`meeting-minutes-approve-${m.id}`}>{t("mt_approve")}</Button>
+        <Button size="sm" variant="outline" disabled={!text.trim() || text === saved} onClick={() => run(() => api.put(`/meetings/${m.id}/minutes`, { text, lang: elang }))} data-testid={`meeting-minutes-save-${m.id}`}>{t("save")}</Button>
+        <Button size="sm" className="btn-emerald" disabled={m.minutes_status !== "DRAFT" || text !== saved} onClick={() => run(() => api.post(`/meetings/${m.id}/minutes/approve`))} data-testid={`meeting-minutes-approve-${m.id}`}>{t("mt_approve")}</Button>
         <Button size="sm" variant="ghost" onClick={async () => setTr(tr === null ? (await api.get(`/meetings/${m.id}/transcript`)).data.transcript : null)} data-testid={`meeting-transcript-btn-${m.id}`}>{t("mt_transcript")}</Button>
       </div>
       {tr !== null && <pre className={box} data-testid={`meeting-transcript-${m.id}`}>{tr || "—"}</pre>}

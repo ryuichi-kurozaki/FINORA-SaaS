@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Circle, PhoneOff } from "lucide-react";
+import { Circle, MonitorUp, PhoneOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/context/AppContext";
 import { api, errMsg } from "@/lib/api";
@@ -43,8 +43,10 @@ export default function MeetingRoom() {
   const nav = useNavigate();
   const staff = user.role !== "client";
   const local = useRef(null), remote = useRef(null), pc = useRef(null), since = useRef(0);
+  const camStream = useRef(null), screen = useRef(null);
   const [state, setState] = useState("init");
   const [rec, setRec] = useState(false), [peerRec, setPeerRec] = useState(false);
+  const [sharing, setSharing] = useState(false), [peerShare, setPeerShare] = useState(false);
   const send = (type, data = {}) => api.post(`/meetings/${id}/signal`, { type, data }).catch(() => {});
   const recorder = useRecorder(id, local, remote, send);
 
@@ -54,6 +56,7 @@ export default function MeetingRoom() {
       const { data: ice } = await api.get("/meetings/ice");
       const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 360, frameRate: 15 }, audio: true });
       if (!alive) return stream.getTracks().forEach((tr) => tr.stop());
+      camStream.current = stream;
       local.current.srcObject = stream;
       const p = new RTCPeerConnection(ice); pc.current = p;
       stream.getTracks().forEach((tr) => p.addTrack(tr, stream));
@@ -67,7 +70,9 @@ export default function MeetingRoom() {
         if (m.type === "answer" && staff) await remoteDesc(m.data);
         if (m.type === "ice") { if (p.remoteDescription) await p.addIceCandidate(m.data).catch(() => {}); else pending.push(m.data); }
         if (m.type === "rec") setPeerRec(!!m.data.on);
-        if (m.type === "bye") setState("waiting");
+        if (m.type === "share") setPeerShare(!!m.data.on);
+        if (m.type === "leave") { toast.info(t("mt_peer_left")); setPeerShare(false); setState("ended"); if (staff) api.post(`/meetings/${id}/end`).catch(() => {}); if (recorder.active()) await recorder.stop(); nav("/consulting"); return; }
+        if (m.type === "bye") { setState("waiting"); setPeerShare(false); }
       };
       await send("hello");
       setState("waiting");
@@ -81,11 +86,36 @@ export default function MeetingRoom() {
       };
       poll();
     })().catch((e) => { setState("nomedia"); toast.error(errMsg(e)); });
-    return () => { alive = false; clearTimeout(timer); send("bye"); pc.current?.close(); local.current?.srcObject?.getTracks().forEach((tr) => tr.stop()); };
+    return () => { alive = false; clearTimeout(timer); send("bye"); pc.current?.close(); screen.current?.getTracks().forEach((tr) => tr.stop()); local.current?.srcObject?.getTracks().forEach((tr) => tr.stop()); };
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const vSender = () => pc.current?.getSenders().find((s) => s.track && s.track.kind === "video");
+  const stopShare = async () => {
+    const camTrack = camStream.current?.getVideoTracks()[0];
+    const s = vSender();
+    if (s && camTrack) await s.replaceTrack(camTrack);
+    if (camStream.current) local.current.srcObject = camStream.current;
+    screen.current?.getTracks().forEach((tr) => tr.stop());
+    screen.current = null;
+    setSharing(false);
+    send("share", { on: false });
+  };
+  const shareScreen = async () => {
+    if (sharing) return stopShare();
+    try {
+      const ds = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      const track = ds.getVideoTracks()[0];
+      const s = vSender();
+      if (s) await s.replaceTrack(track);
+      screen.current = ds;
+      local.current.srcObject = ds;
+      setSharing(true);
+      send("share", { on: true });
+      track.onended = () => stopShare();
+    } catch (e) { toast.error(errMsg(e)); }
+  };
   const toggleRec = async () => { if (rec) { setRec(false); await recorder.stop(); toast.success(t("mt_rec_saved")); } else { recorder.start(); setRec(true); } };
-  const leave = async () => { if (recorder.active()) await recorder.stop(); if (staff) await api.post(`/meetings/${id}/end`).catch(() => {}); nav("/consulting"); };
+  const leave = async () => { if (sharing) await stopShare(); await send("leave"); if (recorder.active()) await recorder.stop(); if (staff) await api.post(`/meetings/${id}/end`).catch(() => {}); nav("/consulting"); };
 
   return (
     <div className="space-y-4" data-testid="meeting-room">
@@ -93,6 +123,8 @@ export default function MeetingRoom() {
         <h1 className="font-display text-2xl font-extrabold text-[#071A2B]">{t("mt_room")}</h1>
         <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600" data-testid="meeting-state">{t(`mt_state_${state}`)}</span>
         {(rec || peerRec) && <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600" data-testid="meeting-rec-badge"><Circle className="h-3 w-3 fill-red-600" />{t("mt_recording")}</span>}
+        {sharing && <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-[#00A878]" data-testid="meeting-share-badge"><MonitorUp className="h-3 w-3" />{t("mt_sharing")}</span>}
+        {peerShare && <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-[#00A878]" data-testid="meeting-peer-share-badge"><MonitorUp className="h-3 w-3" />{t("mt_peer_sharing")}</span>}
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         <video ref={remote} autoPlay playsInline className="aspect-video w-full rounded-xl bg-[#071A2B]" data-testid="meeting-remote-video" />
@@ -100,6 +132,7 @@ export default function MeetingRoom() {
       </div>
       <div className="flex flex-wrap gap-2">
         {staff && <Button variant="outline" className={rec ? "text-red-600" : ""} disabled={state !== "connected" && !rec} onClick={toggleRec} data-testid="meeting-rec-btn">{t(rec ? "mt_rec_stop" : "mt_rec_start")}</Button>}
+        <Button variant="outline" className={sharing ? "text-[#00A878]" : ""} disabled={state !== "connected" && !sharing} onClick={shareScreen} data-testid="meeting-share-btn"><MonitorUp className="mr-1 h-4 w-4" />{t(sharing ? "mt_share_stop" : "mt_share_start")}</Button>
         <Button className="bg-red-600 text-white hover:bg-red-700" onClick={leave} data-testid="meeting-leave-btn"><PhoneOff className="mr-1 h-4 w-4" />{t("mt_leave")}</Button>
       </div>
       <p className="text-xs text-slate-500">{t("mt_note")}</p>
