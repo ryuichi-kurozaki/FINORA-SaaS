@@ -10,26 +10,28 @@ import { api, errMsg, useApi } from "@/lib/api";
 
 const inp = "mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#00A878]/40";
 const fmt = (s) => new Date(s).toLocaleString("ja-JP", { dateStyle: "medium", timeStyle: "short" });
-const joinable = (m) => ["SCHEDULED", "LIVE"].includes(m.status) && Date.now() >= new Date(m.scheduled_at) - 15 * 60000 && Date.now() <= new Date(m.scheduled_at).getTime() + (m.duration_min + 120) * 60000;
+const joinable = (m) => ["SCHEDULED", "LIVE"].includes(m.status);
 
-export function NewMeeting({ clientId, preset, onClose, onDone }) {
+export function NewMeeting({ clientId, preset, instant, onClose, onDone }) {
   const { t, clients } = useApp();
+  const nav = useNavigate();
   const [f, setF] = useState({ client_id: clientId || preset?.client_id || "", title: preset?.title || "", when: "", duration_min: 60 });
   const save = async () => {
     try {
-      await api.post("/meetings", { client_id: f.client_id, title: f.title, scheduled_at: new Date(f.when).toISOString(), duration_min: Number(f.duration_min), request_id: preset?.request_id || null });
-      toast.success(t("mt_scheduled")); window.dispatchEvent(new Event("finora:meetings")); onDone(); onClose();
+      const { data } = await api.post("/meetings", { client_id: f.client_id, title: f.title || t("mt_title_panel"), scheduled_at: instant ? new Date().toISOString() : new Date(f.when).toISOString(), duration_min: Number(f.duration_min), request_id: preset?.request_id || null });
+      window.dispatchEvent(new Event("finora:meetings")); onDone(); onClose();
+      if (instant && data?.id) { nav(`/meetings/${data.id}`); } else { toast.success(t("mt_scheduled")); }
     } catch (e) { toast.error(errMsg(e)); }
   };
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md" data-testid="meeting-new-dialog">
-        <DialogHeader><DialogTitle className="font-display">{t("mt_new")}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-display">{instant ? t("mt_start_now") : t("mt_new")}</DialogTitle></DialogHeader>
         {!clientId && !preset?.client_id && <label className="block text-xs">{t("client")}<select className={inp} value={f.client_id} onChange={(e) => setF({ ...f, client_id: e.target.value })} data-testid="meeting-client"><option value="">—</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.corporate_name || c.name}</option>)}</select></label>}
         <label className="block text-xs">{t("mt_title")}<input className={inp} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} data-testid="meeting-title" /></label>
-        <label className="block text-xs">{t("mt_when")}<input type="datetime-local" className={inp} value={f.when} onChange={(e) => setF({ ...f, when: e.target.value })} data-testid="meeting-when" /></label>
+        {!instant && <label className="block text-xs">{t("mt_when")}<input type="datetime-local" className={inp} value={f.when} onChange={(e) => setF({ ...f, when: e.target.value })} data-testid="meeting-when" /></label>}
         <label className="block text-xs">{t("mt_duration")}<select className={inp} value={f.duration_min} onChange={(e) => setF({ ...f, duration_min: e.target.value })} data-testid="meeting-duration">{[30, 60, 90, 120].map((d) => <option key={d} value={d}>{d}</option>)}</select></label>
-        <DialogFooter><Button className="btn-emerald" disabled={!f.client_id || !f.title || !f.when} onClick={save} data-testid="meeting-save">{t("mt_schedule")}</Button></DialogFooter>
+        <DialogFooter><Button className="btn-emerald" disabled={!f.client_id || (!instant && !f.when)} onClick={save} data-testid="meeting-save">{instant ? t("mt_start_now") : t("mt_schedule")}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -88,9 +90,12 @@ export default function MeetingsPanel({ clientId }) {
   useEffect(() => { window.addEventListener("finora:meetings", reload); return () => window.removeEventListener("finora:meetings", reload); }, [reload]);
   return (
     <Card className="mb-6" data-testid="meetings-panel">
-      <CardTitle right={!isClient && <Button className="btn-emerald" onClick={() => setOpen(true)} data-testid="meeting-new-btn"><Video className="mr-1 h-4 w-4" />{t("mt_new")}</Button>}>{t("mt_title_panel")}</CardTitle>
+      <CardTitle right={!isClient && <div className="flex gap-2">
+        <Button className="btn-emerald" onClick={() => setOpen("instant")} data-testid="meeting-start-now-btn"><Video className="mr-1 h-4 w-4" />{t("mt_start_now")}</Button>
+        <Button variant="outline" onClick={() => setOpen("schedule")} data-testid="meeting-new-btn">{t("mt_new")}</Button>
+      </div>}>{t("mt_title_panel")}</CardTitle>
       {!data?.length ? <Empty text={t("no_data")} /> : <div className="space-y-2">{data.map((m) => <Row key={m.id} m={m} staff={!isClient} reload={reload} />)}</div>}
-      {open && <NewMeeting clientId={clientId} onClose={() => setOpen(false)} onDone={reload} />}
+      {open && <NewMeeting clientId={clientId} instant={open === "instant"} onClose={() => setOpen(false)} onDone={reload} />}
     </Card>
   );
 }

@@ -41,13 +41,13 @@ function InvoiceView({ id, onClose }) {
 
 function NewInvoice({ open, onClose, clientId, onDone }) {
   const { t, clients } = useApp();
-  const [f, setF] = useState({ client_id: clientId || "", contract_id: "", description: "", quantity: 1, unit_price: "", due_date: "", notes: "" });
+  const [f, setF] = useState({ client_id: clientId || "", contract_id: "", description: "", quantity: 1, unit_price: "", tax_rate: 10, tax_mode: "inclusive", due_date: "", notes: "" });
   const { data: cons } = useApi(f.client_id ? `/data/contracts?client_id=${f.client_id}` : null, [f.client_id]);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const save = async () => {
     const items = f.description ? [{ description: f.description, quantity: Number(f.quantity) || 1, unit_price: Number(f.unit_price) || 0 }] : [];
     try {
-      await api.post("/invoices", { client_id: f.client_id, contract_id: f.contract_id || null, items, due_date: f.due_date || null, notes: f.notes });
+      await api.post("/invoices", { client_id: f.client_id, contract_id: f.contract_id || null, items, tax_rate: f.tax_rate === "" ? null : Number(f.tax_rate), tax_mode: f.tax_mode, due_date: f.due_date || null, notes: f.notes });
       toast.success(t("saved")); onDone(); onClose();
     } catch (e) { toast.error(errMsg(e)); }
   };
@@ -62,6 +62,10 @@ function NewInvoice({ open, onClose, clientId, onDone }) {
           <div className="grid grid-cols-2 gap-3">
             <label>{t("quantity")}<input type="number" className={inp} value={f.quantity} onChange={set("quantity")} data-testid="inv-qty" /></label>
             <label>{t("unit_price_inv")}<input type="number" className={inp} value={f.unit_price} onChange={set("unit_price")} data-testid="inv-price" /></label>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <label>{t("tax_rate")}<input type="number" step="0.1" min="0" className={inp} value={f.tax_rate} onChange={set("tax_rate")} data-testid="inv-tax-rate" /></label>
+            <label>{t("tax_mode")}<select className={inp} value={f.tax_mode} onChange={set("tax_mode")} data-testid="inv-tax-mode"><option value="exclusive">{t("exclusive")}</option><option value="inclusive">{t("inclusive")}</option></select></label>
           </div>
           <label>{t("due_date_inv")}<input type="date" className={inp} value={f.due_date} onChange={set("due_date")} data-testid="inv-due" /></label>
           <label>{t("notes")}<input className={inp} value={f.notes} onChange={set("notes")} data-testid="inv-notes" /></label>

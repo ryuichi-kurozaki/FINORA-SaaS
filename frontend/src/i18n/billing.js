@@ -77,7 +77,7 @@ export const B = {
   term_client_desc: ["この顧客の有効な契約をすべて解除し、手続き中の電子契約は取り消します。顧客の状態は「解約済み」になり、顧客のログインは閲覧のみになります。解除日以降の定期請求は作成されません。顧客にはメール・WhatsApp・アプリ内で通知されます。", "All active contracts of this client will be terminated and pending e-contracts cancelled. The client becomes 'Terminated' and their login becomes view-only. No recurring invoices after the date. The client is notified by email, WhatsApp and in-app.", "Todos os contratos ativos deste cliente serão rescindidos e os pendentes cancelados. O cliente passa a 'Rescindido' e o acesso fica somente leitura. O cliente será notificado."],
   term_date: ["解除日", "Termination date", "Data da rescisão"], term_submit: ["解除する", "Terminate", "Rescindir"], term_done: ["契約を解除しました", "Terminated", "Rescindido"],
   term_client_badge: ["解約済み", "Terminated", "Rescindido"],
-  mt_title_panel: ["テレビ電話", "Video calls", "Videochamadas"], mt_new: ["テレビ電話を予約", "Schedule video call", "Agendar videochamada"], mt_title: ["件名", "Title", "Título"],
+  mt_title_panel: ["テレビ電話", "Video calls", "Videochamadas"], mt_new: ["テレビ電話を予約", "Schedule video call", "Agendar videochamada"], mt_start_now: ["今すぐ開始", "Start now", "Iniciar agora"], mt_title: ["件名", "Title", "Título"],
   mt_when: ["日時", "Date & time", "Data e hora"], mt_duration: ["時間（分）", "Duration (min)", "Duração (min)"], mt_schedule: ["予約する", "Schedule", "Agendar"], mt_scheduled: ["予約しました。相手に通知しました", "Scheduled and notified", "Agendado e notificado"],
   mt_min: ["分", " min", " min"], mt_join: ["通話に参加", "Join call", "Entrar na chamada"], mt_play: ["録画を再生", "Play recording", "Ver gravação"], mt_minutes: ["議事録", "Minutes", "Ata"],
   mt_minutes_PROCESSING: ["議事録を作成中…", "Creating minutes…", "Gerando ata…"], mt_minutes_FAILED: ["議事録の作成に失敗", "Minutes failed", "Falha na ata"],

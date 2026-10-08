@@ -106,7 +106,7 @@ async def build_invoice(user, body: InvoiceIn, period=None):
     if not items:
         raise HTTPException(422, "At least one item is required")
     rate = body.tax_rate if body.tax_rate is not None else (con or {}).get("tax_rate", 10)
-    mode = body.tax_mode or (con or {}).get("tax_mode") or "exclusive"
+    mode = body.tax_mode or (con or {}).get("tax_mode") or "inclusive"
     sub, tax, total = totals(items, rate, mode)
     issue = body.issue_date or today()
     due = body.due_date or (datetime.fromisoformat(issue) + timedelta(days=int((con or {}).get("payment_terms_days") or 30))).date().isoformat()
