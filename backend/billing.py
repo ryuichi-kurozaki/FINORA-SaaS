@@ -266,7 +266,9 @@ async def delete_payment(pid: str, request: Request, user=Depends(admin_only)):
     return {"ok": True}
 
 
-PROFILE_FIELDS = ("company_name", "representative", "address", "phone", "email", "registration_no", "bank_info", "invoice_note")
+PROFILE_FIELDS = ("company_name", "representative", "address", "phone", "email", "registration_no",
+                  "bank_name", "bank_branch", "bank_account_type", "bank_account_number", "bank_account_holder",
+                  "bank_info", "invoice_note")
 
 
 @router.get("/billing/profile")

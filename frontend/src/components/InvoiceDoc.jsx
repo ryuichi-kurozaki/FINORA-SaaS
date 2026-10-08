@@ -47,7 +47,18 @@ export default function InvoiceDoc({ inv, t }) {
         {inv.paid > 0 && <div className="flex justify-between text-[#00A878]"><span>{t("paid_amount")}</span><span className="font-num">{yen(inv.paid)}</span></div>}
         {inv.paid > 0 && <div className="flex justify-between font-semibold"><span>{t("inv_balance")}</span><span className="font-num">{yen(inv.balance)}</span></div>}
       </div>
-      {iss.bank_info && <div className="mt-6 rounded-lg border border-slate-200 p-3 text-xs"><b>{t("bank_info")}</b><div className="mt-1 whitespace-pre-wrap">{iss.bank_info}</div></div>}
+      {iss.bank_name || iss.bank_account_number ? (
+        <div className="mt-6 rounded-lg border border-slate-200 p-3 text-xs" data-testid="invoice-bank-block">
+          <b>{t("bank_transfer_to")}</b>
+          <div className="mt-1 grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5">
+            {iss.bank_name && <><span className="text-slate-500">{t("bp_bank_name")}</span><span>{iss.bank_name}{iss.bank_branch ? ` ${iss.bank_branch}` : ""}</span></>}
+            {iss.bank_account_type && <><span className="text-slate-500">{t("bp_bank_account_type")}</span><span>{t(`acct_${iss.bank_account_type}`)}</span></>}
+            {iss.bank_account_number && <><span className="text-slate-500">{t("bp_bank_account_number")}</span><span className="font-num">{iss.bank_account_number}</span></>}
+            {iss.bank_account_holder && <><span className="text-slate-500">{t("bp_bank_account_holder")}</span><span>{iss.bank_account_holder}</span></>}
+          </div>
+          {iss.bank_info && <div className="mt-1 whitespace-pre-wrap text-slate-500">{iss.bank_info}</div>}
+        </div>
+      ) : iss.bank_info && <div className="mt-6 rounded-lg border border-slate-200 p-3 text-xs" data-testid="invoice-bank-block"><b>{t("bank_info")}</b><div className="mt-1 whitespace-pre-wrap">{iss.bank_info}</div></div>}
       {(inv.notes || iss.invoice_note) && <div className="mt-3 whitespace-pre-wrap text-xs text-slate-500">{inv.notes || iss.invoice_note}</div>}
       <div className="mt-8 border-t border-slate-200 pt-2 text-center text-[10px] text-slate-400">Issued via FINORA · www.finora.co.jp</div>
     </div>

@@ -7,22 +7,37 @@ import { api, errMsg, useApi } from "@/lib/api";
 import { yen } from "@/lib/format";
 import { Card, CardTitle, Spinner } from "@/components/common";
 
-const FIELDS = ["company_name", "representative", "address", "phone", "email", "registration_no", "bank_info", "invoice_note"];
+const TEXT_FIELDS = ["company_name", "representative", "address", "phone", "email", "registration_no"];
+const BANK_FIELDS = ["bank_name", "bank_branch", "bank_account_number", "bank_account_holder"];
+const inpC = "mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm";
 
 function BillingProfile() {
   const { t } = useApp();
   const { data } = useApi("/billing/profile");
   const [f, setF] = useState({});
   useEffect(() => { if (data) setF(data); }, [data]);
+  const set = (k, v) => setF({ ...f, [k]: v });
   const save = async () => { try { await api.put("/billing/profile", f); toast.success(t("saved")); } catch (e) { toast.error(errMsg(e)); } };
   if (!data) return <Spinner />;
   return (
     <Card><CardTitle>{t("billing_profile")}</CardTitle>
       <div className="grid gap-3 sm:grid-cols-2">
-        {FIELDS.map((k) => <label key={k} className={`text-xs text-slate-600 ${["bank_info", "invoice_note"].includes(k) ? "sm:col-span-2" : ""}`}>{t(k === "email" ? "email" : k)}
-          {["bank_info", "invoice_note"].includes(k) ? <textarea rows={2} value={f[k] || ""} onChange={(e) => setF({ ...f, [k]: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 p-2 text-sm" data-testid={`bp-${k}`} />
-            : <input value={f[k] || ""} onChange={(e) => setF({ ...f, [k]: e.target.value })} className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm" data-testid={`bp-${k}`} />}</label>)}
+        {TEXT_FIELDS.map((k) => <label key={k} className="text-xs text-slate-600">{t(k)}
+          <input value={f[k] || ""} onChange={(e) => set(k, e.target.value)} className={inpC} data-testid={`bp-${k}`} /></label>)}
       </div>
+      <div className="mt-5 mb-2 text-xs font-semibold text-[#071A2B]">{t("bank_transfer_to")}</div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {BANK_FIELDS.map((k) => <label key={k} className={`text-xs text-slate-600 ${k === "bank_account_holder" ? "sm:col-span-2" : ""}`}>{t(`bp_${k}`)}
+          <input value={f[k] || ""} onChange={(e) => set(k, e.target.value)} className={inpC} data-testid={`bp-${k}`} /></label>)}
+        <label className="text-xs text-slate-600">{t("bp_bank_account_type")}
+          <select value={f.bank_account_type || ""} onChange={(e) => set("bank_account_type", e.target.value)} className={inpC} data-testid="bp-bank_account_type">
+            <option value="">—</option><option value="ordinary">{t("acct_ordinary")}</option><option value="current">{t("acct_current")}</option>
+          </select></label>
+        <label className="text-xs text-slate-600 sm:col-span-2">{t("bank_info")}（{t("bank_info_supp")}）
+          <textarea rows={2} value={f.bank_info || ""} onChange={(e) => set("bank_info", e.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 p-2 text-sm" data-testid="bp-bank_info" /></label>
+      </div>
+      <label className="mt-3 block text-xs text-slate-600">{t("invoice_note")}
+        <textarea rows={2} value={f.invoice_note || ""} onChange={(e) => set("invoice_note", e.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 p-2 text-sm" data-testid="bp-invoice_note" /></label>
       <Button className="btn-emerald mt-4" onClick={save} data-testid="bp-save">{t("save")}</Button>
     </Card>
   );
