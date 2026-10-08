@@ -162,6 +162,14 @@ async def list_meetings(client_id: Optional[str] = None, user=Depends(current)):
     return [_view(r, user) | {"client_name": names.get(r["client_id"])} for r in rows]
 
 
+@router.get("/{mid}")
+async def get_meeting(mid: str, user=Depends(current)):
+    m = await _load(user, mid)
+    cl = await db.clients.find_one({"id": m["client_id"]}, {"name": 1, "corporate_name": 1})
+    co = await db.users.find_one({"id": m["consultant_id"]}, {"name": 1})
+    return _view(m, user) | {"client_name": (cl or {}).get("corporate_name") or (cl or {}).get("name"), "consultant_name": (co or {}).get("name")}
+
+
 @router.post("")
 async def create(body: MeetIn, request: Request, user=Depends(current)):
     _staff(user)

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Circle, MonitorUp, PhoneOff, Video, VideoOff } from "lucide-react";
+import { Circle, Clock, MonitorUp, PhoneOff, User, Video, VideoOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/context/AppContext";
 import { api, errMsg } from "@/lib/api";
@@ -48,6 +48,11 @@ export default function MeetingRoom() {
   const [rec, setRec] = useState(false), [peerRec, setPeerRec] = useState(false);
   const [sharing, setSharing] = useState(false), [peerShare, setPeerShare] = useState(false);
   const [camOff, setCamOff] = useState(false);
+  const [info, setInfo] = useState(null);
+  const [elapsed, setElapsed] = useState(0);
+  const connTs = useRef(0);
+  const otherName = info ? (staff ? info.client_name : info.consultant_name) : "";
+  const fmtDur = (s) => [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map((n) => String(n).padStart(2, "0")).join(":");
   const send = (type, data = {}) => api.post(`/meetings/${id}/signal`, { type, data }).catch(() => {});
   const recorder = useRecorder(id, local, remote, send);
 
@@ -87,7 +92,7 @@ export default function MeetingRoom() {
       };
       poll();
     })().catch((e) => { setState("nomedia"); toast.error(errMsg(e)); });
-    return () => { alive = false; clearTimeout(timer); send("bye"); pc.current?.close(); screen.current?.getTracks().forEach((tr) => tr.stop()); local.current?.srcObject?.getTracks().forEach((tr) => tr.stop()); };
+    return () => { alive = false; clearTimeout(timer); send("bye"); pc.current?.close(); [screen.current, camStream.current, local.current?.srcObject].forEach((s) => s && s.getTracks && s.getTracks().forEach((tr) => tr.stop())); };
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const vSender = () => pc.current?.getSenders().find((s) => s.track && s.track.kind === "video");
@@ -132,7 +137,18 @@ export default function MeetingRoom() {
       } catch (e) { toast.error(errMsg(e)); }
     }
   };
-  const leave = async () => { if (sharing) await stopShare(); await send("leave"); if (recorder.active()) await recorder.stop(); if (staff) await api.post(`/meetings/${id}/end`).catch(() => {}); nav("/consulting"); };
+  const leave = async () => { if (sharing) await stopShare(); await send("leave"); if (recorder.active()) await recorder.stop(); if (staff) await api.post(`/meetings/${id}/end`).catch(() => {}); [screen.current, camStream.current, local.current?.srcObject].forEach((s) => s && s.getTracks && s.getTracks().forEach((tr) => tr.stop())); nav("/consulting"); };
+
+  useEffect(() => { api.get(`/meetings/${id}`).then((r) => setInfo(r.data)).catch(() => {}); }, [id]);
+  useEffect(() => {
+    const iv = setInterval(() => {
+      if (state === "connected") {
+        if (!connTs.current) connTs.current = Date.now();
+        setElapsed(Math.floor((Date.now() - connTs.current) / 1000));
+      }
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [state]);
 
   return (
     <div className="space-y-4" data-testid="meeting-room">
@@ -142,11 +158,22 @@ export default function MeetingRoom() {
         {(rec || peerRec) && <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600" data-testid="meeting-rec-badge"><Circle className="h-3 w-3 fill-red-600" />{t("mt_recording")}</span>}
         {sharing && <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-[#00A878]" data-testid="meeting-share-badge"><MonitorUp className="h-3 w-3" />{t("mt_sharing")}</span>}
         {peerShare && <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-[#00A878]" data-testid="meeting-peer-share-badge"><MonitorUp className="h-3 w-3" />{t("mt_peer_sharing")}</span>}
+        {state === "connected" && <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 font-num text-xs text-slate-700" data-testid="meeting-duration"><Clock className="h-3 w-3" />{t("mt_conn_time")} {fmtDur(elapsed)}</span>}
+      </div>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600" data-testid="meeting-participants">
+        <User className="h-3.5 w-3.5 text-[#00A878]" />
+        <span className="font-semibold text-[#071A2B]">{otherName || "—"}</span>
+        <span className="text-slate-400">·</span>
+        <span>{user.name}（{t("mt_you")}）</span>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
-        <video ref={remote} autoPlay playsInline className="aspect-video w-full rounded-xl bg-[#071A2B]" data-testid="meeting-remote-video" />
+        <div className="relative">
+          <video ref={remote} autoPlay playsInline className="aspect-video w-full rounded-xl bg-[#071A2B]" data-testid="meeting-remote-video" />
+          <span className="absolute bottom-2 left-2 rounded-md bg-black/55 px-2 py-0.5 text-xs font-semibold text-white" data-testid="meeting-remote-name">{otherName || "—"}</span>
+        </div>
         <div className="relative">
           <video ref={local} autoPlay playsInline muted className="aspect-video w-full rounded-xl bg-slate-800" data-testid="meeting-local-video" />
+          <span className="absolute bottom-2 left-2 rounded-md bg-black/55 px-2 py-0.5 text-xs font-semibold text-white" data-testid="meeting-local-name">{user.name}（{t("mt_you")}）</span>
           {camOff && !sharing && <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-800 text-slate-300" data-testid="meeting-cam-off-overlay"><VideoOff className="h-8 w-8" /><span className="text-xs font-semibold">{t("mt_cam_is_off")}</span></div>}
         </div>
       </div>

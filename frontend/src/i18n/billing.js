@@ -97,6 +97,7 @@ export const B = {
   mt_share_start: ["画面を共有", "Share screen", "Compartilhar tela"], mt_share_stop: ["共有を停止", "Stop sharing", "Parar compartilhamento"], mt_sharing: ["画面共有中", "Sharing screen", "Compartilhando tela"], mt_peer_sharing: ["相手が画面共有中", "Other party is sharing", "A outra parte está compartilhando"],
   mt_state_ended: ["会議は終了しました", "Meeting ended", "Reunião encerrada"], mt_peer_left: ["相手が退出しました。会議を終了します", "The other party left. Ending the meeting", "A outra parte saiu. Encerrando a reunião"],
   mt_cam_off: ["カメラをオフ", "Turn off camera", "Desligar câmera"], mt_cam_on: ["カメラをオン", "Turn on camera", "Ligar câmera"], mt_cam_is_off: ["カメラオフ", "Camera off", "Câmera desligada"],
+  mt_conn_time: ["接続時間", "Duration", "Duração"], mt_you: ["あなた", "You", "Você"],
   mt_note: ["映像は相手と直接つながります。録画は低画質で保存され、3年後に自動削除されます。議事録はAIが音声から自動作成します。", "Video connects directly between participants. Recordings are saved in low quality and deleted after 3 years. Minutes are created by AI from the audio.", "O vídeo conecta diretamente os participantes. Gravações em baixa qualidade são excluídas após 3 anos. A ata é gerada por IA a partir do áudio."],
   ntf_meeting_new: ["テレビ電話が予約されました", "Video call scheduled", "Videochamada agendada"], ntf_meeting_soon: ["まもなくテレビ電話が始まります", "Video call starts soon", "Videochamada em breve"], ntf_meeting_cancel: ["テレビ電話がキャンセルされました", "Video call cancelled", "Videochamada cancelada"],
   el_kind_meeting: ["テレビ電話", "Video call", "Videochamada"],
